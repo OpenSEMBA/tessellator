@@ -1,0 +1,14 @@
+build*/
+/obj/
+/bin/
+/doc/*/latex
+/doc/*/html
+.settings
+.project
+.cproject
+
+src/*.json
+
+.vs/
+.vscode/
+

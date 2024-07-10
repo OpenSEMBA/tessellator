@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Bravo
+    given-names: Alberto G.
+    orcid: https://orcid.org/0000-0003-1190-2248
+  - family-names: Angulo
+    given-names: Luis D.
+    orcid: https://orcid.org/0000-0002-1690-7892
+  - family-names: Garcia
+    given-names: Salvador G.
+    orcid: https://orcid.org/0000-0001-7317-1423
+  - family-names: Rubio Bretones
+    given-names: Amelia 
+    orcid: https://orcid.org/00000-0002-9337-9093
+url: "https://github.com/opensemba/tessellator"
+title: "opensemba/tessellator an FDTD meshing tool"
+date-released: 2024-07-10
