@@ -1,9 +1,9 @@
 #include <algorithm>
-#include "gtest/gtest.h"
 #include <cmath>
+#include "gtest/gtest.h"
 
 #include "Geometry.h"
-#include "Tools.h"
+#include "utils/Tools.h"
 
 
 using namespace meshlib;

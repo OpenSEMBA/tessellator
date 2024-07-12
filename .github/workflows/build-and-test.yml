@@ -1,0 +1,50 @@
+name: "Build and test"
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+    branches:
+      - dev
+    
+  workflow_dispatch:
+
+jobs:
+  builds-and-tests:
+    strategy:
+      matrix:
+        os: [windows-latest]
+        
+    name: ${{ matrix.os }}-${{ matrix.target }}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v3
+
+    - name: getcmake
+      uses: lukka/get-cmake@latest
+
+    - name: Setup vcpkg 
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgJsonGlob: 'vcpkg.json'
+ 
+    # - name: Configure and build
+    #   uses: lukka/run-cmake@v10
+    #   with:
+    #     configurePreset: 'msbuild-vcpkg'
+    #     buildPreset: 'msbuild-vcpkg'
+    #     buildPresetAdditionalArgs: "['--config Release']"
+    - name: Configure and build
+      run: |
+        cmake --preset "msbuild-vcpkg" -S . -B build
+        cmake --build build --config Release -j
+
+    - name: Run tests
+      run: build/bin/Release/tessellator_tests.exe
+        
+    

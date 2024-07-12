@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
 message(STATUS "Creating build system for tessellator")
 
@@ -10,6 +10,7 @@ add_library(tessellator
     "cgal/ConvexHull.cpp"
     "cgal/PolyhedronTools.cpp"
     "cgal/Repairer.cpp"
+    "cgal/Tools.cpp"
     "utils/Cleaner.cpp"
     "utils/CoordGraph.cpp"
     "utils/ElemGraph.cpp"
@@ -28,12 +29,12 @@ add_library(tessellator
     "tessellator/filler/SegmentsArray.cpp"
     "tessellator/filler/Slice.cpp"
 )                       
+include_directories(".")
 
 find_package(Boost REQUIRED graph)
 include_directories(${Boost_INCLUDE_DIRS})
 
 find_package(CGAL CONFIG REQUIRED)
-
 target_link_libraries(tessellator Boost::graph CGAL::CGAL)
 
 if(TESSELLATOR_EXECUTION_POLICIES)

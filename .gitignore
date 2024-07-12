@@ -1,3 +1,4 @@
+out/*
 build*/
 /obj/
 /bin/
@@ -12,3 +13,5 @@ src/*.json
 .vs/
 .vscode/
 
+testData/*_out.stl
+*_out.stl

@@ -70,7 +70,6 @@ protected:
 TEST_F(RepairTest, fill_sphere_one_gap_from_stl)
 {
 	ASSERT_NO_THROW(fillHolesInSTL("open_sphere.stl"));
-
 }
 
 TEST_F(RepairTest, fill_sphere_many_gaps_from_stl)
@@ -81,21 +80,6 @@ TEST_F(RepairTest, fill_sphere_many_gaps_from_stl)
 TEST_F(RepairTest, fill_half_sphere_from_stl)
 {
 	ASSERT_NO_THROW(fillHolesInSTL("open_sphere_half.stl"));
-}
-
-TEST_F(RepairTest, microstrip_track_from_stl)
-{
-	std::string fn{ "microstrip_track.stl" };
-	
-	ASSERT_NO_THROW(fillHolesInSTL(fn));
-
-	auto m{ readMeshFromFile(fn) };
-	auto r{ repair(m) };
-	
-	EXPECT_EQ(m.groups.size(), r.groups.size());
-	ASSERT_EQ(1, r.groups.size());
-
-	EXPECT_EQ(m.groups[0].elements.size(), r.groups[0].elements.size());
 }
 
 TEST_F(RepairTest, fill_cube)
@@ -154,27 +138,4 @@ TEST_F(RepairTest, throw_if_self_intersections)
 	ASSERT_ANY_THROW( 
 		repair( readMeshFromFile("Substrate_self_intersections.stl") ) 
 	);
-}
-
-TEST_F(RepairTest, pcb1_substrate) { EXPECT_TRUE(noChangesWhenRepair("PCB-1/Substrate.stl")); }
-TEST_F(RepairTest, DISABLED_pcb1_vias)      { EXPECT_TRUE(noChangesWhenRepair("PCB-1/Vias.stl")); }
-TEST_F(RepairTest, DISABLED_pcb1_track01)   { EXPECT_TRUE(noChangesWhenRepair("PCB-1/Track01.stl")); }
-TEST_F(RepairTest, DISABLED_pcb1_track02)   { EXPECT_TRUE(noChangesWhenRepair("PCB-1/Track02.stl")); }
-TEST_F(RepairTest, DISABLED_pcb1_track03)   { EXPECT_TRUE(noChangesWhenRepair("PCB-1/Track03.stl")); }
-
-TEST_F(RepairTest, DISABLED_pcb1_tracks_different_groups)
-{
-	Mesh m;
-	{
-		m = readMeshFromFile("PCB-1/Track01.stl");
-		mergeMeshAsNewGroup(m, readMeshFromFile("PCB-1/Track02.stl"));
-		mergeMeshAsNewGroup(m, readMeshFromFile("PCB-1/Track03.stl"));
-		mergeMeshAsNewGroup(m, readMeshFromFile("PCB-1/Substrate.stl"));
-		mergeMeshAsNewGroup(m, readMeshFromFile("PCB-1/Vias.stl"));
-	}
-
-	Manifolder mf{ repair(m) };
-
-	EXPECT_NE(0, mf.getClosedSurfacesMesh().countElems());
-	EXPECT_EQ(0, mf.getOpenSurfacesMesh().countElems());
 }

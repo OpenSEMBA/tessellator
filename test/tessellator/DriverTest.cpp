@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
-#include "converter/ConverterTools.h"
 
 #include "Driver.h"
 #include "utils/Geometry.h"

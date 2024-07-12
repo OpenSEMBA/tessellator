@@ -8,8 +8,8 @@
 #include "Collapser.h"
 #include "Smoother.h"
 #include "Snapper.h"
-#include "filler/Filler.h"
 
+#include "filler/Filler.h"
 #include "cgal/Manifolder.h"
 #include "cgal/Repairer.h"
 

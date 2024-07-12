@@ -1,0 +1,43 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "msbuild-vcpkg",
+      "displayName": "MSBuild (vcpkg toolchain) Configure Settings",
+      "description": "Configure with VS generators and with vcpkg toolchain",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "build/${presetName}",
+      "architecture": {
+        "strategy": "set",
+        "value": "x64"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+    {
+      "name": "ninja-dbg",
+      "displayName": "ninja-dbg",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_MAKE_PROGRAM": "C:/PROGRAM FILES/MICROSOFT VISUAL STUDIO/2022/COMMUNITY/COMMON7/IDE/COMMONEXTENSIONS/MICROSOFT/CMAKE/Ninja/ninja.exe",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msbuild-vcpkg",
+      "configurePreset": "msbuild-vcpkg",
+      "displayName": "Build MSBuild",
+      "description": "Build with MSBuild (VS)"
+    }
+  ]
+}

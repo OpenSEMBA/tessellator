@@ -1,28 +1,49 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.20)
 
 message(STATUS "Creating build system for tessellator_tests")
 
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-unset(SRCS)
-
-add_sources_local(types/ SRCS)
-add_sources_local(utils/ SRCS)
-add_sources_local(tessellator/ SRCS)
-add_sources_local(cgal/ SRCS)
-add_sources_local(tessellator/filler/ SRCS)
-
 include_directories(
-	./
-	../src/types
-	../src/utils
-	../src/tessellator)  
-	
-add_executable(tessellator_tests ${SRCS})
+	${PROJECT_SOURCE_DIR}/src/
+	${PROJECT_SOURCE_DIR}/src/tessellator/
+	${PROJECT_SOURCE_DIR}/src/cgal/
+	${PROJECT_SOURCE_DIR}/src/utils/
+	${PROJECT_SOURCE_DIR}/src/types/
+	${PROJECT_SOURCE_DIR}/test/
+)
 
+add_executable(tessellator_tests 
+	"cgal/ArrangmentTest.cpp"
+	"cgal/ConvexHullTest.cpp"
+	"cgal/DelaunatorTest.cpp"
+	"cgal/HPolygonSetTest.cpp"
+	"cgal/LSFPlaneTest.cpp"
+	"cgal/ManifolderTest.cpp"
+	"cgal/PolyhedronToolsTest.cpp"
+	"cgal/RepairerTest.cpp"
+	"tessellator/filler/FillerTest.cpp"
+	"tessellator/filler/FillerToolsTest.cpp"
+	"tessellator/CollapserTest.cpp"
+	"tessellator/DriverTest.cpp"
+	"tessellator/SlicerTest.cpp"
+	"tessellator/SmootherTest.cpp"
+	"tessellator/SmootherToolsTest.cpp"
+	"tessellator/SnapperTest.cpp"
+	"types/MeshTest.cpp"
+	"utils/CleanerTest.cpp"
+	"utils/CoordGraphTest.cpp"
+	"utils/ElemGraphTest.cpp"
+	"utils/GeometryTest.cpp"
+	"utils/GridToolsTest.cpp"
+	"utils/MeshToolsTest.cpp"
+)
 
-target_link_libraries(tessellator_tests	tessellator
-                                    GTest::gtest GTest::gtest_main)
+target_link_libraries(tessellator_tests	
+	tessellator
+    GTest::gtest 
+	GTest::gtest_main
+)
 
-add_test(tessellator ${CMAKE_BINARY_DIR}/bin/tessellator_tests)
+add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)
