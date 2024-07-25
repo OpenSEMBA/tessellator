@@ -65,7 +65,7 @@ Grid getEnlargedGridIncludingAllElements(const Mesh& m)
 std::pair<VecD, VecD> getBoundingBox(const Mesh& m)
 {
     VecD minBB(std::numeric_limits<double>::max());
-    VecD maxBB(std::numeric_limits<double>::min());
+    VecD maxBB(std::numeric_limits<double>::lowest());
 
     GridTools gT{ m.grid };
     Coordinates newPos{ m.coordinates };

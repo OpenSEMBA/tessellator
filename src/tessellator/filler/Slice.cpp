@@ -67,8 +67,8 @@ std::array<ArrayIndex, 2> buildMinAndMaxArrayIndices(const Bbox2& bbox)
 		std::numeric_limits<CellDir>::max()
 	};
 	ArrayIndex maxAI{
-		std::numeric_limits<CellDir>::min(),
-		std::numeric_limits<CellDir>::min()
+		std::numeric_limits<CellDir>::lowest(),
+		std::numeric_limits<CellDir>::lowest()
 	};
 	for (auto d{ 0 }; d < 2; ++d) {
 		if ((CellDir)std::floor(bbox.min(d)) < minAI[d]) {
@@ -107,8 +107,8 @@ Bbox2 getBoundingBox(const Polylines2& pls)
 		std::numeric_limits<KType>::max()
 	};
 	std::array<KType, 2> max{
-		std::numeric_limits<KType>::min(),
-		std::numeric_limits<KType>::min()
+		std::numeric_limits<KType>::lowest(),
+		std::numeric_limits<KType>::lowest()
 	};
 	for (const auto& pl : pls) {
 		assert(!pl.empty());

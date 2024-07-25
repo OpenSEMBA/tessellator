@@ -43,7 +43,7 @@ public:
 
     static auto getBoundingBoxOfUsedCoordinates(const Mesh& msh) {
         Coordinate min(std::numeric_limits<double>::max());
-        Coordinate max(std::numeric_limits<double>::min());
+        Coordinate max(std::numeric_limits<double>::lowest());
         for (auto const& g : msh.groups) {
             for (auto const& e : g.elements) {
                 for (auto const& vId : e.vertices) {
