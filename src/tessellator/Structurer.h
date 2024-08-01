@@ -7,9 +7,13 @@ namespace tessellator {
 
 class Structurer : public utils::GridTools {
 public:
-    Structurer(const Grid&);
+    Structurer(const Mesh&);
+    Mesh getMesh() const { return mesh_; };
 
     Cell calculateStructuredCell(const Coordinate& coordinate) const;
+
+private:
+    Mesh mesh_;
 };
 
 }
