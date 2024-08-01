@@ -24,6 +24,7 @@ add_library(tessellator
     "tessellator/Smoother.cpp"
     "tessellator/SmootherTools.cpp"
     "tessellator/Snapper.cpp"
+    "tessellator/Structurer.cpp"
     "tessellator/filler/Filler.cpp"
     "tessellator/filler/FillerTools.cpp"
     "tessellator/filler/SegmentsArray.cpp"
