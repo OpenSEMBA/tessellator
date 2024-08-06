@@ -16,6 +16,7 @@ private:
     Mesh mesh_;
 
     void processLineAndAddToGroup(const Element& line, const Coordinates& originalCoordinates, Group & group);
+    std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
 };
 
 }

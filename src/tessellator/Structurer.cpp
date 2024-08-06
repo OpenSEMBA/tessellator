@@ -78,15 +78,15 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
             cells.push_back(this->toCell(candidateOne));
         }
         else {
-            Coordinate& startExtreme = startCoordinate;
-            Coordinate& endExtreme = endCoordinate;
+            Coordinate startExtreme = startCoordinate;
+            Coordinate endExtreme = endCoordinate;
             Cell middleCell;
             std::size_t tries = 0;
             do {
                 if (tries > 40) {
                     throw std::logic_error("Stuck in infinite loop.");
                 }
-                const Coordinate middlePoint = startCoordinate + (endCoordinate - startCoordinate) / 2.0;
+                const Coordinate middlePoint = startExtreme + (endExtreme - startExtreme) / 2.0;
                 middleCell = this->calculateStructuredCell(middlePoint);
 
                 if (middleCell == startCell)
@@ -100,6 +100,82 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
             cells.push_back(middleCell);
         }
     }
+    else if (difference == 3) {
+        Relative startCellRelative = this->toRelative(startCell);
+        Relative endCellRelative = this->toRelative(endCell);
+        Coordinate startCellPos = this->getPos(startCell);
+        Coordinate endCellPos = this->getPos(endCell);
+
+        Coordinate startCoordinateDist = (startCoordinate - startCellPos).abs();
+        Coordinate endCoordinateDist = (endCoordinate - endCellPos).abs();
+
+        if (approxDir(startCoordinateDist[x] - startCoordinateDist[y], 0.0) && approxDir(startCoordinateDist[x] - startCoordinateDist[z], 0.0)
+            && approxDir(endCoordinateDist[x] - endCoordinateDist[y], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[z], 0.0)) {
+            cells.push_back(Cell({ endCell[x], startCell[y], startCell[z] }));
+            cells.push_back(Cell({ endCell[x], endCell[y], startCell[z] }));
+        }
+        else {
+            Coordinate startExtreme = startCoordinate;
+            Coordinate endExtreme = endCoordinate;
+            Coordinate middle = startExtreme + (endExtreme - startExtreme) / 2.0;
+            Coordinate thirdStep = (endCoordinate - startCoordinate) / 3.0;
+            Coordinate secondPoint = startCoordinate + thirdStep;
+            Coordinate thirdPoint = secondPoint + thirdStep;
+            Cell secondCell = this->calculateStructuredCell(secondPoint);
+            Cell thirdCell = this->calculateStructuredCell(thirdPoint);
+
+            auto secondCellDifference = calculateDifferenceBetweenCells(startCell, secondCell);
+            auto betweenCellsDifference = calculateDifferenceBetweenCells(secondCell, thirdCell);
+            auto thirdCellDifference = calculateDifferenceBetweenCells(thirdCell, endCell);
+
+            
+            std::size_t tries = 0;
+            while (secondCellDifference != 1) {
+                if (tries > 200) {
+                    throw std::logic_error("Stuck in infinite loop.");
+                }
+                ++tries;
+                if (secondCellDifference == 0)
+                {
+                    startExtreme = secondPoint;
+                }
+                else if (secondCellDifference > 1) {
+                    endExtreme = secondPoint;
+                }
+                secondPoint = startExtreme + (endExtreme - startExtreme) / 2.0;
+                secondCell = this->calculateStructuredCell(secondPoint);
+                secondCellDifference = calculateDifferenceBetweenCells(startCell, secondCell);
+            }
+            
+            startExtreme = secondPoint;
+            endExtreme = endCoordinate;
+            betweenCellsDifference = calculateDifferenceBetweenCells(secondCell, thirdCell);
+            thirdCellDifference = calculateDifferenceBetweenCells(thirdCell, endCell);
+
+            tries = 0;
+            while (betweenCellsDifference != 1 && thirdCellDifference != 1) {
+                if (tries > 200) {
+                    throw std::logic_error("Stuck in infinite loop.");
+                }
+                ++tries;
+
+                if (thirdCellDifference == 0)
+                {
+                    endExtreme = thirdPoint;
+                }
+                else if (thirdCellDifference > 1) {
+                    startExtreme = thirdPoint;
+                }
+                thirdPoint = startExtreme + (endExtreme - startExtreme) / 2.0;
+                thirdCell = this->calculateStructuredCell(thirdPoint);
+                betweenCellsDifference = calculateDifferenceBetweenCells(secondCell, thirdCell);
+                thirdCellDifference = calculateDifferenceBetweenCells(thirdCell, endCell);
+            }
+            cells.push_back(secondCell);
+            cells.push_back(thirdCell);
+        }
+    }
+
     cells.push_back(endCell);
 
     auto startRelativePosition = this->toRelative(cells[0]);
@@ -132,6 +208,17 @@ Cell Structurer::calculateStructuredCell(const Coordinate& coordinate) const
 
     return resultCell;
 }
+
+std::size_t Structurer::calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell){
+    short difference = 0;
+
+    for (std::size_t axis = 0; axis < 3; ++axis)
+        if (firstCell[axis] != secondCell[axis])
+            ++difference;
+    return difference;
+
+}
+
 
 }
 }
