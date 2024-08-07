@@ -32,26 +32,15 @@ TEST_F(StructurerTest, calculateStructuredCoordinateInExactSteps)
     ASSERT_NO_THROW(structurer.grid());
 
     for (CellDir i = 0; i < mesh.grid[X].size(); ++i) {
-        CoordinateDir xDirection;
-        if (i != mesh.grid[X].size() - 1)
-            xDirection = lowerCoordinateValue + step * i;
-        else
-            xDirection = upperCoordinateValue;
+        CoordinateDir xDirection = RelativeDir(i);
 
         for (CellDir j = 0; j < mesh.grid[Y].size(); ++j) {
-            CoordinateDir yDirection;
-            if (j != mesh.grid[Y].size() - 1)
-                yDirection = lowerCoordinateValue + step * j;
-            else
-                yDirection = upperCoordinateValue;
+            CoordinateDir yDirection = RelativeDir(j);
 
             for (CellDir k = 0; k < mesh.grid[Z].size(); ++k) {
-                CoordinateDir zDirection;
-                if (k != mesh.grid[Z].size() - 1)
-                    zDirection = lowerCoordinateValue + step * k;
-                else
-                    zDirection = upperCoordinateValue;
-                Coordinate coordinate({ xDirection, yDirection, zDirection });
+                CoordinateDir zDirection = RelativeDir(k);
+
+                Relative coordinate({ xDirection, yDirection, zDirection });
                 Cell expectedCell({ i, j, k });
 
                 auto resultCell = structurer.calculateStructuredCell(coordinate);
@@ -71,10 +60,10 @@ TEST_F(StructurerTest, calculateStructuredCoordinateBetweenSteps)
     int numberOfCells = 3;
     float step = 5.0;
     assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
-
-    float quarterStep = step / 4.0f;
-    float halfStep = step / 2.0f;
-    float threeQuarterStep = step * 3.0f / 4.0f;
+    float relativeStep = 1.0;
+    float quarterStep = relativeStep / 4.0f;
+    float halfStep = relativeStep / 2.0f;
+    float threeQuarterStep = relativeStep * 3.0f / 4.0f;
 
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
@@ -88,12 +77,14 @@ TEST_F(StructurerTest, calculateStructuredCoordinateBetweenSteps)
                 Cell expectedUpperCell({ i + 1, j + 1, k + 1 });
 
                 Coordinate coordinateBase;
-                for (std::size_t axis = 0; axis < 3; ++axis)
-                    coordinateBase[axis] = lowerCoordinateValue + step * expectedLowerCell[axis];
+                for (std::size_t axis = 0; axis < 3; ++axis) {
+                    coordinateBase[axis] = RelativeDir(expectedLowerCell[axis]);
+                }
 
                 Coordinate newCoordinate;
-                for (std::size_t axis = 0; axis < 3; ++axis)
+                for (std::size_t axis = 0; axis < 3; ++axis) {
                     newCoordinate[axis] = coordinateBase[axis] + quarterStep;
+                }
 
                 auto resultCell = structurer.calculateStructuredCell(newCoordinate);
 
@@ -101,8 +92,9 @@ TEST_F(StructurerTest, calculateStructuredCoordinateBetweenSteps)
                     EXPECT_EQ(resultCell[axis], expectedLowerCell[axis]);
                 }
 
-                for (std::size_t axis = 0; axis < 3; ++axis)
+                for (std::size_t axis = 0; axis < 3; ++axis) {
                     newCoordinate[axis] = coordinateBase[axis] + halfStep;
+                }
 
                 resultCell = structurer.calculateStructuredCell(newCoordinate);
 
@@ -110,8 +102,9 @@ TEST_F(StructurerTest, calculateStructuredCoordinateBetweenSteps)
                     EXPECT_EQ(resultCell[axis], expectedUpperCell[axis]);
                 }
 
-                for (std::size_t axis = 0; axis < 3; ++axis)
+                for (std::size_t axis = 0; axis < 3; ++axis) {
                     newCoordinate[axis] = coordinateBase[axis] + threeQuarterStep;
+                }
 
                 resultCell = structurer.calculateStructuredCell(newCoordinate);
 
@@ -129,8 +122,8 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElementsWithin
     // *---------*      2--------*
     // |  2      |      ‖         |
 	// |  |      |      ‖         |
-    // |  |  / 1 |  ->  ‖         |
-	// |  0 /    |      ‖         |
+    // |  |  _-1 |  ->  ‖         |
+	// |  0-‾    |      ‖         |
     // *---------*      0========1
 
     float lowerCoordinateValue = -5.0;
@@ -142,10 +135,10 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElementsWithin
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ -3.5, -3.5, -5.0 }),
-        Coordinate({ -1.5, -3.0, -5.0 }),
-        Coordinate({ -3.5, -1.5, -5.0 }),
-        Coordinate({ -3.5, -5.0, -1.5 }),
+        Coordinate({ 0.3, 0.3, 0.0 }),
+        Coordinate({ 0.7, 0.4, 0.0 }),
+        Coordinate({ 0.3, 0.7, 0.0 }),
+        Coordinate({ 0.3, 0.0, 0.7 }),
     };
     mesh.groups = { Group(), Group(), Group() };
     mesh.groups[0].elements = {
@@ -179,9 +172,11 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElementsWithin
     ASSERT_EQ(resultMesh.groups[1].elements.size(), 1);
     ASSERT_EQ(resultMesh.groups[2].elements.size(), 1);
 
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) 
-        for (std::size_t axis = 0; axis < 3; ++axis)
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
     
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
@@ -189,8 +184,9 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElementsWithin
         auto& expectedElement = expectedElements[g];
 
         EXPECT_TRUE(resultGroup.elements[0].isLine());
-        for (std::size_t i = 0; i < expectedElement.vertices.size(); ++i)
+        for (std::size_t i = 0; i < expectedElement.vertices.size(); ++i) {
             EXPECT_EQ(resultGroup.elements[0].vertices[i], expectedElement.vertices[i]);
+        }
     }
 }
 
@@ -213,16 +209,16 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElementsWithinOne
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ -4.5, -4.5, -5.0 }),    // 0 First and Third Segments, First Point, X-Y and X-Z Planes
-        Coordinate({ -2.4, -0.5, -5.0 }),    // 1 First Segment, Final Point, X-Y Plane
-        Coordinate({ -2.6, -4.5, -5.0 }),    // 2 Second and Fourth Segments, First Point, X-Y and X-Z Planes
-        Coordinate({ -0.5, -0.5, -5.0 }),    // 3 Second Segment, Final Point, X-Y Plane
-        Coordinate({ -2.4, -5.0, -0.5 }),    // 4 Third Segment, Final Point, X-Z Plane
-        Coordinate({ -0.5, -5.0, -0.5 }),    // 5 Fourth Segment, Final Point, X-Z Plane
-        Coordinate({ -5.0, -4.5, -4.5 }),    // 6 Fifth Segment, First Point, Y-Z Plane
-        Coordinate({ -5.0, -2.4, -0.5 }),    // 7 Fifth Segment, First Point, Y-Z Plane
-        Coordinate({ -5.0, -2.6, -4.5 }),    // 8 Sixth Segment, First Point, Y-Z Plane
-        Coordinate({ -5.0, -0.5, -0.5 }),    // 9 Sixth Segment, First Point,  Y-Z Plane
+        Coordinate({ 0.1,  0.1,  0.0 }),    // 0 First and Third Segments, First Point, X-Y and X-Z Planes
+        Coordinate({ 0.52, 0.9,  0.0 }),    // 1 First Segment, Final Point, X-Y Plane
+        Coordinate({ 0.48, 0.1,  0.0 }),    // 2 Second and Fourth Segments, First Point, X-Y and X-Z Planes
+        Coordinate({ 0.9,  0.9,  0.0 }),    // 3 Second Segment, Final Point, X-Y Plane
+        Coordinate({ 0.52, 0.0,  0.9 }),    // 4 Third Segment, Final Point, X-Z Plane
+        Coordinate({ 0.9,  0.0,  0.9 }),    // 5 Fourth Segment, Final Point, X-Z Plane
+        Coordinate({ 0.0,  0.1,  0.1 }),    // 6 Fifth Segment, First Point, Y-Z Plane
+        Coordinate({ 0.0,  0.52, 0.9 }),    // 7 Fifth Segment, First Point, Y-Z Plane
+        Coordinate({ 0.0,  0.48, 0.1 }),    // 8 Sixth Segment, First Point, Y-Z Plane
+        Coordinate({ 0.0,  0.9,  0.9 }),    // 9 Sixth Segment, First Point,  Y-Z Plane
     };
     mesh.groups.resize(6);
     mesh.groups[0].elements = {
@@ -292,9 +288,11 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElementsWithinOne
     ASSERT_EQ(resultMesh.groups[4].elements.size(), 2);
     ASSERT_EQ(resultMesh.groups[5].elements.size(), 2);
 
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i)
-        for (std::size_t axis = 0; axis < 3; ++axis)
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
 
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
@@ -304,13 +302,13 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElementsWithinOne
         EXPECT_TRUE(resultGroup.elements[0].isLine());
         EXPECT_TRUE(resultGroup.elements[1].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i)
-        {
+        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
             auto& resultElement = resultGroup.elements[i];
             auto& expectedElement = expectedGroup[i];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j)
+            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
                 EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            }
         }
     }
 }
@@ -337,12 +335,12 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ -4.5, -4.5, -5.0 }),    // 0 First Segment, First Point, X-Y Plane
-        Coordinate({ -0.5, -0.5, -5.0 }),    // 1 First Segment, Final Point, X-Y Plane
-        Coordinate({ -4.5, -5.0, -4.5 }),    // 2 Second Segment, First Point, X-Z Plane
-        Coordinate({ -0.5, -5.0, -0.5 }),    // 3 Second Segment, Final Point, X-Z Plane
-        Coordinate({ -5.0, -4.5, -4.5 }),    // 4 Third Segment, First Point, Y-Z Plane
-        Coordinate({ -5.0, -0.5, -0.5 }),    // 5 Third Segment, Final Point, X-Z Plane
+        Coordinate({ 0.1, 0.1, 0.0 }),    // 0 First Segment, First Point, X-Y Plane
+        Coordinate({ 0.9, 0.9, 0.0 }),    // 1 First Segment, Final Point, X-Y Plane
+        Coordinate({ 0.1, 0.0, 0.1 }),    // 2 Second Segment, First Point, X-Z Plane
+        Coordinate({ 0.9, 0.0, 0.9 }),    // 3 Second Segment, Final Point, X-Z Plane
+        Coordinate({ 0.0, 0.1, 0.1 }),    // 4 Third Segment, First Point, Y-Z Plane
+        Coordinate({ 0.0, 0.9, 0.9 }),    // 5 Third Segment, Final Point, X-Z Plane
     };
     mesh.groups.resize(3);
     mesh.groups[0].elements = {
@@ -386,9 +384,11 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
     ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
     ASSERT_EQ(resultMesh.groups[1].elements.size(), 2);
     ASSERT_EQ(resultMesh.groups[2].elements.size(), 2);
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i)
-        for (std::size_t axis = 0; axis < 3; ++axis)
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
 
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
@@ -398,13 +398,13 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
         EXPECT_TRUE(resultGroup.elements[0].isLine());
         EXPECT_TRUE(resultGroup.elements[1].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i)
-        {
+        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
             auto& resultElement = resultGroup.elements[i];
             auto& expectedElement = expectedGroup[i];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j)
+            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
                 EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            }
         }
     }
 }
@@ -434,12 +434,12 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElementsWithinO
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ -5.0, -4.9, -4.8 }),    // 0 First, Third and Fourth Segments, First Point
-        Coordinate({  0.0, -0.1, -2.4 }),    // 1 First and Second Segments, Final Point
-        Coordinate({ -5.0, -4.9, -2.6 }),    // 2 Second Segment, First Point
-        Coordinate({ -5.0, -2.6, -4.9 }),    // 3 Third Segment, First Point
-        Coordinate({ -2.4, -0.2, -1.0 }),    // 4 Third Segment, Final Point
-        Coordinate({  0.0, -2.4, -2.3 }),    // 5 Fourth Segment, Final Point
+        Coordinate({ 0.0,  0.02, 0.04 }),    // 0 First, Third and Fourth Segments, First Point
+        Coordinate({ 1.0,  0.98, 0.52 }),    // 1 First and Second Segments, Final Point
+        Coordinate({ 0.0,  0.02, 0.48 }),    // 2 Second Segment, First Point
+        Coordinate({ 0.0,  0.48, 0.02 }),    // 3 Third Segment, First Point
+        Coordinate({ 0.52, 0.96, 0.8  }),    // 4 Third Segment, Final Point
+        Coordinate({ 1.0,  0.52, 0.54 }),    // 5 Fourth Segment, Final Point
     };
     mesh.groups.resize(4);
     mesh.groups[0].elements = {
@@ -497,9 +497,11 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElementsWithinO
     ASSERT_EQ(resultMesh.groups[1].elements.size(), 3);
     ASSERT_EQ(resultMesh.groups[2].elements.size(), 3);
     ASSERT_EQ(resultMesh.groups[3].elements.size(), 3);
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i)
-        for (std::size_t axis = 0; axis < 3; ++axis)
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
 
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
@@ -515,8 +517,9 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElementsWithinO
             auto& resultElement = resultGroup.elements[i];
             auto& expectedElement = expectedGroup[i];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j)
+            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
                 EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            }
         }
     }
 }
@@ -546,14 +549,14 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ -4.5, -4.5, -4.5 }),    // 0 First Segment, First Point and Eight Segment, Final Point
-        Coordinate({ -0.5, -0.5, -0.5 }),    // 1 First Segment, Final Point and Eight Segment, First Point
-        Coordinate({ -0.5, -4.5, -4.5 }),    // 2 Second Segment, First Point and Seventh Segment, Final point
-        Coordinate({ -4.5, -0.5, -0.5 }),    // 3 Second Segment, Final Point and Seventh Segment, First Point
-        Coordinate({ -4.5, -0.5, -4.5 }),    // 4 Third Segment, First Point and Sixth Segment, Final Point
-        Coordinate({ -0.5, -4.5, -0.5 }),    // 5 Third Segment, Final Point and Sixth Segment, First Point
-        Coordinate({ -4.5, -4.5, -0.5 }),    // 6 Fourth Segment, First Point and Fifth Segment, Final Point
-        Coordinate({ -0.5, -0.5, -4.5 }),    // 7 Fourth Segment, Final Point and Fifth Segment, First Point
+        Coordinate({ 0.1, 0.1, 0.1 }),    // 0 First Segment, First Point and Eight Segment, Final Point
+        Coordinate({ 0.9, 0.9, 0.9 }),    // 1 First Segment, Final Point and Eight Segment, First Point
+        Coordinate({ 0.9, 0.1, 0.1 }),    // 2 Second Segment, First Point and Seventh Segment, Final point
+        Coordinate({ 0.1, 0.9, 0.9 }),    // 3 Second Segment, Final Point and Seventh Segment, First Point
+        Coordinate({ 0.1, 0.9, 0.1 }),    // 4 Third Segment, First Point and Sixth Segment, Final Point
+        Coordinate({ 0.9, 0.1, 0.9 }),    // 5 Third Segment, Final Point and Sixth Segment, First Point
+        Coordinate({ 0.1, 0.1, 0.9 }),    // 6 Fourth Segment, First Point and Fifth Segment, Final Point
+        Coordinate({ 0.9, 0.9, 0.1 }),    // 7 Fourth Segment, Final Point and Fifth Segment, First Point
     };
     mesh.groups.resize(8);
     mesh.groups[0].elements = {
@@ -647,9 +650,11 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
     ASSERT_EQ(resultMesh.groups[5].elements.size(), 3);
     ASSERT_EQ(resultMesh.groups[6].elements.size(), 3);
     ASSERT_EQ(resultMesh.groups[7].elements.size(), 3);
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i)
-        for (std::size_t axis = 0; axis < 3; ++axis)
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
 
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
@@ -660,13 +665,13 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
         EXPECT_TRUE(resultGroup.elements[1].isLine());
         EXPECT_TRUE(resultGroup.elements[2].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i)
-        {
+        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
             auto& resultElement = resultGroup.elements[i];
             auto& expectedElement = expectedGroup[i];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j)
+            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
                 EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            }
         }
     }
 }
