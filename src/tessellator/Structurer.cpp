@@ -60,23 +60,16 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
                 differentAxes.push_back(axis);
             }
         }
+        Coordinate startCoordinateDist = (startRelative - startStructuredRelative).abs();
+        Coordinate endCoordinateDist = (endRelative - endStructuredRelative).abs();
 
         Relative candidateOne = startStructuredRelative;
         Relative candidateTwo = startStructuredRelative;
         candidateOne[differentAxes[0]] = endStructuredRelative[differentAxes[0]];
         candidateTwo[differentAxes[1]] = endStructuredRelative[differentAxes[1]];
-        Relative startToCandidateOne = candidateOne - startRelative;
-        Relative startToCandidateTwo = candidateTwo - startRelative;
-        Relative endToCandidateOne = candidateOne - endRelative;
-        Relative endToCandidateTwo = candidateTwo - endRelative;
-        
-        auto startToCandidateOneMagnitude = sqrt(pow(startToCandidateOne[0], 2) + pow(startToCandidateOne[1], 2) + pow(startToCandidateOne[2], 2));
-        auto startToCandidateTwoMagnitude = sqrt(pow(startToCandidateTwo[0], 2) + pow(startToCandidateTwo[1], 2) + pow(startToCandidateTwo[2], 2));
-        auto endToCandidateOneMagnitude = sqrt(pow(endToCandidateOne[0], 2) + pow(endToCandidateOne[1], 2) + pow(endToCandidateOne[2], 2));
-        auto endToCandidateTwoMagnitude = sqrt(pow(endToCandidateTwo[0], 2) + pow(endToCandidateTwo[1], 2) + pow(endToCandidateTwo[2], 2));
 
-        if (approxDir(startToCandidateOneMagnitude - startToCandidateTwoMagnitude, 0.0)
-            && approxDir(endToCandidateOneMagnitude - endToCandidateTwoMagnitude, 0.0)) {
+        if (approxDir(startCoordinateDist[differentAxes[0]] - startCoordinateDist[differentAxes[1]], 0.0)
+            && approxDir(endCoordinateDist[differentAxes[0]] - endCoordinateDist[differentAxes[1]], 0.0)) {
             cells.push_back(this->toCell(candidateOne));
         }
         else {
@@ -115,6 +108,91 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
             && approxDir(endCoordinateDist[x] - endCoordinateDist[y], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[z], 0.0)) {
             cells.push_back(Cell({ endCell[x], startCell[y], startCell[z] }));
             cells.push_back(Cell({ endCell[x], endCell[y], startCell[z] }));
+        }
+        else if ((approxDir(startCoordinateDist[x] - startCoordinateDist[y], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[y], 0.0))
+            ||   (approxDir(startCoordinateDist[x] - startCoordinateDist[z], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[z], 0.0))
+            ||   (approxDir(startCoordinateDist[y] - startCoordinateDist[z], 0.0) && approxDir(endCoordinateDist[y] - endCoordinateDist[z], 0.0))) {
+            
+            std::vector<Cell> candidates({
+                Cell({ endCell[x],   startCell[y], startCell[z] }),
+                Cell({ endCell[x],   endCell[y],   startCell[z] }),
+                Cell({ endCell[x],   startCell[y], endCell[z]   }),
+                Cell({ startCell[x], endCell[y],   startCell[z] }),
+                Cell({ startCell[x], endCell[y],   endCell[z]   }),
+                Cell({ startCell[x], startCell[y], endCell[z]   }),
+                });
+
+            std::size_t lowestIndex = 0;
+            RelativeDir lowestDistance = std::numeric_limits<RelativeDir>::max();
+            
+            for (std::size_t i = 0; i < candidates.size(); ++i) {
+                RelativeDir relativeDistance = (this->toRelative(candidates[i]) - startRelative).norm();
+                if (relativeDistance < lowestDistance) {
+                    lowestDistance = relativeDistance;
+                    lowestIndex = i;
+                }
+            }
+
+            Coordinate startExtreme = startRelative;
+            Coordinate endExtreme = endRelative;
+            Coordinate nearestPerpendicularRelative = this->toRelative(candidates[lowestIndex]);
+            std::size_t position;
+            if (calculateDifferenceBetweenCells(startCell, candidates[lowestIndex]) == 1) {
+                startExtreme = nearestPerpendicularRelative;
+                position = 1;
+            }
+            else {
+                endExtreme = nearestPerpendicularRelative;
+                position = 2;
+            }
+
+            std::vector<std::size_t> differentAxes;
+            differentAxes.reserve(2);
+            for (std::size_t axis = 0; axis < 3; ++axis) {
+                if (startCell[axis] != endCell[axis]) {
+                    differentAxes.push_back(axis);
+                }
+            }
+
+            Relative subCandidateOne = nearestPerpendicularRelative;
+            Relative subCandidateTwo = nearestPerpendicularRelative;
+            subCandidateOne[differentAxes[0]] = endStructuredRelative[differentAxes[0]];
+            subCandidateTwo[differentAxes[1]] = endStructuredRelative[differentAxes[1]];
+            Cell middleCell;
+
+            if (approxDir(startCoordinateDist[differentAxes[0]] - startCoordinateDist[differentAxes[1]], 0.0)
+                && approxDir(endCoordinateDist[differentAxes[0]] - endCoordinateDist[differentAxes[1]], 0.0)) {
+                middleCell = toCell(subCandidateOne);
+            }
+            else {
+                std::size_t tries = 0;
+                do {
+                    if (tries > 40) {
+                        throw std::logic_error("Stuck in infinite loop.");
+                    }
+                    const Coordinate middlePoint = startExtreme + (endExtreme - startExtreme) / 2.0;
+                    middleCell = this->calculateStructuredCell(middlePoint);
+
+                    if (middleCell == candidates[lowestIndex]) {
+                        startExtreme = middlePoint;
+                    }
+                    else if (middleCell == endCell) {
+                        endExtreme = middlePoint;
+                    }
+
+                    ++tries;
+
+                } while (middleCell == candidates[lowestIndex] || middleCell == endCell);
+            }
+            
+            if (position == 1) {
+                cells.push_back(candidates[lowestIndex]);
+                cells.push_back(middleCell);
+            }
+            else {
+                cells.push_back(middleCell);
+                cells.push_back(candidates[lowestIndex]);
+            }
         }
         else {
             Coordinate startExtreme = startRelative;
