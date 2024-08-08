@@ -168,13 +168,13 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 1);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 1);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 1);
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 1);
+    }                                 
 
-    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+    for (std::size_t g = 0; g < expectedCoordinates.size(); ++g) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+            EXPECT_EQ(resultMesh.coordinates[g][axis], expectedCoordinates[g][axis]);
         }
     }
     
@@ -281,12 +281,9 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[3].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[4].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[5].elements.size(), 2);
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 2);
+    }
 
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
@@ -381,9 +378,9 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 2);
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 2);
+    }
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
@@ -461,9 +458,9 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
         Coordinate({ 1.0, 1.0, 0.0 }),    // 2 First Segment, Third Point
         Coordinate({ 1.0, 1.0, 1.0 }),    // 3 All Segments, Final Point
         Coordinate({ 0.0, 0.0, 1.0 }),    // 4 Second Segment, Second Point
-        Coordinate({ 0.0, 1.0, 1.0 }),    // 5 Second and Third Segments, Third Point
-        Coordinate({ 1.0, 0.0, 0.0 }),    // 6 Fourth Segment, Second Point
-        Coordinate({ 1.0, 0.0, 1.0 }),    // 7 Fourth Segment, Third Point
+        Coordinate({ 1.0, 0.0, 1.0 }),    // 5 Second and Fourth Segments, Third Point
+        Coordinate({ 0.0, 1.0, 1.0 }),    // 6 Third Segment, Third Point
+        Coordinate({ 1.0, 0.0, 0.0 }),    // 7 Fourth Segment, Second Point
     };
 
     std::vector<Elements> expectedElements = {
@@ -479,13 +476,13 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
         },
         {
             Element({0, 1}, Element::Type::Line),
-            Element({1, 5}, Element::Type::Line),
-            Element({5, 3}, Element::Type::Line),
+            Element({1, 6}, Element::Type::Line),
+            Element({6, 3}, Element::Type::Line),
         },
         {
-            Element({0, 6}, Element::Type::Line),
-            Element({6, 7}, Element::Type::Line),
-            Element({7, 3}, Element::Type::Line),
+            Element({0, 7}, Element::Type::Line),
+            Element({7, 5}, Element::Type::Line),
+            Element({5, 3}, Element::Type::Line),
         },
     };
 
@@ -493,10 +490,9 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[3].elements.size(), 3);
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
+    }
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
@@ -642,17 +638,157 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[3].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[4].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[5].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[6].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[7].elements.size(), 3);
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
+    }
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
+
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        EXPECT_TRUE(resultGroup.elements[0].isLine());
+        EXPECT_TRUE(resultGroup.elements[1].isLine());
+        EXPECT_TRUE(resultGroup.elements[2].isLine());
+
+        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
+            auto& resultElement = resultGroup.elements[i];
+            auto& expectedElement = expectedGroup[i];
+
+            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
+                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            }
+        }
+    }
+}
+
+
+TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStructuredElements)
+{
+
+    //     *----------2--*          {0.67->2}========{1->3}  
+    //    /|         ╱¦ /|              /‖             /|    
+    //   / |       ╱  ¦╱ |             / ‖            / |    
+    // z/  |     ╱    ╱  |           z/  ‖           /  |    
+    // *---┼---╱-----*¦  |    ->     *---‖----------*   |    
+    // |   |y╱       |¦  |           |   ‖ y        ⎸   |    
+    // |   ╱---------┼┼--*           {0.67->2}-----┼---*   
+    // | ╱/          |  /            |  ⫽          ⎸  /     
+    // |0/           | /             | ⫽           ⎸ /      
+    // |∤            ⎹/              ⎹⫽            ⎸/       
+    // *-------------* x             *-------------* x  
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Coordinate({ 0.10, 0.20, 0.20 }),   //  0 First Segment, First Point
+        Coordinate({ 0.70, 0.80, 0.80 }),   //  1 First Segment, Final Point
+        Coordinate({ 0.10, 0.15, 0.20 }),   //  2 Second Segment, First Point
+        Coordinate({ 0.70, 0.75, 0.80 }),   //  3 Second Segment, Final Point
+        Coordinate({ 0.10, 0.10, 0.20 }),   //  4 Third Segment, First Point
+        Coordinate({ 0.70, 0.70, 0.80 }),   //  5 Third Segment, Final Point
+        Coordinate({ 0.20, 0.10, 0.20 }),   //  6 Fourth Segment, First Point
+        Coordinate({ 0.80, 0.70, 0.80 }),   //  7 Fourth Segment, Final Point
+        Coordinate({ 0.20, 0.10, 0.10 }),   //  8 Fifth Segment, First Point
+        Coordinate({ 0.80, 0.70, 0.70 }),   //  9 Fifth Segment, Final Point
+        Coordinate({ 0.10, 0.20, 0.10 }),   // 10 Sixth Segment, First Point
+        Coordinate({ 0.70, 0.80, 0.70 }),   // 11 Sixth Segment, Final Point
+        Coordinate({ 0.70, 0.20, 0.20 }),   // 12 Seventh Segment, First Point
+        Coordinate({ 0.10, 0.80, 0.80 }),   // 13 Seventh Segment, Final Point
+    };
+    mesh.groups.resize(7);
+    mesh.groups[0].elements = {
+        Element({0, 1}, Element::Type::Line),
+    };
+    mesh.groups[1].elements = {
+        Element({2, 3}, Element::Type::Line),
+    };
+    mesh.groups[2].elements = {
+        Element({4, 5}, Element::Type::Line),
+    };
+    mesh.groups[3].elements = {
+        Element({6, 7}, Element::Type::Line),
+    };
+    mesh.groups[4].elements = {
+        Element({8, 9}, Element::Type::Line),
+    };
+    mesh.groups[5].elements = {
+        Element({10, 11}, Element::Type::Line),
+    };
+    mesh.groups[6].elements = {
+        Element({12, 13}, Element::Type::Line),
+    };
+
+    Coordinates expectedCoordinates = {
+        Coordinate({ 0.0, 0.0, 0.0 }),   // 0 First, Second, Third, Fourth, Fifth and Sixth Segments, First Point and Seventh Segment, Second Point
+        Coordinate({ 0.0, 1.0, 0.0 }),   // 1 First and Sixth Segments, Second Point and Seventh Segment, Third Point
+        Coordinate({ 0.0, 1.0, 1.0 }),   // 2 First and Second Segments, Third Point and Seventh Segment, Final Point
+        Coordinate({ 1.0, 1.0, 1.0 }),   // 3 First, Second, Third, Fourth, Fifth and Sixth Segments, Final Point
+        Coordinate({ 0.0, 0.0, 1.0 }),   // 4 Second and Third Segments, Second Point
+        Coordinate({ 1.0, 0.0, 1.0 }),   // 5 Third and Fourth Segments, Third Point
+        Coordinate({ 1.0, 0.0, 0.0 }),   // 6 Fourth and Fifht Segments, Second Point and Seventh Segment, First Point
+        Coordinate({ 1.0, 1.0, 0.0 }),   // 7 Fifth and Sixth Segments, Third Point
+    };
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+        },
+        {
+            Element({0, 4}, Element::Type::Line),
+            Element({4, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+        },
+        {
+            Element({0, 4}, Element::Type::Line),
+            Element({4, 5}, Element::Type::Line),
+            Element({5, 3}, Element::Type::Line),
+        },
+        {
+            Element({0, 6}, Element::Type::Line),
+            Element({6, 5}, Element::Type::Line),
+            Element({5, 3}, Element::Type::Line),
+        },
+        {
+            Element({0, 6}, Element::Type::Line),
+            Element({6, 7}, Element::Type::Line),
+            Element({7, 3}, Element::Type::Line),
+        },
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 7}, Element::Type::Line),
+            Element({7, 3}, Element::Type::Line),
+        },
+        {
+            Element({6, 0}, Element::Type::Line),
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+        },
+    };
+
+    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
+    }
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis], "coordinate " + std::string(i) + ", axis " + std::string(axis));
         }
     }
 

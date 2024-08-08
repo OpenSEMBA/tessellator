@@ -17,7 +17,10 @@ private:
 
     void processLineAndAddToGroup(const Element& line, const Coordinates& originalRelativeCoordinates, Group & group);
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
+    Cell calculateMiddleCellBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme, Relative& step);
+
 };
+
 
 }
 }
