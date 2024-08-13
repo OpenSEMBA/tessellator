@@ -25,6 +25,18 @@ Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
                 this->processLineAndAddToGroup(element, inputMesh.coordinates, meshGroup);
             }
         }
+
+        if (meshGroup.elements.size() > 1) {
+            auto it = meshGroup.elements.begin();
+            while (it != meshGroup.elements.end()) {
+                if (it->isNode()) {
+                    it = meshGroup.elements.erase(it);
+                }
+                else {
+                    ++it;
+                }
+            }
+        }
     }
 
     Cleaner::fuseCoords(mesh_);
@@ -39,6 +51,10 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     auto startCell = this->calculateStructuredCell(startRelative);
     auto endCell = this->calculateStructuredCell(endRelative);
 
+    auto startRelativePosition = this->toRelative(startCell);
+    CoordinateId startIndex = mesh_.coordinates.size();
+    mesh_.coordinates.push_back(startRelativePosition);
+
     std::vector<Cell> cells = { startCell };
 
     short difference = 0;
@@ -49,6 +65,10 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
         }
     }
     
+    if (difference == 0) {
+        group.elements.push_back(Element({ startIndex, }, Element::Type::Node));
+        return;
+    }
     if (difference == 2) {
         auto startExtreme = startRelative;
         auto endExtreme = endRelative;
@@ -140,10 +160,6 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     }
 
     cells.push_back(endCell);
-
-    auto startRelativePosition = this->toRelative(cells[0]);
-    CoordinateId startIndex = mesh_.coordinates.size();
-    mesh_.coordinates.push_back(startRelativePosition);
 
     for (std::size_t v = 1; v < cells.size(); ++v) {
         auto endRelativePosition = this->toRelative(cells[v]);

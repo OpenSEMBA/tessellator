@@ -44,6 +44,10 @@ struct Element {
         return type == Type::None && vertices.size() == 0;
     }
 
+    bool isNode() const
+    {
+        return type == Type::Node && vertices.size() == 1;
+    }
 
     bool isLine() const 
     {
