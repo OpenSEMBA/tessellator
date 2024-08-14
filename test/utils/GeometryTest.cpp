@@ -342,13 +342,41 @@ TEST_F(GeometryTest, areAdjacent_for_tris)
 	}
 }
 
-TEST_F(GeometryTest, areAdjacent_for_lines) 
+TEST_F(GeometryTest, areAdjacent_for_lines)
 {
 	Element l1({ 0, 1 }, Element::Type::Line);
 	Element l2({ 1, 2 }, Element::Type::Line);
 	Element l3({ 2, 3 }, Element::Type::Line);
 
-	EXPECT_TRUE (Geometry::areAdjacentLines(l1, l2));
-	EXPECT_TRUE (Geometry::areAdjacentLines(l2, l3));
+	EXPECT_TRUE(Geometry::areAdjacentLines(l1, l2));
+	EXPECT_TRUE(Geometry::areAdjacentLines(l2, l3));
 	EXPECT_FALSE(Geometry::areAdjacentLines(l1, l3));
+}
+
+TEST_F(GeometryTest, convertElementToLinV)
+{
+	Mesh m;
+	m.grid = {
+		std::vector<double>({-5.0, 0.0, 5.0}),
+		std::vector<double>({-5.0, 0.0, 5.0}),
+		std::vector<double>({-5.0, 0.0, 5.0})
+	};
+	m.coordinates = {
+		Coordinate({ -2.5, -2.5, -2.5 }),   // 0
+		Coordinate({ +1.5, -3.5, +0.0 }),   // 1 First Segment, First Point
+		Coordinate({ +2.5, -4.5, +1.5 }),   // 1 First Segment, Final Point
+		Coordinate({ -5.0, +5.0, +0.0 }),   // 3 
+	};
+	m.groups.resize(1);
+	m.groups[0].elements = {
+		Element{ {1, 2}, Element::Type::Line }
+	};
+	LinV expectedLineV = LinV({ m.coordinates[1], m.coordinates[2] });
+	auto resultLineV = Geometry::asLinV(m.groups[0].elements[0], m.coordinates);
+	
+	for (std::size_t v = 0; v < 2; ++v) {
+		for (std::size_t axis = 0; axis < 3; ++axis) {
+			EXPECT_EQ(resultLineV[v][axis], expectedLineV[v][axis]);
+		}
+	}
 }

@@ -81,6 +81,18 @@ TriV Geometry::asTriV(const Element& el, const std::vector<Coordinate>& co) {
     return res;
 }
 
+
+LinV Geometry::asLinV(const Element& el, const std::vector<Coordinate>& co) {
+    if (el.vertices.size() != 2) {
+        throw std::logic_error("Invalid conversion from element to LinV");
+    }
+    LinV res;
+    for (std::size_t i = 0; i < el.vertices.size(); i++) {
+        res[i] = co[el.vertices[i]];
+    }
+    return res;
+}
+
 bool Geometry::approximatelyAligned(
     const TriV& a, const TriV& b, const double& approxAngle) {
     const double pi = atan(1) * 4.0;

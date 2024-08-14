@@ -27,6 +27,7 @@ public:
     
 
     static TriV asTriV(const Element&, const Coordinates&);
+    static LinV asLinV(const Element&, const Coordinates&);
     
     static bool approxEqualLines(const LinV& a, const LinV& b);
     static bool approximatelyAligned(const TriV& a, const TriV& b, const double& angle);

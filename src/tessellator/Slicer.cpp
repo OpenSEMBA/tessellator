@@ -62,22 +62,31 @@ Slicer::Slicer(const Mesh& input) :
 #endif
             input.groups[g].elements.begin(), input.groups[g].elements.end(),
             [&](auto const& e) {
-                if (e.type != Element::Type::Surface) {
+                Elements elements;
+                if (e.type == Element::Type::Surface) {
+                    TriV triV{ Geometry::asTriV(e, input.coordinates) };
+
+                    elements = { sliceTriangle(sCoords, triV) };
+                    orient(sCoords, elements, triV);
+                }
+                else if (e.isLine()) {
+                    LinV lineV{ Geometry::asLinV(e, input.coordinates) };
+
+                    elements = { sliceLine(sCoords, lineV) };
+                }
+                else {
                     return;
                 }
-                TriV triV { Geometry::asTriV(e, input.coordinates)};
-                Elements tris{ sliceTriangle(sCoords, triV) };
-                orient(sCoords, tris, triV);
                 {
                     std::lock_guard<std::mutex> lock{ writingElements_ };
-                    for (const auto& e: tris) {
+                    for (const auto& e: elements) {
                         mesh_.groups[g].elements.push_back(e);
                     }
                 }
             }
         );
     }
-    Cleaner::removeElementsWithCondition(mesh_, [](auto e) {return !e.isTriangle(); });
+    Cleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
     Cleaner::fuseCoords(mesh_);
     meshTools::checkNoCellsAreCrossed(mesh_);
 }
@@ -88,7 +97,7 @@ Elements Slicer::sliceTriangle(
 {
     Elements res;
     for (auto const& itCell : 
-            buildCellCoordIdMap(sCoords, buildIntersectionsWithGridPlanes(sCoords, tri))) {
+            buildCellCoordIdMap(sCoords, buildIntersectionsWithGridPlanes<3>(sCoords, tri))) {
         const IdSet& vIds = itCell.second;
         if (vIds.size() < 3) {
             continue;
@@ -109,19 +118,57 @@ Elements Slicer::sliceTriangle(
     return res;
 }
 
-IdSet Slicer::buildIntersectionsWithGridPlanes(
-    Coordinates& sCoords,
-    const TriV& tri)
-{
-    std::set<Coordinate> newCoordinates;
-    for (const auto& v : tri) {
-        newCoordinates.insert(getRelative(v));
+Elements Slicer::sliceLine(Coordinates& relativeCoordinates, const LinV& line) {
+    Elements newLines;
+    auto newIds = buildIntersectionsWithGridPlanes<2>(relativeCoordinates, line);
+    auto firstIdIt = newIds.begin();
+    auto secondIdIt = newIds.begin();
+    ++secondIdIt;
+    while (secondIdIt != newIds.end()) {
+        newLines.push_back(Element({ *firstIdIt, *secondIdIt }, Element::Type::Line));
+        ++firstIdIt;
+        ++secondIdIt;
     }
 
-    for (const auto& intersection : getEdgeIntersectionsWithPlanes(tri)) {
-        for (const auto& v : meshSegments(intersection.second)) {
-            newCoordinates.insert(v);
+    return newLines;
+}
+
+template<std::size_t N>
+IdSet Slicer::buildIntersectionsWithGridPlanes(
+    Coordinates& sCoords,
+    const ElemV<N>& element)
+{
+    Coordinates newCoordinates;
+    std::set<Coordinate> auxCoordinatesSet;
+    for (const auto& v : element) {
+        auxCoordinatesSet.insert(getRelative(v));
+    }
+
+    std::vector<std::pair<Plane, LinV>> edgeIntersectionsWithPlanes;
+
+    if (element.size() == 2) {
+        LinV line;
+        line[0] = element[0];
+        line[1] = element[1];
+        auto polyline = meshSegments(line);
+        for (const auto& v : polyline) {
+            newCoordinates.push_back(v);
         }
+
+    }
+    else if (element.size() == 3) {
+        TriV triangle;
+        triangle[0] = element[0];
+        triangle[1] = element[1];
+        triangle[2] = element[2];
+        edgeIntersectionsWithPlanes = getEdgeIntersectionsWithPlanes(triangle);
+
+        for (const auto& intersection : edgeIntersectionsWithPlanes) {
+            for (const auto& v : meshSegments(intersection.second)) {
+                auxCoordinatesSet.insert(v);
+            }
+        }
+        newCoordinates.insert(newCoordinates.end(), auxCoordinatesSet.begin(), auxCoordinatesSet.end());
     }
 
     CoordinateId previousNumberOfCoords;
