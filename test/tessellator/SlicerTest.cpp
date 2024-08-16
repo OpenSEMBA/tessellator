@@ -1,4 +1,4 @@
-#include "MeshFixtures.h"
+﻿#include "MeshFixtures.h"
 #include "gtest/gtest.h"
 
 #include "Slicer.h"
@@ -300,10 +300,353 @@ TEST_F(SlicerTest, cell_faces_are_crossed_3)
     m.groups[0].elements = {
         Element{ {0, 1, 2} }
     };
-        
+
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{ m }.getMesh());
 
     ASSERT_NO_THROW(meshTools::checkNoNullAreasExist(out));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+}
+
+TEST_F(SlicerTest, canSliceLinesInAdyacentCellsFromTheSamePlane)
+{
+
+    // y                                      y
+    // *-------------*-------------*          *-------------*-------------*
+    // |             |    1        |          |             |    {1->2}   |
+    // |             | _-‾         |          |             | _-‾         |
+    // |            _┼‾            |  ->      |         {0.5->1}          |
+    // |         _-‾ |             |          |         _-‾ |             |
+    // |       0‾    |             |          |       0‾    |             |
+    // |             |             |          |             |             |
+    // *-------------*-------------* x        *-------------*-------------*  x  
+
+    // z                                       z                                
+    // *-------------*-------------*           *-------------*-------------*    
+    // |             |             |           |             |             |    
+    // |             |  2          |           |             | {2->3}      |    
+    // |             |⟋            ⎸           ⎸             ⎸⟋            ⎸   
+    // |            ⟋⎸             ⎸           |         {2.33->4}         |    
+    // |          ⟋  ⎸             ⎸           |          ⟋  ⎸             ⎸    
+    // |        ⟋    ⎸             ⎸           |        ⟋    ⎸             ⎸    
+    // *------⟋------*-------------*  ->       *--{2.67->5}--*-------------*    
+    // |    ⟋        ⎸             ⎸           ⎸    ⟋        ⎸             ⎸    
+    // |   3         |             |           | {3->6}      |             |    
+    // |             |             |           |             |             |   
+    // |             |             |           |             |             |    
+    // |             |             |           |             |             |    
+    // |             |             |           |             |             |    
+    // *-------------*-------------* x         *-------------*-------------* x        
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -2.4, -2.6, -5.0 }),   // 0 First Segment, First Point
+        Coordinate({ +2.4, -1.2, -5.0 }),   // 1 First Segment, Final Point
+        Coordinate({ +1.5, -5.0, +4.5 }),   // 2 Second Segment, First Point
+        Coordinate({ -4.5, -5.0, -1.5 }),   // 3 Second Segment, Final Point
+    };
+    m.groups.resize(2);
+    m.groups[0].elements = {
+        Element{ {0, 1}, Element::Type::Line }
+    };
+    m.groups[1].elements = {
+        Element{ {2, 3}, Element::Type::Line }
+    };
+    GridTools tools(m.grid);
+
+    Coordinate distanceFirstSegment = m.coordinates[1] - m.coordinates[0];
+    CoordinateDir xDistance = 0.0 - m.coordinates[0][0];
+    CoordinateDir yDistance = xDistance * distanceFirstSegment[1] / distanceFirstSegment[0];
+    Coordinate intersectionPointFirstSegment = Coordinate({0.0, m.coordinates[0][1] + yDistance, -5.0});
+
+    Coordinate distanceSecondSegment = m.coordinates[3] - m.coordinates[2];
+    CoordinateDir secondPointXComponent = 0.0 - m.coordinates[2][0];
+    CoordinateDir secondPointZComponent = secondPointXComponent * distanceSecondSegment[2] / distanceSecondSegment[0];
+    CoordinateDir thirdPointZComponent = 0.0 - m.coordinates[3][2];
+    CoordinateDir thirdPointXComponent = thirdPointZComponent * distanceSecondSegment[0] / distanceSecondSegment[2];
+    Coordinate firstIntersectionPointSecondSegment = Coordinate({ 0.0, -5.0, m.coordinates[2][2] + secondPointZComponent });
+    Coordinate secondIntersectionPointSecondSegment = Coordinate({ m.coordinates[3][2] - thirdPointXComponent, -5.0, 0.0 });
+
+
+
+    Coordinates expectedCoordinates = {
+        m.coordinates[0],                       // 0 First Segment, First Point
+        intersectionPointFirstSegment,          // 1 First Segment, Intersection Point
+        m.coordinates[1],                       // 2 First Segment, Final Point
+        m.coordinates[2],                       // 3 Second Segment, First Point
+        firstIntersectionPointSecondSegment,    // 4 Second Segment, Intersection First Point
+        secondIntersectionPointSecondSegment,   // 5 Second Segment, Intersection Second Point
+        m.coordinates[3],                       // 6 Second Segment, Final Point
+    };
+
+    Relatives expectedRelatives = tools.absoluteToRelative(expectedCoordinates);
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+        },
+        {
+            Element({3, 4}, Element::Type::Line),
+            Element({4, 5}, Element::Type::Line),
+            Element({5, 6}, Element::Type::Line),
+        },
+    };
+
+    Mesh resultMesh;
+    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
+    ASSERT_EQ(resultMesh.groups[1].elements.size(), 3);
+
+    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        EXPECT_TRUE(resultGroup.elements[0].isLine());
+        EXPECT_TRUE(resultGroup.elements[1].isLine());
+
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
+        }
+    }
+}
+
+TEST_F(SlicerTest, canSliceLinesInAdyacentCellThatPassThoroughPoints)
+{
+
+    // y                                          y
+    // *---------------*---------------*          *---------------*---------------*
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |  ->      |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // |               |               |          |               |               |
+    // *---0======================1----* x        *---0======={0.5->1}===={1->2}--* x
+    // 
+    // z                                 z                              
+    // *-------------*-------------*     *-------------*-------------*  
+    // |             |             |     |             |             |  
+    // |             |             |     |             |             |  
+    // |             |       2     |     |             |    {2->3}   |  
+    // |             |     ⟋       ⎸     ⎸             ⎸     ⟋       ⎸  
+    // |             |   ⟋         ⎸     ⎸             ⎸   ⟋         ⎸  
+    // |             | ⟋           ⎸     ⎸             ⎸ ⟋           ⎸  
+    // *-------------⟋-------------*  -> *--------- {2.5->4}---------*  
+    // |           ⟋ ⎸             ⎸     ⎸           ⟋ ⎸             ⎸  
+    // |         ⟋   ⎸             ⎸     ⎸         ⟋   ⎸             ⎸  
+    // |       ⟋     ⎸             ⎸     ⎸       ⟋     ⎸             ⎸  
+    // |      3      |             |     |    {3->5}   |             |  
+    // |             |             |     |             |             |  
+    // |             |             |     |             |             |  
+    // *-------------*-------------* x   *-------------*-------------* x
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -4.5, -5.0, -5.0 }),   // 0 First Segment, First Point
+        Coordinate({ +4.5, -5.0, -5.0 }),   // 1 First Segment, Final Point
+        Coordinate({ +3.0, -5.0, +3.0 }),   // 2 Second Segment, First Point
+        Coordinate({ -3.0, -5.0, -3.0 }),   // 3 Second Segment, Final Point
+    };
+    m.groups.resize(2);
+    m.groups[0].elements = {
+        Element{ {0, 1}, Element::Type::Line }
+    };
+    m.groups[1].elements = {
+        Element{ {2, 3}, Element::Type::Line }
+    };
+    GridTools tools(m.grid);
+
+    Coordinate intersectionPointFirstSegment = Coordinate({ 0.0, -5.0, -5.0 });
+    Coordinate intersectionPointSecondSegment = Coordinate({ 0.0, -5.0, 0.0 });
+
+
+
+    Coordinates expectedCoordinates = {
+        m.coordinates[0],                       // 0 First Segment, First Point
+        intersectionPointFirstSegment,          // 1 First Segment, Intersection Point
+        m.coordinates[1],                       // 2 First Segment, Final Point
+        m.coordinates[2],                       // 3 Second Segment, First Point
+        intersectionPointSecondSegment,         // 4 Second Segment, Intersection Point
+        m.coordinates[3],                        // 5 Second Segment, Final Point
+    };
+
+    Relatives expectedRelatives = tools.absoluteToRelative(expectedCoordinates);
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+        },
+        {
+            Element({3, 4}, Element::Type::Line),
+            Element({4, 5}, Element::Type::Line),
+        },
+    };
+
+    Mesh resultMesh;
+    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
+    ASSERT_EQ(resultMesh.groups[1].elements.size(), 2);
+
+    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        EXPECT_TRUE(resultGroup.elements[0].isLine());
+        EXPECT_TRUE(resultGroup.elements[1].isLine());
+
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
+        }
+    }
+}
+
+
+
+TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
+{
+ 
+    //              *-------------*-------------*                   *-------------*-------------*
+    //             /|            /|            /|                  /|            /|            /|
+    //            / |           / |           / |                 / |           / |           / |
+    //           /  |          /  |          /  |                /  |          /  |          /  |
+    //          *---┼---------*---┼---------*   |               *---┼---------*---┼---------*   |
+    //         /|   |        /|   |      1 /|   |              /|   |        /|   |      4 /|   |
+    //      Z / |   *-------/-┼---*----/-┼/-┼---*           Z / |   *-------/-┼---*----/-┼/-┼---*
+    //       /  |  /|      /  |  /|  /   /  |  /|            /  |  /|      /  |  /|  +{3}/  |  /|
+    //    +5*---┼---┼-----*---┼---┼/----*¦  | / |         +5*---┼---┼-----*---┼---┼/-┼--*¦  | / |
+    //      |   |/  |     |   |/ /|     |¦  |/  |           |   |/  |     |   |/ /|  ¦  |¦  |/  |
+    //      |   *---┼-----┼---*/--┼-----┼┼--*   |           |   *---┼-----┼---*/--┼--┼--┼┼--*   |
+    //      |  /| +5|Y    |  ⫽|   ⎸     ⎸¦ /⎸   ⎸    ->     ⎸ ┈┈┼┈┈┈┼Y┈┈┈┈┼┈┈+{2} ⎸  ¦  ⎸¦ /⎸   ⎸ 
+    //      | / |   *-----┼//-┼---*-----┼┼/-┼---*           | / | +5*-----┼//-┼---*--┼--┼┼/-┼---*
+    //      |/  |  /     /|/  |  /      |¦  |  /            |/  |  /     +{1} |  /   ¦  |¦  |  /
+    //      *---┼------/--*---┼---------*   | /             *---┼------/-┼*---┼------¦--*   | /
+    //      |   |/   0    |   |/        |   |/              |   |/   0   ¦|   |/        |   |/
+    //      |   *----┼----┼---*---------┼---*               |   *----┼---┼┼---*---------┼---*
+    //      |  /     ¦    |  /          |  /                |  /     ¦    |  /          |  /
+    //      | /           | /           | /                 | /           | /           | /
+    //      |/            |/            |/                  |/            |/            |/
+    //    -5*-------------*-------------* +5  X           -5*-------------*-------------* +5  X
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -2.75, -2.75, -1.50 }),   // 0 First Segment, First Point
+        Coordinate({ +2.40, +1.50, +1.50 }),   // 1 First Segment, Final Point
+    };
+
+    m.groups.resize(1);
+    m.groups[0].elements = {
+        Element{ {0, 1}, Element::Type::Line }
+    };
+    GridTools tools(m.grid);
+
+    Elements expectedElements = {
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 2}, Element::Type::Line),
+        Element({2, 3}, Element::Type::Line),
+        Element({3, 4}, Element::Type::Line),
+    };
+
+    Mesh resultMesh;
+
+    Relatives relativeCoordinates = tools.absoluteToRelative(m.coordinates);
+
+    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+
+    ASSERT_EQ(resultMesh.coordinates.size(), 5);
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), 4);
+
+    ASSERT_EQ(resultMesh.coordinates[0][0], relativeCoordinates[0][0]);
+    ASSERT_EQ(resultMesh.coordinates[0][1], relativeCoordinates[0][1]);
+    ASSERT_EQ(resultMesh.coordinates[0][2], relativeCoordinates[0][2]);
+
+    ASSERT_LT(resultMesh.coordinates[1][0], 1.0);
+    ASSERT_LT(resultMesh.coordinates[1][1], 1.0);
+    ASSERT_EQ(resultMesh.coordinates[1][2], 1.0);
+
+    ASSERT_EQ(resultMesh.coordinates[2][0], 1.0);
+    ASSERT_LT(resultMesh.coordinates[2][1], 1.0);
+    ASSERT_GT(resultMesh.coordinates[2][2], 1.0);
+
+    ASSERT_GT(resultMesh.coordinates[3][0], 1.0);
+    ASSERT_EQ(resultMesh.coordinates[3][1], 1.0);
+    ASSERT_GT(resultMesh.coordinates[3][2], 1.0);
+
+    ASSERT_EQ(resultMesh.coordinates[4][0], relativeCoordinates[1][0]);
+    ASSERT_EQ(resultMesh.coordinates[4][1], relativeCoordinates[1][1]);
+    ASSERT_EQ(resultMesh.coordinates[4][2], relativeCoordinates[1][2]);
+
+    auto& resultGroup = resultMesh.groups[0];
+
+
+    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
+        auto& resultElement = resultGroup.elements[e];
+        auto& expectedElement = expectedElements[e];
+
+        EXPECT_TRUE(expectedElement.isLine());
+
+        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+        }
+    }
 }

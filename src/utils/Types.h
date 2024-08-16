@@ -40,6 +40,8 @@ using TriV = std::array<Coordinate, 3>;
 using QuaV = std::array<Coordinate, 4>;
 using TetV = std::array<Coordinate, 4>;
 using HexV = std::array<Coordinate, 8>;
+template<std::size_t N>
+using ElemV = std::array<Coordinate, N>;
 
 using LinVs = std::vector<LinV>;
 using TriVs = std::vector<TriV>;

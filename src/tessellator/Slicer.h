@@ -28,12 +28,14 @@ private:
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
     Mesh mesh_;
-    
+
     Elements sliceTriangle(Coordinates&, const TriV&);
+    Elements sliceLine(Coordinates&, const LinV&);
     
+    template<std::size_t N>
     IdSet buildIntersectionsWithGridPlanes(
         Coordinates& sCoords,
-        const TriV& tri);
+        const ElemV<N>& tri);
     
     CellCoordIdMap buildCellCoordIdMap(
         Coordinates& sCoords,
