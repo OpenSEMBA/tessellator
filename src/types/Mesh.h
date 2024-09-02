@@ -54,9 +54,14 @@ struct Element {
         return type == Type::Line && vertices.size() == 2;
     }
 
-    bool isTriangle() const 
+    bool isTriangle() const
     {
         return type == Type::Surface && vertices.size() == 3;
+    }
+
+    bool isQuad() const
+    {
+        return type == Type::Surface && vertices.size() == 4;
     }
 
     bool isTetrahedron() const 
