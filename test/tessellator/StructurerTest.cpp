@@ -184,8 +184,8 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
         auto& expectedElement = expectedElements[g];
 
         EXPECT_TRUE(resultGroup.elements[0].isLine());
-        for (std::size_t i = 0; i < expectedElement.vertices.size(); ++i) {
-            EXPECT_EQ(resultGroup.elements[0].vertices[i], expectedElement.vertices[i]);
+        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+            EXPECT_EQ(resultGroup.elements[0].vertices[v], expectedElement.vertices[v]);
         }
     }
 }
@@ -299,12 +299,12 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
         EXPECT_TRUE(resultGroup.elements[0].isLine());
         EXPECT_TRUE(resultGroup.elements[1].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
@@ -395,12 +395,12 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
         EXPECT_TRUE(resultGroup.elements[0].isLine());
         EXPECT_TRUE(resultGroup.elements[1].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
@@ -508,13 +508,13 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
         EXPECT_TRUE(resultGroup.elements[1].isLine());
         EXPECT_TRUE(resultGroup.elements[2].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i)
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e)
         {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
@@ -656,12 +656,12 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
         EXPECT_TRUE(resultGroup.elements[1].isLine());
         EXPECT_TRUE(resultGroup.elements[2].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
@@ -801,12 +801,12 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
         EXPECT_TRUE(resultGroup.elements[1].isLine());
         EXPECT_TRUE(resultGroup.elements[2].isLine());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
@@ -825,7 +825,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
     // |  /          |  _6         |          |             |             | 
     // | 0   4-------5-‾           |          |             |             | 
     // *-------------*-------------*       {0|1->0}======={5->3}----------* 
-    //                                      {4->2}  {5|6->COLLAPSED}
+    //                                      {4->2}       {5|6->3}
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -864,11 +864,16 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
         Coordinate({ 1.0, 0.0, 1.0 }), // 3 Third Segment, Final Point
     };
 
-    Elements expectedElements = {
+    std::vector<Elements> expectedElements = {
         {
             Element({0}, Element::Type::Node),
+        },
+        {
             Element({1}, Element::Type::Node),
+        },
+        {
             Element({2, 3}, Element::Type::Line),
+            Element({3}, Element::Type::Node),
         },
     };
 
@@ -877,9 +882,10 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 1);
-    }
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), 1);
+    ASSERT_EQ(resultMesh.groups[1].elements.size(), 1);
+    ASSERT_EQ(resultMesh.groups[2].elements.size(), 2);
+
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
@@ -889,13 +895,17 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
     EXPECT_TRUE(resultMesh.groups[0].elements[0].isNode());
     EXPECT_TRUE(resultMesh.groups[1].elements[0].isNode());
     ASSERT_TRUE(resultMesh.groups[2].elements[0].isLine());
+    EXPECT_TRUE(resultMesh.groups[2].elements[1].isNode());
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultElement = resultMesh.groups[g].elements[0];
-        auto& expectedElement = expectedElements[g];
+        auto& resultGroup = resultMesh.groups[g];
+        for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedElements[g][e];
 
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
         }
     }
 }
@@ -982,7 +992,7 @@ TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
     // y                y                         y                y
     // *----------*     {2->3}====={1->2}         *----------*           {2->3}(0)==={1->2}(1)
     // |      __1 |        ‖ \\\\\\\\ ‖            |      _>1 |                ‖ //////// ‖
-    // | 2<-‾‾ /  |        ‖ \\\\\\\\ ‖            |2(0)-‾ /  |                ‖ //////// ‖
+    // | 2<-‾‾ ╱  |        ‖ \\\\\\\\ ‖            |2(0)-‾ /  |                ‖ //////// ‖
     // |  \   ╱   |   ->   ‖ \\\\\\\\ ‖            |  \   ╱   |     ->         ‖ //////// ‖
     // |    0     |        ‖ \\\\\\\\ ‖            |  0(2)    |                ‖ //////// ‖
     // *----------* x      0======{0.5->1} x      *----------* x         0(2->3)==={0.5->1}(1.5->2) x
@@ -1041,13 +1051,282 @@ TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
         EXPECT_TRUE(resultGroup.elements[0].isQuad());
         EXPECT_TRUE(resultGroup.elements[1].isQuad());
 
-        for (std::size_t i = 0; i < expectedGroup.size(); ++i) {
-            auto& resultElement = resultGroup.elements[i];
-            auto& expectedElement = expectedGroup[i];
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t j = 0; j < expectedElement.vertices.size(); ++j) {
-                EXPECT_EQ(resultElement.vertices[j], expectedElement.vertices[j]);
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
             }
         }
     }
+}
+
+
+
+TEST_F(StructurerTest, transformTriangleIntoNode)
+{
+
+    //     *-------------*               *-------------*
+    //    /|            /|              /|            /|    
+    //   / |           ╱ |             / |           / |    
+    // z/  |          ╱  |           z/  |          /  |    
+    // *---2---------*   |    ->     *---┼---------*   |    
+    // |  ||y⟍       ⎸   ⎸           |   ⎸ y       ⎸   ⎸    
+    // | ⎹ *-_=1-----┼---*           ⎹ {0|1|2}-----┼---*   
+    // | 0/-‾        |  /            ⎹  /          |  /     
+    // | /           | /             ⎹ /           | /      
+    // |/            |/              ⎹/            |/       
+    // *-------------* x             0-------------* x  
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Coordinate({ 0.2, 0.6, 0.2 }),    // 0 First Triangle, First Point
+        Coordinate({ 0.4, 0.9, 0.2 }),    // 1 First Triangle, Second Point
+        Coordinate({ 0.2, 0.8, 0.4 }),    // 2 First Triangle, Third Point
+    };
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface),
+    };
+
+    Coordinates expectedCoordinates = {
+        Coordinate({ 0.0, 1.0, 0.0 }),    // 0 All Nodes' Point
+    };
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0}, Element::Type::Node),
+            Element({0}, Element::Type::Node),
+            Element({0}, Element::Type::Node),
+        },
+    };
+
+    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
+    }
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
+
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        EXPECT_TRUE(resultGroup.elements[0].isNode());
+
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
+        }
+    }
+}
+
+
+
+TEST_F(StructurerTest, transformTriangleIntoLines)
+{
+    //     *-------------*                2-------------*           *-------------*              {4->2}----------*        
+    //    /|            /|               /⦀            /|          /|            /|               /⦀            /⎹        
+    //   /┄|┄┄┄2       ╱ |              / ⦀           / |         / |  4        ╱ |              / ⦀           / ⎹        
+    // z/  |  ⎹|      ╱  |            z/  ⦀          /  |       z/  |  ⎸⎸      ╱  |            z/  ⦀          /  ⎹        
+    // *---┼--┼┼-----*   |     ->     *---⫵---------*   ⎸       *---┼-┼-┼----*    ⎸     ->     *---⫵---------*   ⎸       
+    // |   |y⎹ |     |   |            ⎹   ⦀ y       |   |       |   |y|  ⎸    ⎸   |            ⎹   ⫵         ⎹   |        
+    // |  ┄*┄⎸┄1-----┼---*            ⎹   1---------┼---*       |   *-⎸--⎹-⋰--┼---*            ⎹{3.5->1}≡≡≡≡≡≡╪{5->3}        
+    // |  / ⎹ ⟋      ⎸  /             |  ⫻         |  /        |  / ⎹  _-5   |  /             |  ⫻          |  /      
+    // | ┄┄┄0        | /              ⎹ ⫻          ⎹ /         ⎹ ┄┄┄3-‾      ⎹ /              ⎹ ⫻           ⎹ /       
+    // |/            |/               ⎹⫻           ⎹/          ⎹/            ⎹/               ⎹⫻            ⎹/        
+    // *-------------* x              0-------------* x         *-------------* x            {3->0}-----------* x      
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Coordinate({ 0.4, 0.2, 0.2 }),    // 0 First Triangle, First Point
+        Coordinate({ 0.4, 0.9, 0.2 }),    // 1 First Triangle, Second Point
+        Coordinate({ 0.4, 0.9, 0.6 }),    // 2 First Triangle, Third Point
+        Coordinate({ 0.2, 0.4, 0.2 }),    // 3 Second Triangle, First Point
+        Coordinate({ 0.2, 0.8, 0.8 }),    // 4 Second Triangle, Second Point
+        Coordinate({ 0.6, 0.8, 0.2 }),    // 5 Second Triangle, Third Point
+    };
+    mesh.groups.resize(2);
+    mesh.groups[0].elements = { Element({0, 1, 2}, Element::Type::Surface) };
+    mesh.groups[1].elements = { Element({3, 4, 5}, Element::Type::Surface) };
+
+    Coordinates expectedCoordinates = {
+        Coordinate({ 0.0, 0.0, 0.0 }),    // 0 First and Fourth Edges, First Point, Third and Sixth Edges, Final Point
+        Coordinate({ 0.0, 1.0, 0.0 }),    // 1 First Edge, Final Point, Second Edge, First Point, Third, Fourth, Fifth and Sixth Edges, Second Point
+        Coordinate({ 0.0, 1.0, 1.0 }),    // 2 Second and Fourth Edge, End Point, Third and Fifth Edges, First Point
+        Coordinate({ 1.0, 1.0, 0.0 }),    // 3 Fifth Edge, Final Point, Sixth Edge, First Point
+    };
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+        },
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 3}, Element::Type::Line),
+            Element({3, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+        }
+    };
+
+    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+    EXPECT_EQ(resultMesh.groups[0].elements.size(), 4);
+    ASSERT_EQ(resultMesh.groups[1].elements.size(), 6);
+
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+    }
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
+
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+            EXPECT_TRUE(expectedElement.isLine());
+
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
+        }
+    }
+
+
+
+    TEST_F(StructurerTest, transformTriangleIntoSurfacesAndLines)
+    {
+        //     *-------------*                 *-----------{2->3}           *-------------*              {4->2}----------*
+        //    /|            /|                /|            ⫻‖          /|            /|               /⦀            /⎹
+        //   / |           ╱_2               / |           ⫻╌‖         / |  4        ╱ |              / ⦀           / ⎹
+        // z/  |         _/‾||             z/  |          ⫻╌╌‖       z/  |  ⎸⎸      ╱  |            z/  ⦀          /  ⎹
+        // *---┼------=-‾* | |      ->     *---┼--{3.5->4}╌╌╌╌‖       *---┼-┼-┼----*    ⎸     ->     *---⫵---------*   ⎸
+        // |   |y  _-‾   | ⎸ |             ⎹   | y       ‖╌╌╌╌‖       |   |y|  ⎸    ⎸   |            ⎹   ⫵         ⎹   |
+        // |   *_-=------┼┼--*             ⎹   *---------╫{1.5->2}       |   *-⎸--⎹-⋰--┼---*            ⎹{3.5->1}≡≡≡≡≡≡╪{5->3}
+        // | _-‾    __ --1  /              |  /          ‖╌╌⫻        |  / ⎹  _-5   |  /             |  ⫻          |  /
+        // ├0-- ‾‾       | /               ⎹ /           ‖╌⫻         ⎹ ┄┄┄3-‾      ⎹ /              ⎹ ⫻           ⎹ /
+        // |/            |/                ⎹/            ‖⫻          ⎹/            ⎹/               ⎹⫻            ⎹/
+        // *-------------* x               0=============1 x         *-------------* x            {3->0}-----------* x
+        // _ - ‾
+        // ⎸|⎹ 
+
+        // TODO: FINISH TEST
+
+        float lowerCoordinateValue = -5.0;
+        float upperCoordinateValue = 5.0;
+        int numberOfCells = 3;
+        float step = 5.0;
+        assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+        Mesh mesh;
+        mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+        mesh.coordinates = {
+            Coordinate({ 0.4, 0.2, 0.2 }),    // 0 First Triangle, First Point
+            Coordinate({ 0.4, 0.9, 0.2 }),    // 1 First Triangle, Second Point
+            Coordinate({ 0.4, 0.9, 0.6 }),    // 2 First Triangle, Third Point
+            Coordinate({ 0.2, 0.4, 0.2 }),    // 3 Second Triangle, First Point
+            Coordinate({ 0.2, 0.8, 0.8 }),    // 4 Second Triangle, Second Point
+            Coordinate({ 0.6, 0.8, 0.2 }),    // 5 Second Triangle, Third Point
+        };
+        mesh.groups.resize(2);
+        mesh.groups[0].elements = { Element({0, 1, 2}, Element::Type::Surface) };
+        mesh.groups[1].elements = { Element({3, 4, 5}, Element::Type::Surface) };
+
+        Coordinates expectedCoordinates = {
+            Coordinate({ 0.0, 0.0, 0.0 }),    // 0 First and Fourth Edges, First Point, Third and Sixth Edges, Final Point
+            Coordinate({ 0.0, 1.0, 0.0 }),    // 1 First Edge, Final Point, Second Edge, First Point, Third, Fourth, Fifth and Sixth Edges, Second Point
+            Coordinate({ 0.0, 1.0, 1.0 }),    // 2 Second and Fourth Edge, End Point, Third and Fifth Edges, First Point
+            Coordinate({ 1.0, 1.0, 0.0 }),    // 3 Fifth Edge, Final Point, Sixth Edge, First Point
+        };
+
+        std::vector<Elements> expectedElements = {
+            {
+                Element({0, 1}, Element::Type::Line),
+                Element({1, 2}, Element::Type::Line),
+                Element({2, 1}, Element::Type::Line),
+                Element({1, 0}, Element::Type::Line),
+            },
+            {
+                Element({0, 1}, Element::Type::Line),
+                Element({1, 2}, Element::Type::Line),
+                Element({2, 1}, Element::Type::Line),
+                Element({1, 3}, Element::Type::Line),
+                Element({3, 1}, Element::Type::Line),
+                Element({1, 0}, Element::Type::Line),
+            }
+        };
+
+        Mesh& resultMesh = Structurer{ mesh }.getMesh();
+
+        ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+        ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+        EXPECT_EQ(resultMesh.groups[0].elements.size(), 4);
+        ASSERT_EQ(resultMesh.groups[1].elements.size(), 6);
+
+        for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        }
+        for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+            for (std::size_t axis = 0; axis < 3; ++axis) {
+                EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+            }
+        }
+
+
+        for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+            auto& resultGroup = resultMesh.groups[g];
+            auto& expectedGroup = expectedElements[g];
+
+
+            for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+                auto& resultElement = resultGroup.elements[e];
+                auto& expectedElement = expectedGroup[e];
+                EXPECT_TRUE(expectedElement.isLine());
+
+                for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+                    EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+                }
+            }
+        }
 }

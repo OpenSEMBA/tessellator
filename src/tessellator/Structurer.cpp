@@ -28,18 +28,6 @@ Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
                 this->processTriangleAndAddToGroup(element, inputMesh.coordinates, meshGroup);
             }
         }
-
-        if (meshGroup.elements.size() > 1) {
-            auto it = meshGroup.elements.begin();
-            while (it != meshGroup.elements.end()) {
-                if (it->isNode()) {
-                    it = meshGroup.elements.erase(it);
-                }
-                else {
-                    ++it;
-                }
-            }
-        }
     }
 
     Cleaner::fuseCoords(mesh_);
