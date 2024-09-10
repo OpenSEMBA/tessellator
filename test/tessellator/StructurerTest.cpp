@@ -431,8 +431,8 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ 0.0,  0.02, 0.04 }),    // 0 First, Third and Fourth Segments, First Point
-        Coordinate({ 1.0,  0.98, 0.52 }),    // 1 First and Second Segments, Final Point
+        Coordinate({ 0.0,  0.20, 0.10 }),    // 0 First, Third and Fourth Segments, First Point
+        Coordinate({ 1.0,  0.90, 0.60 }),    // 1 First and Second Segments, Final Point
         Coordinate({ 0.0,  0.02, 0.48 }),    // 2 Second Segment, First Point
         Coordinate({ 0.0,  0.48, 0.02 }),    // 3 Third Segment, First Point
         Coordinate({ 0.52, 0.96, 0.8  }),    // 4 Third Segment, Final Point
@@ -671,7 +671,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
 TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStructuredElements)
 {
 
-    //     *----------2--*          {0.67->2}========{1->3}  
+    //     *----------1--*          {0.67->2}========{1->3}  
     //    /|         ╱¦ /|              /‖             /|    
     //   / |       ╱  ¦╱ |             / ‖            / |    
     // z/  |     ╱    ╱  |           z/  ‖           /  |    
@@ -694,20 +694,18 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
     mesh.coordinates = {
         Coordinate({ 0.10, 0.20, 0.20 }),   //  0 First Segment, First Point
         Coordinate({ 0.70, 0.80, 0.80 }),   //  1 First Segment, Final Point
-        Coordinate({ 0.10, 0.15, 0.20 }),   //  2 Second Segment, First Point
-        Coordinate({ 0.70, 0.75, 0.80 }),   //  3 Second Segment, Final Point
-        Coordinate({ 0.10, 0.10, 0.20 }),   //  4 Third Segment, First Point
-        Coordinate({ 0.70, 0.70, 0.80 }),   //  5 Third Segment, Final Point
-        Coordinate({ 0.20, 0.10, 0.20 }),   //  6 Fourth Segment, First Point
-        Coordinate({ 0.80, 0.70, 0.80 }),   //  7 Fourth Segment, Final Point
-        Coordinate({ 0.20, 0.10, 0.10 }),   //  8 Fifth Segment, First Point
-        Coordinate({ 0.80, 0.70, 0.70 }),   //  9 Fifth Segment, Final Point
-        Coordinate({ 0.10, 0.20, 0.10 }),   // 10 Sixth Segment, First Point
-        Coordinate({ 0.70, 0.80, 0.70 }),   // 11 Sixth Segment, Final Point
-        Coordinate({ 0.70, 0.20, 0.20 }),   // 12 Seventh Segment, First Point
-        Coordinate({ 0.10, 0.80, 0.80 }),   // 13 Seventh Segment, Final Point
+        Coordinate({ 0.10, 0.10, 0.20 }),   //  2 Second Segment, First Point
+        Coordinate({ 0.70, 0.70, 0.80 }),   //  3 Second Segment, Final Point
+        Coordinate({ 0.20, 0.10, 0.20 }),   //  4 Third Segment, First Point
+        Coordinate({ 0.80, 0.70, 0.80 }),   //  5 Third Segment, Final Point
+        Coordinate({ 0.20, 0.10, 0.10 }),   //  6 Fourth Segment, First Point
+        Coordinate({ 0.80, 0.70, 0.70 }),   //  7 Fourth Segment, Final Point
+        Coordinate({ 0.10, 0.20, 0.10 }),   //  8 Fifth Segment, First Point
+        Coordinate({ 0.70, 0.80, 0.70 }),   //  9 Fifth Segment, Final Point
+        Coordinate({ 0.70, 0.20, 0.20 }),   // 10 Sixth Segment, First Point
+        Coordinate({ 0.10, 0.80, 0.80 }),   // 11 Sixth Segment, Final Point
     };
-    mesh.groups.resize(7);
+    mesh.groups.resize(6);
     mesh.groups[0].elements = {
         Element({0, 1}, Element::Type::Line),
     };
@@ -726,30 +724,22 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
     mesh.groups[5].elements = {
         Element({10, 11}, Element::Type::Line),
     };
-    mesh.groups[6].elements = {
-        Element({12, 13}, Element::Type::Line),
-    };
 
     Coordinates expectedCoordinates = {
-        Coordinate({ 0.0, 0.0, 0.0 }),   // 0 First, Second, Third, Fourth, Fifth and Sixth Segments, First Point and Seventh Segment, Second Point
-        Coordinate({ 0.0, 1.0, 0.0 }),   // 1 First and Sixth Segments, Second Point and Seventh Segment, Third Point
-        Coordinate({ 0.0, 1.0, 1.0 }),   // 2 First and Second Segments, Third Point and Seventh Segment, Final Point
-        Coordinate({ 1.0, 1.0, 1.0 }),   // 3 First, Second, Third, Fourth, Fifth and Sixth Segments, Final Point
-        Coordinate({ 0.0, 0.0, 1.0 }),   // 4 Second and Third Segments, Second Point
-        Coordinate({ 1.0, 0.0, 1.0 }),   // 5 Third and Fourth Segments, Third Point
-        Coordinate({ 1.0, 0.0, 0.0 }),   // 6 Fourth and Fifht Segments, Second Point and Seventh Segment, First Point
-        Coordinate({ 1.0, 1.0, 0.0 }),   // 7 Fifth and Sixth Segments, Third Point
+        Coordinate({ 0.0, 0.0, 0.0 }),   // 0 First, Second, Third, Fourth and Fifth Segments, First Point and Sixth Segment, Second Point
+        Coordinate({ 0.0, 1.0, 0.0 }),   // 1 First and Fifth Segments, Second Point and Sixth Segment, Third Point
+        Coordinate({ 0.0, 1.0, 1.0 }),   // 2 First Segment, Third Point and Sixth Segment, Final Point
+        Coordinate({ 1.0, 1.0, 1.0 }),   // 3 First, Second, Third, Fourth and Fifth Segments, Final Point
+        Coordinate({ 0.0, 0.0, 1.0 }),   // 4 Second Segment, Second Point
+        Coordinate({ 1.0, 0.0, 1.0 }),   // 5 Second and Third Segments, Third Point
+        Coordinate({ 1.0, 0.0, 0.0 }),   // 6 Third, Fourth and Fifth Segments, Second Point and Sixth Segment, First Point
+        Coordinate({ 1.0, 1.0, 0.0 }),   // 7 Fourth and Fifth Segments, Third Point
     };
 
     std::vector<Elements> expectedElements = {
         {
             Element({0, 1}, Element::Type::Line),
             Element({1, 2}, Element::Type::Line),
-            Element({2, 3}, Element::Type::Line),
-        },
-        {
-            Element({0, 4}, Element::Type::Line),
-            Element({4, 2}, Element::Type::Line),
             Element({2, 3}, Element::Type::Line),
         },
         {
@@ -1208,8 +1198,6 @@ TEST_F(StructurerTest, transformTriangleIntoLines)
     EXPECT_EQ(resultMesh.groups[0].elements.size(), 4);
     ASSERT_EQ(resultMesh.groups[1].elements.size(), 6);
 
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-    }
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);

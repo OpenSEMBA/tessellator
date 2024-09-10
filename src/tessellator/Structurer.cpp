@@ -160,118 +160,17 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     auto startRelative = originalRelativeCoordinates[line.vertices[0]];
     auto endRelative = originalRelativeCoordinates[line.vertices[1]];
 
-    auto startCell = this->calculateStructuredCell(startRelative);
-    auto endCell = this->calculateStructuredCell(endRelative);
-
-    auto startRelativePosition = this->toRelative(startCell);
     CoordinateId startIndex = resultCoordinates.size();
+
+    std::vector<Cell> cells = calculateMiddleCellsBetweenTwoCoordinates(startRelative, endRelative);
+
+    auto startRelativePosition = this->toRelative(cells.front());
     resultCoordinates.push_back(startRelativePosition);
 
-    std::vector<Cell> cells = { startCell };
-
-    short difference = 0;
-
-    for (std::size_t axis = 0; axis < 3; ++axis) {
-        if (startCell[axis] != endCell[axis]) {
-            ++difference;
-        }
-    }
-    
-    if (difference == 0) {
-        group.elements.push_back(Element({ startIndex, }, Element::Type::Node));
+    if (cells.size() == 1) {
+        group.elements.push_back(Element({ startIndex }, Element::Type::Node));
         return;
     }
-    if (difference == 2) {
-        auto startExtreme = startRelative;
-        auto endExtreme = endRelative;
-        Relative step = (endRelative - startRelative) / 2.0;
-        Cell middleCell = calculateMiddleCellBetweenTwoCoordinates(startExtreme, endExtreme, step);
-        cells.push_back(middleCell);
-    }
-    else if (difference == 3) {
-        Relative startStructuredRelative = this->toRelative(startCell);
-        Relative endStructuredRelative = this->toRelative(endCell);
-
-        Coordinate startCoordinateDist = (startRelative - startStructuredRelative).abs();
-        Coordinate endCoordinateDist = (endRelative - endStructuredRelative).abs();
-
-        if (approxDir(startCoordinateDist[x] - startCoordinateDist[y], 0.0) && approxDir(startCoordinateDist[x] - startCoordinateDist[z], 0.0)
-            && approxDir(endCoordinateDist[x] - endCoordinateDist[y], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[z], 0.0)) {
-            cells.push_back(Cell({ endCell[x], startCell[y], startCell[z] }));
-            cells.push_back(Cell({ endCell[x], endCell[y], startCell[z] }));
-        }
-        else if ((approxDir(startCoordinateDist[x] - startCoordinateDist[y], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[y], 0.0))
-            ||   (approxDir(startCoordinateDist[x] - startCoordinateDist[z], 0.0) && approxDir(endCoordinateDist[x] - endCoordinateDist[z], 0.0))
-            ||   (approxDir(startCoordinateDist[y] - startCoordinateDist[z], 0.0) && approxDir(endCoordinateDist[y] - endCoordinateDist[z], 0.0))) {
-            
-            std::vector<Cell> candidates({
-                Cell({ endCell[x],   startCell[y], startCell[z] }),
-                Cell({ endCell[x],   endCell[y],   startCell[z] }),
-                Cell({ endCell[x],   startCell[y], endCell[z]   }),
-                Cell({ startCell[x], endCell[y],   startCell[z] }),
-                Cell({ startCell[x], endCell[y],   endCell[z]   }),
-                Cell({ startCell[x], startCell[y], endCell[z]   }),
-                });
-
-            std::size_t lowestIndex = 0;
-            RelativeDir lowestDistance = std::numeric_limits<RelativeDir>::max();
-            
-            for (std::size_t i = 0; i < candidates.size(); ++i) {
-                RelativeDir relativeDistance = (this->toRelative(candidates[i]) - startRelative).norm();
-                if (relativeDistance < lowestDistance) {
-                    lowestDistance = relativeDistance;
-                    lowestIndex = i;
-                }
-            }
-
-            Coordinate startExtreme = startRelative;
-            Coordinate endExtreme = endRelative;
-            Coordinate nearestPerpendicularRelative = this->toRelative(candidates[lowestIndex]);
-            std::size_t position;
-            if (calculateDifferenceBetweenCells(startCell, candidates[lowestIndex]) == 1) {
-                startExtreme = nearestPerpendicularRelative;
-                position = 1;
-            }
-            else {
-                endExtreme = nearestPerpendicularRelative;
-                position = 2;
-            }
-
-            Relative step = (endExtreme - startExtreme) / 2.0;
-            Cell middleCell = calculateMiddleCellBetweenTwoCoordinates(startExtreme, endExtreme, step);
-            
-            if (position == 1) {
-                cells.push_back(candidates[lowestIndex]);
-                cells.push_back(middleCell);
-            }
-            else {
-                cells.push_back(middleCell);
-                cells.push_back(candidates[lowestIndex]);
-            }
-        }
-        else {
-            Coordinate startExtreme = startRelative;
-            Coordinate endExtreme = endRelative;
-            Coordinate step = (endRelative - startRelative) / 3.0;
-
-
-            Cell secondCell = calculateMiddleCellBetweenTwoCoordinates(startExtreme, endExtreme, step);
-
-            Coordinate secondPoint = startExtreme + step;
-
-            startExtreme = secondPoint;
-            endExtreme = endRelative;
-            step = (endRelative - secondPoint) / 2.0;
-            
-
-            Cell thirdCell = calculateMiddleCellBetweenTwoCoordinates(startExtreme, endExtreme, step);
-
-            cells.push_back(secondCell);
-            cells.push_back(thirdCell);
-        }
-    }
-
-    cells.push_back(endCell);
 
     for (std::size_t v = 1; v < cells.size(); ++v) {
         auto endRelativePosition = this->toRelative(cells[v]);
@@ -285,7 +184,7 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     }
 }
 
-Cell Structurer::calculateMiddleCellBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme, Relative & step) {
+std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme) {
     // TODO: Use references instead of copying cordinates for method parameters
 
     auto startCell = this->calculateStructuredCell(startExtreme);
@@ -293,50 +192,87 @@ Cell Structurer::calculateMiddleCellBetweenTwoCoordinates(Coordinate& startExtre
     auto startStructured = this->toRelative(startCell);
     auto endStructured = this->toRelative(endCell);
 
-    std::vector<std::size_t> differentAxes;
-    differentAxes.reserve(3);
-    for (std::size_t axis = 0; axis < 3; ++axis) {
-        if (startCell[axis] != endCell[axis]) {
-            differentAxes.push_back(axis);
+    std::vector<Cell> cells;
+    cells.reserve(4);
+    cells.push_back(startCell);
+    
+
+    Coordinate centerVector = startStructured + (endStructured - startStructured) / 2.0;
+    Coordinate distanceVector = endExtreme - startExtreme;
+    Coordinate scaleVector;
+
+    std::map<double, Coordinate> sortedIntersections;
+
+    std::vector<Axis> differentAxes = calculateDifferentAxesBetweenCells(startCell, endCell);
+
+    if (differentAxes.size() > 1) {
+        for (Axis scaleAxis : differentAxes) {
+            scaleVector[scaleAxis] = distanceVector[scaleAxis] / (centerVector[scaleAxis] - startExtreme[scaleAxis]);
+            Coordinate componentPoint;
+
+            for (Axis intersectionAxis = X; intersectionAxis <= Z; ++intersectionAxis) {
+                if (intersectionAxis == scaleAxis) {
+                    componentPoint[intersectionAxis] = centerVector[scaleAxis];
+                }
+                else {
+                    componentPoint[intersectionAxis] = startExtreme[intersectionAxis] + distanceVector[intersectionAxis] / scaleVector[scaleAxis];
+                }
+            }
+
+            double componentDistance = (componentPoint - startExtreme).norm();
+            sortedIntersections[componentDistance] = componentPoint;
+        }
+        auto intersectionIt = sortedIntersections.begin();
+        auto nextIntersectionIt = sortedIntersections.begin();
+        ++nextIntersectionIt;
+        while (intersectionIt != sortedIntersections.end()) {
+            auto& point = intersectionIt->second;
+
+            std::set<Axis> equalAxes;
+
+            for (Axis axis = X; axis <= Z; ++axis) {
+                Axis secondAxis = (axis + 1) % 3;
+
+                if (!approxDir(centerVector[axis], 0.0) && !approxDir(centerVector[axis] - 1.0, 0.0)
+                    && !approxDir(centerVector[secondAxis], 0.0) && !approxDir(centerVector[secondAxis] - 1.0, 0.0)
+                    && approxDir(centerVector[axis] - point[axis], 0.0) && approxDir(centerVector[secondAxis] - point[secondAxis], 0.0)) {
+                    equalAxes.insert(axis);
+                    equalAxes.insert(secondAxis);
+                }
+            }
+
+            if (equalAxes.size() != 0) {
+                Cell firstMiddleCell = cells.back();
+                auto forcedAxisIt = equalAxes.begin();
+
+                firstMiddleCell[*forcedAxisIt] = endCell[*forcedAxisIt];
+                ++forcedAxisIt;
+                Cell secondMiddleCell = firstMiddleCell;
+                secondMiddleCell[*forcedAxisIt] = endCell[*forcedAxisIt];
+
+                cells.push_back(firstMiddleCell);
+                cells.push_back(secondMiddleCell);
+            }
+            else if (nextIntersectionIt != sortedIntersections.end()) {
+                Coordinate& nextPoint = nextIntersectionIt->second;
+
+                Coordinate middlePoint = (point + nextPoint) / 2;
+                Cell middleCell = calculateStructuredCell(middlePoint);
+                cells.push_back(middleCell);
+            }
+
+            ++intersectionIt;
+            if (nextIntersectionIt != sortedIntersections.end()) {
+                ++nextIntersectionIt;
+            }
         }
     }
 
-
-    Coordinate startCoordinateDist = (startExtreme - startStructured).abs();
-    Coordinate endCoordinateDist = (endExtreme - endStructured).abs();
-
-    if (approxDir(startCoordinateDist[differentAxes[0]] - startCoordinateDist[differentAxes[1]], 0.0)
-        && approxDir(endCoordinateDist[differentAxes[0]] - endCoordinateDist[differentAxes[1]], 0.0)) {
-        Relative middleStructured = startStructured;
-        middleStructured[differentAxes[0]] = endStructured[differentAxes[0]];
-        
-        return this->toCell(middleStructured);
+    if (cells.back() != endCell) {
+        cells.push_back(endCell);
     }
-    Cell middleCell;
-    std::size_t cellDifference;
 
-    std::size_t tries = 0;
-    do {
-        if (tries > 200) {
-            throw std::logic_error("Stuck in infinite loop.");
-        }
-        const Coordinate middlePoint = startExtreme + step;
-        middleCell = this->calculateStructuredCell(middlePoint);
-        cellDifference = calculateDifferenceBetweenCells(startCell, middleCell);
-
-        if (cellDifference == 0) {
-            startExtreme = middlePoint;
-        }
-        else if (cellDifference >= 2) {
-            endExtreme = middlePoint;
-        }
-
-        step = (endExtreme - startExtreme) / 2.0;
-
-        ++tries;
-
-    } while (cellDifference != 1);
-    return middleCell;
+    return cells;
 }
 
 Cell Structurer::calculateStructuredCell(const Coordinate& relativeCoordinate) const
