@@ -86,7 +86,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
         secondCellSurfaceIds = &coordinateIdsByCellSurface.rbegin()->second;
         auto& firstIt = firstCellSurfaceIds->begin();
         auto& secondIt = secondCellSurfaceIds->begin();
-        for (firstIt; firstIt != firstCellSurfaceIds->end() && secondIt != firstCellSurfaceIds->end(); ++firstIt, ++secondIt) {
+        for (firstIt; firstIt != firstCellSurfaceIds->end() && secondIt != secondCellSurfaceIds->end(); ++firstIt, ++secondIt) {
             if (*firstIt < *secondIt) {
                 break;
             }
