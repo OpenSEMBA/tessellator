@@ -22,7 +22,8 @@ private:
         Coordinates& resultCoordinates,
         Group& group
     );
-    bool isEdgePartOfCellSurface(const Element& edge, const IdSet &surfaceCoordinateIds) const;
+    bool isEdgePartOfCellSurface(const Element& edge, const CoordinateIds &surfaceCoordinateIds) const;
+    bool isPureDiagonal(const Element& edge, const Coordinates& coordinates);
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);

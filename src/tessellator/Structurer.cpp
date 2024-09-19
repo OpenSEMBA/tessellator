@@ -39,9 +39,9 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     Group edges;
 
     edges.elements = {
-        Element({triangle.vertices[0], triangle.vertices[1]}),
-        Element({triangle.vertices[1], triangle.vertices[2]}),
-        Element({triangle.vertices[2], triangle.vertices[0]}),
+        Element({triangle.vertices[0], triangle.vertices[1]}, Element::Type::Line),
+        Element({triangle.vertices[1], triangle.vertices[2]}, Element::Type::Line),
+        Element({triangle.vertices[2], triangle.vertices[0]}, Element::Type::Line),
     };
 
     Mesh auxiliarMesh;
@@ -49,9 +49,16 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     auxiliarMesh.groups = { Group() };
     Group& processedEdges = auxiliarMesh.groups[0];
     auxiliarMesh.groups[0].elements.reserve(9);
+    int pureDiagonalIndex = -1;
 
-    for (auto& edge : edges.elements) {
-        this->processLineAndAddToGroup(edge, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges);
+    for (std::size_t index = 0; index < edges.elements.size(); ++index) {
+        auto& edge = edges.elements[index];
+        if (isPureDiagonal(edge, originalRelativeCoordinates)) {
+            pureDiagonalIndex = index;
+        }
+        else {
+            this->processLineAndAddToGroup(edge, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges);
+        }
     }
 
     Cleaner::fuseCoords(auxiliarMesh);
@@ -59,52 +66,140 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
 
     CoordinateId newCoordinateId = this->mesh_.coordinates.size();
 
-    mesh_.coordinates.insert(mesh_.coordinates.end(), auxiliarMesh.coordinates.begin(), auxiliarMesh.coordinates.end());
+    std::map<Surfel, IdSet> idSetByCellSurface;
+    std::map<Surfel, CoordinateIds> coordinateIdsByCellSurface;
 
-    std::map<Surfel, IdSet> coordinateIdsByCellSurface;
+    calculateCoordinateIdsByCellSurface(auxiliarMesh.coordinates, idSetByCellSurface);
 
-    calculateCoordinateIdsByCellSurface(auxiliarMesh.coordinates, coordinateIdsByCellSurface);
+    Coordinate startPureDiagonalStructured;
+    CoordinateId startPureDiagonalAuxiliarIndex = 0;
 
-    auto cellSurfaceIt = coordinateIdsByCellSurface.begin();
-    while (cellSurfaceIt != coordinateIdsByCellSurface.end()) {
-        if (cellSurfaceIt->second.size() != 4) {
-            cellSurfaceIt = coordinateIdsByCellSurface.erase(cellSurfaceIt);
-        }
-        else {
-            ++cellSurfaceIt;
+    std::vector<Cell> structuredOriginalVertexCells;
+    structuredOriginalVertexCells.reserve(3);
+    for (CoordinateId v : triangle.vertices) {
+        structuredOriginalVertexCells.push_back(calculateStructuredCell(originalRelativeCoordinates[v]));
+    }
+
+    if (pureDiagonalIndex >= 0) {
+        std::size_t pointIndex = edges.elements[pureDiagonalIndex].vertices[0];
+        startPureDiagonalStructured = toRelative(calculateStructuredCell(originalRelativeCoordinates[pointIndex]));
+        while (startPureDiagonalStructured != auxiliarMesh.coordinates[startPureDiagonalAuxiliarIndex]) {
+            ++startPureDiagonalAuxiliarIndex;
         }
     }
+
+    auto cellSurfaceIt = idSetByCellSurface.begin();
+    while (cellSurfaceIt != idSetByCellSurface.end()) {
+        auto& plane = cellSurfaceIt->first;
+        auto& idSet = cellSurfaceIt->second;
+        auto numberOfSurfacePoints = idSet.size();
+
+
+        std::vector<Cell> projectedCells;
+        bool isCorrectSurface = false;
+
+        if (pureDiagonalIndex >= 0 && numberOfSurfacePoints == 3) {
+            for (auto& cell : structuredOriginalVertexCells) {
+                projectedCells.push_back(cell);
+                projectedCells.back()[plane.second] = plane.first[plane.second];
+            }
+
+            isCorrectSurface = true;
+            for (auto vertexIdIterator = idSet.begin(); isCorrectSurface && vertexIdIterator != idSet.end(); ++vertexIdIterator) {
+                auto& surfaceCoordinate = auxiliarMesh.coordinates[*vertexIdIterator];
+                isCorrectSurface = false;
+
+                for (auto& projectedCell : projectedCells) {
+                    if (projectedCell == toCell(surfaceCoordinate)) {
+                        isCorrectSurface = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        
+
+        if (numberOfSurfacePoints == 4 || (pureDiagonalIndex >= 0 && isCorrectSurface)) {
+            coordinateIdsByCellSurface[plane] = CoordinateIds({});
+            coordinateIdsByCellSurface[plane].insert(coordinateIdsByCellSurface[plane].begin(), idSet.begin(), idSet.end());
+        }
+
+        if (pureDiagonalIndex >= 0 && isCorrectSurface) {
+            auto& surfaceIds = coordinateIdsByCellSurface[plane];
+            Cell missingCell = projectedCells[pureDiagonalIndex];
+            for (auto coordinateId : surfaceIds) {
+                Cell surfaceCell = toCell(auxiliarMesh.coordinates[coordinateId]);
+                auto differentAxes = calculateDifferentAxesBetweenCells(projectedCells[pureDiagonalIndex], surfaceCell);
+                if (differentAxes.size() == 1) {
+                    Axis axisToChange = X;
+
+                    while (axisToChange == plane.second || axisToChange == differentAxes[0]) {
+                        ++axisToChange;
+                    }
+
+                    missingCell[axisToChange] = projectedCells[(pureDiagonalIndex + 1) % 3][axisToChange];
+                    break;
+                }
+            }
+            for (auto coordinateIt = surfaceIds.begin(); coordinateIt != surfaceIds.end(); ++coordinateIt) {
+                Coordinate surfaceCoordinate = auxiliarMesh.coordinates[*coordinateIt];
+                
+                if (projectedCells[pureDiagonalIndex] == toCell(surfaceCoordinate)) {
+                    auto positionToInsert = coordinateIt + 1;
+                    CoordinateId missingCoordinateId = auxiliarMesh.coordinates.size();
+                    auxiliarMesh.coordinates.push_back(toRelative(missingCell));
+                    surfaceIds.insert(positionToInsert, missingCoordinateId);
+                    break;
+                }
+            }
+        }
+
+        ++cellSurfaceIt;
+    }
+
+
+    mesh_.coordinates.insert(mesh_.coordinates.end(), auxiliarMesh.coordinates.begin(), auxiliarMesh.coordinates.end());
+
+
     bool hasFirstSurface = false;
     bool hasSecondSurface = false;
-    IdSet* firstCellSurfaceIds;
-    IdSet* secondCellSurfaceIds;
+    CoordinateIds* firstCellSurfaceIds;
+    CoordinateIds* secondCellSurfaceIds;
+    Surfel firstCellSurfacePlane;
+    Surfel secondCellSurfacePlane;
 
     if (coordinateIdsByCellSurface.size() == 2) {
         hasFirstSurface = true;
         hasSecondSurface = true;
+        firstCellSurfacePlane = coordinateIdsByCellSurface.begin()->first;
         firstCellSurfaceIds = &coordinateIdsByCellSurface.begin()->second;
+
+        secondCellSurfacePlane = coordinateIdsByCellSurface.rbegin()->first;
         secondCellSurfaceIds = &coordinateIdsByCellSurface.rbegin()->second;
-        auto& firstIt = firstCellSurfaceIds->begin();
-        auto& secondIt = secondCellSurfaceIds->begin();
-        for (firstIt; firstIt != firstCellSurfaceIds->end() && secondIt != secondCellSurfaceIds->end(); ++firstIt, ++secondIt) {
-            if (*firstIt < *secondIt) {
+        
+        for (std::size_t index = 0; index != firstCellSurfaceIds->size(); ++index) {
+            if (firstCellSurfaceIds[index] < secondCellSurfaceIds[index]) {
                 break;
             }
-            if (*secondIt < *firstIt) {
+            if (secondCellSurfaceIds[index] < firstCellSurfaceIds[index]) {
                 std::swap(firstCellSurfaceIds, secondCellSurfaceIds);
+                std::swap(firstCellSurfacePlane, secondCellSurfacePlane);
                 break;
             }
         }
     }
-    else if (coordinateIdsByCellSurface.size() == 1) {
-        auto& surfaceCoordinateIds = coordinateIdsByCellSurface.begin()->second;
-        if (*surfaceCoordinateIds.begin() == 0) {
+    else if (coordinateIdsByCellSurface.size() == 1) { // CONSIDER BOTH POINTS IN FIRST EDGE
+        auto surfaceCoordinateIt = coordinateIdsByCellSurface.begin();
+        if (surfaceCoordinateIt->second[0] == 0 || pureDiagonalIndex == 0) {
             hasFirstSurface = true;
-            firstCellSurfaceIds = &surfaceCoordinateIds;
+            firstCellSurfacePlane = surfaceCoordinateIt->first;
+            firstCellSurfaceIds = &surfaceCoordinateIt->second;
         }
         else {
             hasSecondSurface = true;
-            secondCellSurfaceIds = &surfaceCoordinateIds;
+            secondCellSurfacePlane = surfaceCoordinateIt->first;
+            secondCellSurfaceIds = &surfaceCoordinateIt->second;
         }
     }
 
@@ -230,13 +325,22 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordin
 
             std::set<Axis> equalAxes;
 
-            for (Axis axis = X; axis <= Z; ++axis) {
-                Axis secondAxis = (axis + 1) % 3;
+            for (Axis currentAxis = X; currentAxis <= Z; ++currentAxis) {
+                Axis firstAxis = currentAxis;
+                Axis secondAxis = (firstAxis + 1) % 3;
 
-                if (!approxDir(centerVector[axis], 0.0) && !approxDir(centerVector[axis] - 1.0, 0.0)
+                if (!approxDir(centerVector[firstAxis], 0.0) && !approxDir(centerVector[firstAxis] - 1.0, 0.0)
                     && !approxDir(centerVector[secondAxis], 0.0) && !approxDir(centerVector[secondAxis] - 1.0, 0.0)
-                    && approxDir(centerVector[axis] - point[axis], 0.0) && approxDir(centerVector[secondAxis] - point[secondAxis], 0.0)) {
-                    equalAxes.insert(axis);
+                    && approxDir(centerVector[firstAxis] - point[firstAxis], 0.0) && approxDir(centerVector[secondAxis] - point[secondAxis], 0.0)) {
+
+                    if (endExtreme[firstAxis] < startExtreme[firstAxis]) {
+                        firstAxis = 5 - firstAxis;
+                    }
+                    if (endExtreme[secondAxis] < startExtreme[secondAxis]) {
+                        secondAxis = 5 - secondAxis;
+                    }
+
+                    equalAxes.insert(firstAxis);
                     equalAxes.insert(secondAxis);
                 }
             }
@@ -245,10 +349,24 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordin
                 Cell firstMiddleCell = cells.back();
                 auto forcedAxisIt = equalAxes.begin();
 
-                firstMiddleCell[*forcedAxisIt] = endCell[*forcedAxisIt];
+                auto forcedAxis = *forcedAxisIt;
+
+                if (forcedAxis > Z) {
+                    forcedAxis = Z - (forcedAxis - 3);
+                }
+
+                firstMiddleCell[forcedAxis] = endCell[forcedAxis];
                 ++forcedAxisIt;
+
+
+                forcedAxis = *forcedAxisIt;
+
+                if (forcedAxis > Z) {
+                    forcedAxis = Z - (forcedAxis - 3);
+                }
+
                 Cell secondMiddleCell = firstMiddleCell;
-                secondMiddleCell[*forcedAxisIt] = endCell[*forcedAxisIt];
+                secondMiddleCell[forcedAxis] = endCell[forcedAxis];
 
                 cells.push_back(firstMiddleCell);
                 cells.push_back(secondMiddleCell);
@@ -366,13 +484,54 @@ void Structurer::calculateCoordinateIdsByCellSurface(const Coordinates& coordina
     }
 }
 
-bool Structurer::isEdgePartOfCellSurface(const Element& edge, const IdSet& surfaceCoordinateIds) const {
-    if (!edge.isLine() || surfaceCoordinateIds.size() != 4) {
+bool Structurer::isPureDiagonal(const Element& edge, const Coordinates & coordinates) {
+    if (!edge.isLine()) {
+        return false;
+    }
+
+    auto& startPoint = coordinates[edge.vertices[0]];
+    auto& endPoint = coordinates[edge.vertices[1]];
+    auto& startCell = calculateStructuredCell(startPoint);
+    auto& endCell = calculateStructuredCell(endPoint);
+    std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);
+
+    if (difference != 3) {
+        return false;
+    }
+
+    Coordinate startStructured = toRelative(startCell);
+    Coordinate endStructured = toRelative(endCell);
+
+    Coordinate centerVector = startStructured + (endStructured - startStructured) / 2.0;
+    Coordinate distanceVector = endPoint - startPoint;
+    Coordinate scaleVector;
+    
+    for (Axis axis = X; axis <= Z; ++axis) {
+        scaleVector[axis] = distanceVector[axis] / (centerVector[axis] - startPoint[axis]);
+    }
+
+    if (!approxDir(scaleVector[X], scaleVector[Y]) || !approxDir(scaleVector[Y], scaleVector[Z])) {
+        return false;
+    }
+
+    return true;
+}
+
+bool Structurer::isEdgePartOfCellSurface(const Element& edge, const CoordinateIds& surfaceCoordinateIds) const {
+    if (!edge.isLine()) {
         return false;
     }
 
     for (auto vertex : edge.vertices) {
-        if (surfaceCoordinateIds.find(vertex) == surfaceCoordinateIds.end()) {
+        bool found = false;
+        for (auto coordId : surfaceCoordinateIds) {
+            if (vertex == coordId) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
             return false;
         }
     }
