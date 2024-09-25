@@ -1844,12 +1844,3 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
         }
     }
 }
-
-/* LINE PASSES THOROUGH CENTER
-
-
-        Coordinate({ 0.0, 0.0, 0.2 }),    // 0 First Triangle, First Point
-        Coordinate({ 1.0, 0.0, 0.4 }),    // 1 First Triangle, Second Point
-        Coordinate({ 1.0, 1.0, 0.8 }),    // 2 First Triangle, Third Point
-
-*/

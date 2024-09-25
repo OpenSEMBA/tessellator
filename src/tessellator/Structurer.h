@@ -24,11 +24,20 @@ private:
     );
     bool isEdgePartOfCellSurface(const Element& edge, const CoordinateIds &surfaceCoordinateIds) const;
     bool isPureDiagonal(const Element& edge, const Coordinates& coordinates);
+    bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;
+    void filterSurfacesFromCoordinateIds(
+        const CoordinateIds& triangleVertices,
+        int pureDiagonalIndex,
+        const Coordinates& originalRelativeCoordinates,
+        const std::map<Surfel, IdSet>& idSetByCellSurface,
+        Coordinates& structuredCoordinates,
+        std::map<Surfel, CoordinateIds>& coordinateIdsByCellSurface
+    );
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Cell> calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme);
-    void calculateCoordinateIdsByCellSurface(const Coordinates& coordinates, std::map<Surfel, IdSet>& coordinatesByCellSurface);
+    void calculateCoordinateIdSetByCellSurface(const Coordinates& coordinates, std::map<Surfel, IdSet>& coordinatesByCellSurface);
 };
 
 
