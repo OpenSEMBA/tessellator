@@ -208,7 +208,20 @@ void checkNoNullAreasExist(const Mesh& m)
     bool nullAreas = false;
     for (const auto& g : m.groups) {
         for (auto const& e: g.elements) {
-            if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
+            if (e.isNode()) {
+                continue;
+            }
+            if (e.isLine()) {
+                auto line = Geometry::asLinV(e, m.coordinates);
+                if ((line.back() - line.front()).norm() == 0.0) {
+                    nullAreas = true;
+                    msg << std::endl;
+                    msg << "Group: " << &g - &m.groups.front()
+                        << ", Element: " << &e - &g.elements.front() << std::endl;
+                    msg << info(e, m) << std::endl;
+                }
+            }
+            else if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
                 nullAreas = true;
                 msg << std::endl;
                 msg << "Group: " << &g - &m.groups.front()
