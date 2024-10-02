@@ -25,11 +25,12 @@ add_library(tessellator
     "tessellator/SmootherTools.cpp"
     "tessellator/Snapper.cpp"
     "tessellator/Structurer.cpp"
+    "tessellator/StructuredDriver.cpp"
     "tessellator/filler/Filler.cpp"
     "tessellator/filler/FillerTools.cpp"
     "tessellator/filler/SegmentsArray.cpp"
     "tessellator/filler/Slice.cpp"
-)                       
+)
 include_directories(".")
 
 find_package(Boost REQUIRED graph)

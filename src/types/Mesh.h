@@ -208,12 +208,37 @@ struct Mesh {
         }
         return res;
     }
-    std::size_t countLines() const 
+
+    std::size_t countQuads() const
     {
         std::size_t res = 0;
         for (auto const& g : groups) {
             for (auto const& e : g.elements) {
-                if (e.vertices.size() == 2 && e.type == Element::Type::Line) {
+                if (e.vertices.size() == 4 && e.type == Element::Type::Surface) {
+                    res++;
+                }
+            }
+        }
+        return res;
+    }
+    std::size_t countLines() const
+    {
+        std::size_t res = 0;
+        for (auto const& g : groups) {
+            for (auto const& e : g.elements) {
+                if (e.isLine()) {
+                    res++;
+                }
+            }
+        }
+        return res;
+    }
+    std::size_t countNodes() const
+    {
+        std::size_t res = 0;
+        for (auto const& g : groups) {
+            for (auto const& e : g.elements) {
+                if (e.isNode()) {
                     res++;
                 }
             }
