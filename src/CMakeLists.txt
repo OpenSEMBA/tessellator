@@ -20,6 +20,8 @@ add_library(tessellator
     "utils/Tools.cpp"
     "tessellator/Collapser.cpp"
     "tessellator/Driver.cpp"
+    "tessellator/DriverBase.cpp"
+    "tessellator/DriverInterface.h"
     "tessellator/Slicer.cpp"
     "tessellator/Smoother.cpp"
     "tessellator/SmootherTools.cpp"

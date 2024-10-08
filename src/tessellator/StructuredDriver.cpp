@@ -19,67 +19,19 @@ namespace tessellator {
 
 using namespace utils;
 using namespace meshTools;
-/*
-void log(const std::string& msg, std::size_t level = 0)
-{
-    std::cout << "[Tessellator] ";
-    for (std::size_t i = 0; i < level; i++) {
-        std::cout << "-- ";
-    }
 
-    std::cout << msg << std::endl;
-}
 
-void logNumberOfTriangles(std::size_t nTris)
+Mesh StructuredDriver::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
-    std::stringstream msg;
-    msg << "Mesh contains " << nTris << " triangles.";
-    log(msg.str(), 2);
-}
-*/
-
-void logNumberOfLines(std::size_t nLines)
-{
-    std::stringstream msg;
-    msg << "Mesh contains " << nLines << " lines.";
-    log(msg.str(), 2);
-}
-
-void logNumberOfQuads(std::size_t nQuads)
-{
-    std::stringstream msg;
-    msg << "Mesh contains " << nQuads << " quads.";
-    log(msg.str(), 2);
-}
-/*
-void logGridSize(const Grid& g)
-{
-    std::stringstream msg;
-    msg << "Grid size is "
-        << g[0].size() - 1 << "x" << g[1].size() - 1 << "x" << g[2].size() - 1;
-    log(msg.str(), 2);
-}
-*/
-Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) {
-    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
-}
-
-Mesh buildSurfaceMesh(const Mesh& in, const Mesh & volumeSurface)
-{
-    auto resultMesh{ buildMeshFilteringElements(in, isNotTetrahedron) };
+    auto resultMesh = DriverBase::buildSurfaceMesh(inputMesh);
     mergeMesh(resultMesh, volumeSurface);
     return resultMesh;
 }
 
 StructuredDriver::StructuredDriver(const Mesh& inputMesh, int decimalPlacesInCollapser) :
-    originalGrid_{ inputMesh.grid },
+    DriverBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser)
 {
-    logGridSize(inputMesh.grid);
-    logNumberOfTriangles(inputMesh.countTriangles());
-
-    enlargedGrid_ = getEnlargedGridIncludingAllElements(inputMesh);
-
     log("Preparing volume surface.");
     auto volumeSurface = extractSurfaceFromVolumeMeshes(inputMesh);
 
@@ -134,6 +86,7 @@ Mesh StructuredDriver::mesh() const
 
     logNumberOfQuads(resultMesh.countQuads());
     logNumberOfLines(resultMesh.countLines());
+    logNumberOfLines(resultMesh.countNodes());
 
     reduceGrid(resultMesh, originalGrid_);
     Cleaner::cleanCoords(resultMesh);

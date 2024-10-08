@@ -1,140 +1,71 @@
 #include "Driver.h"
 
-#include <algorithm>
-#include <stdexcept>
-#include <assert.h>
-
+#include "DriverBase.cpp"
 #include "Slicer.h"
 #include "Collapser.h"
 #include "Smoother.h"
 #include "Snapper.h"
 
 #include "filler/Filler.h"
-#include "cgal/Manifolder.h"
 #include "cgal/Repairer.h"
 
 #include "utils/Cleaner.h"
-#include "utils/MeshTools.h"
-#include "utils/GridTools.h"
 
 namespace meshlib {
 namespace tessellator {
 
 using namespace utils;
-using namespace meshTools;
 using namespace filler;
 
-void log(const std::string& msg, std::size_t level = 0)
+Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
-    std::cout << "[Tessellator] ";
-    for (std::size_t i = 0; i < level; i++) {
-        std::cout << "-- ";
-    }
-
-    std::cout << msg << std::endl;
-}
-
-void logNumberOfTriangles(std::size_t nTris)
-{
-    std::stringstream msg;
-    msg << "Mesh contains " << nTris << " triangles.";
-    log(msg.str(), 2);
-}
-
-void logGridSize(const Grid& g)
-{
-    std::stringstream msg;
-    msg << "Grid size is "
-        << g[0].size() - 1 << "x" << g[1].size() - 1 << "x" << g[2].size() - 1;
-    log(msg.str(), 2);
-}
-
-Mesh buildVolumeMesh(const Mesh& in, const std::set<GroupId>& volumeGroups)
-{
-    Mesh r{ in.grid, in.coordinates };
-    r.groups.resize(in.groups.size());
+    Mesh resultMesh{ inputMesh.grid, inputMesh.coordinates };
+    resultMesh.groups.resize(inputMesh.groups.size());
     for (const auto& gId : volumeGroups) {
-        mergeGroup(r.groups[gId], in.groups[gId]);
+        mergeGroup(resultMesh.groups[gId], inputMesh.groups[gId]);
     }
-    r = cgal::repair(r);
+    resultMesh = cgal::repair(resultMesh);
     mergeMesh(
-        r,
-        Manifolder{ buildMeshFilteringElements(in, isTetrahedron) }.getClosedSurfacesMesh()
+        resultMesh,
+        extractSurfaceFromVolumeMeshes(inputMesh)
     );
-    return r;
+    return resultMesh;
 }
 
-Mesh buildSurfaceMesh(const Mesh& in, const std::set<GroupId>& volumeGroups)
-{
-    auto r{ buildMeshFilteringElements(in, isNotTetrahedron) };
-    for (const auto& gId : volumeGroups) {
-        r.groups[gId].elements.clear();
-    }
-    return r;
-}
-
-Driver::Driver(const Mesh& in, const DriverOptions& opts) : 
-    opts_{ opts },
-    originalGrid_{in.grid}
-{    
-    logGridSize(in.grid);
-    logNumberOfTriangles(in.countTriangles());
-    
-    enlargedGrid_ = getEnlargedGridIncludingAllElements(in) ;
-    
+Driver::Driver(const Mesh& in, const DriverOptions& opts) :
+    DriverBase::DriverBase(in),
+    opts_{ opts }
+{        
     log("Preparing volumes.");
-    vMesh_ = buildVolumeMesh(in, opts_.volumeGroups);
+    volumeMesh_ = buildVolumeMesh(in, opts_.volumeGroups);
         
     log("Preparing surfaces.");
-    sMesh_ = buildSurfaceMesh(in, opts_.volumeGroups);
+    surfaceMesh_ = buildSurfaceMesh(in, opts_.volumeGroups);
 
     log("Processing volume mesh.");
-    process(vMesh_);
+    process(volumeMesh_);
 
     log("Processing surface mesh.");
-    process(sMesh_);
+    process(surfaceMesh_);
 
     log("Initial hull mesh built succesfully.");
 }
 
-Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
+Mesh Driver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
-    assert(primal.size() >= 2);
-    assert(enlarged.size() >= 2);
-    
-    const auto dual{ GridTools{primal}.getExtendedDualGrid() };
-    Grid r;
-    for (const auto& x : { X,Y,Z }) {
-        std::set<CoordinateDir> gP;
-        gP.insert(primal[x].front());
-        gP.insert(primal[x].back());
-        gP.insert(dual[x].front());
-        gP.insert(dual[x].back());
-        gP.insert(enlarged[x].front());
-        gP.insert(enlarged[x].back());
-        r[x].insert(r[x].end(), gP.begin(), gP.end());
+    auto resultMesh = DriverBase::buildSurfaceMesh(inputMesh);
+    for (const auto& gId : volumeGroups) {
+        resultMesh.groups[gId].elements.clear();
     }
-    return r;
+    return resultMesh;
 }
 
-Grid buildSlicingGrid(const Grid& primal, const Grid& enlarged)
-{
-    const auto nonSlicing{ buildNonSlicingGrid(primal, enlarged) };
-    Grid r;
-    for (const auto& x : { X,Y,Z }) {
-        std::set<CoordinateDir> gP(nonSlicing[x].begin(), nonSlicing[x].end());
-        gP.insert(primal[x].begin(), primal[x].end());
-        r[x].insert(r[x].end(), gP.begin(), gP.end());
-    }
-    return r;
-}
-
-void Driver::process(Mesh& m) const
+void Driver::process(Mesh& mesh) const
 {
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     
-    if (m.countElems() == 0) {
-        m.grid = slicingGrid;
+    if (mesh.countElems() == 0) {
+        mesh.grid = slicingGrid;
         return;
     }
     
@@ -145,40 +76,40 @@ void Driver::process(Mesh& m) const
         || opts_.snap 
     };
     if (fullSlicing) {
-        m.grid = slicingGrid;
+        mesh.grid = slicingGrid;
     }
     else {
-        m.grid = buildNonSlicingGrid(originalGrid_, enlargedGrid_);
+        mesh.grid = buildNonSlicingGrid(originalGrid_, enlargedGrid_);
     }
-    m = Slicer{ m }.getMesh();
+    mesh = Slicer{ mesh }.getMesh();
     if (!fullSlicing) {
-        m = setGrid(m, slicingGrid);
+        mesh = setGrid(mesh, slicingGrid);
     }
     
-    logNumberOfTriangles(m.countTriangles());
+    logNumberOfTriangles(mesh.countTriangles());
 
     log("Collapsing.", 1);
-    m = Collapser(m, opts_.decimalPlacesInCollapser).getMesh();
-    logNumberOfTriangles(m.countTriangles());
+    mesh = Collapser(mesh, opts_.decimalPlacesInCollapser).getMesh();
+    logNumberOfTriangles(mesh.countTriangles());
         
     if (opts_.collapseInternalPoints || opts_.snap) {
         log("Smoothing.", 1);
-        m = Smoother(m).getMesh();
-        logNumberOfTriangles(m.countTriangles());
+        mesh = Smoother(mesh).getMesh();
+        logNumberOfTriangles(mesh.countTriangles());
     }
 
     if (opts_.snap) {
         log("Snapping.", 1);
-        m = Snapper(m, opts_.snapperOptions).getMesh();
-        logNumberOfTriangles(m.countTriangles());
+        mesh = Snapper(mesh, opts_.snapperOptions).getMesh();
+        logNumberOfTriangles(mesh.countTriangles());
     }
 }
 
 Mesh Driver::mesh() const 
 {
     log("Building primal mesh.");
-    Mesh res{ vMesh_ };
-    mergeMesh(res, sMesh_);
+    Mesh res{ volumeMesh_ };
+    mergeMesh(res, surfaceMesh_);
     logNumberOfTriangles(res.countTriangles());
     
     reduceGrid(res, originalGrid_);
@@ -193,8 +124,8 @@ Filler Driver::fill(const std::vector<Priority>& groupPriorities) const
     log("Building primal filler.", 1);
     
     return Filler{ 
-        reduceGrid(vMesh_, originalGrid_), 
-        reduceGrid(sMesh_, originalGrid_),
+        reduceGrid(volumeMesh_, originalGrid_), 
+        reduceGrid(surfaceMesh_, originalGrid_),
         groupPriorities 
     };
 }
@@ -205,8 +136,8 @@ Filler Driver::dualFill(const std::vector<Priority>& groupPriorities) const
     const auto dGrid{ GridTools{ originalGrid_ }.getExtendedDualGrid() };
 
     return Filler{ 
-        setGrid(vMesh_, dGrid),
-        setGrid(sMesh_, dGrid),
+        setGrid(volumeMesh_, dGrid),
+        setGrid(surfaceMesh_, dGrid),
         groupPriorities 
     };
 }

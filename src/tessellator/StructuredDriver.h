@@ -1,11 +1,12 @@
 #pragma once
 
 #include "types/Mesh.h"
+#include "DriverBase.h"
 
 namespace meshlib {
     namespace tessellator {
 
-        class StructuredDriver {
+        class StructuredDriver: public DriverBase {
         public:
             StructuredDriver(const Mesh& in, int decimalPlacesInCollapser = 4);
             virtual ~StructuredDriver() = default;
@@ -15,9 +16,8 @@ namespace meshlib {
             int decimalPlacesInCollapser_;
 
             Mesh surfaceMesh_;
-            Grid originalGrid_;
-            Grid enlargedGrid_;
 
+            virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
             void process(Mesh&) const;
 
         };
