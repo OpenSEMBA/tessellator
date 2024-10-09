@@ -183,6 +183,243 @@ TEST_F(CollapserTest, areas_are_below_threshold_issue_2)
 		Element({0, 2, 1}, Element::Type::Surface)
 	};
 
-	m = Slicer{m}.getMesh();
+	m = Slicer{ m }.getMesh();
 	ASSERT_NO_THROW(Collapser(m, 2));
+}
+
+
+TEST_F(CollapserTest, testRoundLinesToTolerance)
+{
+	int decimalPlaces = 2;
+	auto tolerance = std::pow(10.0, decimalPlaces);
+
+	Mesh mesh;
+	mesh.grid = buildGridSize2();
+
+	mesh.coordinates = {
+		Coordinate({ -5.567, -18.5425, 1.0}),
+		Coordinate({ 1.5972, -3.0, -2.0})
+	};
+	mesh.groups = { Group() };
+	mesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line)
+	};
+
+	auto intermediateMesh = Slicer{ mesh }.getMesh();
+
+	Mesh expectedMesh;
+	expectedMesh.grid = buildGridSize2();
+
+	for (auto& intermediateCoordinate : intermediateMesh.coordinates) {
+		expectedMesh.coordinates.push_back(intermediateCoordinate.round(tolerance));
+	}
+
+	expectedMesh.groups.reserve(mesh.groups.size());
+
+	for (auto& intermediateGroup : intermediateMesh.groups) {
+		expectedMesh.groups.push_back(Group());
+
+		auto& expectedGroup = expectedMesh.groups.back();
+
+		expectedGroup.elements.reserve(intermediateGroup.elements.size());
+		for (auto& intermediateElement : intermediateGroup.elements) {
+			expectedGroup.elements.push_back(Element(intermediateElement.vertices, intermediateElement.type));
+		}
+	}
+
+	auto resultMesh = Collapser(intermediateMesh, decimalPlaces).getMesh();
+
+	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
+
+	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
+		auto& expectedCoordinate = expectedMesh.coordinates[c];
+		auto& resultCoordinate = resultMesh.coordinates[c];
+
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+		}
+	}
+
+	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
+	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
+
+	for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+		auto& expectedGroup = expectedMesh.groups[g];
+		auto& resultGroup = resultMesh.groups[g];
+
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+
+		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+			auto & expectedElement = expectedGroup.elements[e];
+			auto & resultElement = resultGroup.elements[e];
+
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+			}
+		}
+	}
+}
+
+
+
+
+TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
+{
+	int decimalPlaces = 2;
+	auto tolerance = std::pow(10.0, decimalPlaces);
+
+	Mesh mesh;
+	mesh.grid = buildGridSize2();
+
+	mesh.coordinates = {
+		Coordinate({ 0.327, 1.355, 4.402}),
+		Coordinate({ 0.33, 1.364, 4.404})
+	};
+	mesh.groups = { Group() };
+	mesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line)
+	};
+
+	Mesh expectedMesh;
+	expectedMesh.grid = buildGridSize2();
+
+	/*
+	expectedMesh.coordinates = {
+		Coordinate({0.33, 1.36, 4.4})
+	};
+	*/
+
+	expectedMesh.groups.resize(1);
+
+	// expectedMesh.groups[0].elements = { Element({0}, Element::Type::Node) };
+
+
+	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
+
+	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
+	ASSERT_EQ(resultMesh.coordinates.size(), 0);
+	/*
+	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
+		auto& expectedCoordinate = expectedMesh.coordinates[c];
+		auto& resultCoordinate = resultMesh.coordinates[c];
+
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+		}
+	}
+	*/
+
+	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
+	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
+
+
+	for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+		auto& expectedGroup = expectedMesh.groups[g];
+		auto& resultGroup = resultMesh.groups[g];
+
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+		/*
+		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+			auto& expectedElement = expectedGroup.elements[e];
+			auto& resultElement = resultGroup.elements[e];
+
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+			}
+		}
+		*/
+	}
+}
+
+
+TEST_F(CollapserTest, testEqualLinesGetErased)
+{
+	int decimalPlaces = 2;
+	auto tolerance = std::pow(10.0, decimalPlaces);
+
+	Mesh mesh;
+	mesh.grid = buildGridSize2();
+
+	mesh.coordinates = {
+		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.325, 0.325, 0.325}),
+		Coordinate({ 1.557, 1.556, 1.584}),
+		Coordinate({ 1.995, 3.226, 0.112}),
+		Coordinate({ 1.562, 1.562, 1.579}),
+		Coordinate({ 2.004, 3.23, 0.109}),
+	};
+	mesh.groups.resize(2);
+	mesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({1, 4}, Element::Type::Line),
+		Element({4, 5}, Element::Type::Line),
+	};
+	mesh.groups[1].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 4}, Element::Type::Line),
+		Element({4, 5}, Element::Type::Line),
+	};
+
+	Mesh expectedMesh;
+	expectedMesh.grid = buildGridSize2();
+	expectedMesh.coordinates = {
+		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.33, 0.33, 0.33}),
+		Coordinate({ 1.56, 1.56, 1.58}),
+		Coordinate({ 2.00, 3.23, 0.11}),
+	};
+	expectedMesh.groups.resize(2);
+	expectedMesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+	};
+	expectedMesh.groups[1].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+	};
+
+	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
+
+	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
+
+	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
+		auto& expectedCoordinate = expectedMesh.coordinates[c];
+		auto& resultCoordinate = resultMesh.coordinates[c];
+
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+		}
+	}
+
+	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
+	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
+
+	for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+		auto& expectedGroup = expectedMesh.groups[g];
+		auto& resultGroup = resultMesh.groups[g];
+
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+
+		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+			auto& expectedElement = expectedGroup.elements[e];
+			auto& resultElement = resultGroup.elements[e];
+
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+			}
+		}
+	}
 }

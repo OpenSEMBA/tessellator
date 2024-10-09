@@ -182,6 +182,76 @@ TEST_F(MeshToolsTest, checkNoAreaBelowThreshold_2)
 	ASSERT_ANY_THROW(checkNoNullAreasExist(m));
 }
 
+TEST_F(MeshToolsTest, testNodesAreValid)
+{
+	Mesh m;
+	Coordinate expectedCoordinate;
+	{
+		m.coordinates = { expectedCoordinate };
+
+		m.groups = { Group() };
+		m.groups[0].elements = {
+			Element({0}, Element::Type::Node),
+		};
+	}
+
+	ASSERT_NO_THROW(checkNoNullAreasExist(m));
+
+	ASSERT_EQ(m.coordinates.size(), 1);
+	for (Axis axis = X; axis <= Z; ++axis) {
+		EXPECT_EQ(m.coordinates[0][axis], expectedCoordinate[axis]);
+	}
+	ASSERT_EQ(m.groups.size(), 1);
+	ASSERT_EQ(m.groups[0].elements.size(), 1);
+
+	auto& resultElement = m.groups[0].elements[0];
+	ASSERT_EQ(resultElement.vertices.size(), 1);
+	ASSERT_EQ(resultElement.vertices[0], 0);
+	ASSERT_TRUE(resultElement.isNode());
+}
+
+TEST_F(MeshToolsTest, testLinesAreValidUnlessLengthIsZero)
+{
+	Coordinates expectedCoordinates = {
+			Coordinate({0.0, 0.0, 0.0}),
+			Coordinate({0.1, 0.1, 0.1})
+	};
+	auto expectedElement = Element({ 0, 1 }, Element::Type::Line);
+	Mesh m;
+	{
+
+		m.coordinates = expectedCoordinates;
+
+		m.groups = { Group() };
+		m.groups[0].elements = { expectedElement };
+	}
+
+	ASSERT_NO_THROW(checkNoNullAreasExist(m));
+
+	ASSERT_EQ(m.coordinates.size(), expectedCoordinates.size());
+	for (std::size_t c = 0; c < expectedCoordinates.size(); ++c) {
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(m.coordinates[c][axis], expectedCoordinates[c][axis]);
+		}
+	}
+	ASSERT_EQ(m.groups.size(), 1);
+	ASSERT_EQ(m.groups[0].elements.size(), 1);
+
+	auto& resultElement = m.groups[0].elements[0];
+
+	ASSERT_TRUE(resultElement.isLine());
+	ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+	for (std::size_t v = 0; v < expectedCoordinates.size(); ++v) {
+		EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+	}
+
+	m.coordinates.push_back(Coordinate({ 0.1, 0.1, 0.1 }));
+	m.groups[0].elements.push_back(Element({ 1, 2 }, Element::Type::Line));
+
+	ASSERT_ANY_THROW(checkNoNullAreasExist(m));
+		
+}
+
 TEST_F(MeshToolsTest, duplicateCoordinatesUsedByDifferentGroups) 
 {
 	Mesh m;
