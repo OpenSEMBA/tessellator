@@ -46,6 +46,14 @@ void logNumberOfLines(std::size_t nLines)
     log(msg.str(), 2);
 }
 
+
+void logNumberOfNodes(std::size_t nNodes)
+{
+    std::stringstream msg;
+    msg << "Mesh contains " << nNodes << " nodes.";
+    log(msg.str(), 2);
+}
+
 void logGridSize(const Grid& g)
 {
     std::stringstream msg;

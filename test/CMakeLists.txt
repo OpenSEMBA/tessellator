@@ -32,7 +32,7 @@ add_executable(tessellator_tests
 	"tessellator/SmootherToolsTest.cpp"
 	"tessellator/SnapperTest.cpp"
     "tessellator/StructuredDriverTest.cpp"
-	"tessellator/StructurerTest.cpp"
+    "tessellator/StructurerTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/CleanerTest.cpp"
 	"utils/CoordGraphTest.cpp"

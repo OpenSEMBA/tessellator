@@ -86,7 +86,7 @@ Mesh StructuredDriver::mesh() const
 
     logNumberOfQuads(resultMesh.countQuads());
     logNumberOfLines(resultMesh.countLines());
-    logNumberOfLines(resultMesh.countNodes());
+    logNumberOfNodes(resultMesh.countNodes());
 
     reduceGrid(resultMesh, originalGrid_);
     Cleaner::cleanCoords(resultMesh);
