@@ -1,8 +1,8 @@
+#pragma once
 #include "types/Mesh.h"
 
 #include "PolyhedronTools.h"
 
-#pragma once
 
 namespace meshlib {
 namespace cgal {

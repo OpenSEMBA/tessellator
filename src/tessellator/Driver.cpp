@@ -86,22 +86,22 @@ void Driver::process(Mesh& mesh) const
         mesh = setGrid(mesh, slicingGrid);
     }
     
-    logNumberOfTriangles(mesh.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
     mesh = Collapser(mesh, opts_.decimalPlacesInCollapser).getMesh();
-    logNumberOfTriangles(mesh.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
         
     if (opts_.collapseInternalPoints || opts_.snap) {
         log("Smoothing.", 1);
         mesh = Smoother(mesh).getMesh();
-        logNumberOfTriangles(mesh.countTriangles());
+        logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     }
 
     if (opts_.snap) {
         log("Snapping.", 1);
         mesh = Snapper(mesh, opts_.snapperOptions).getMesh();
-        logNumberOfTriangles(mesh.countTriangles());
+        logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     }
 }
 
@@ -110,7 +110,7 @@ Mesh Driver::mesh() const
     log("Building primal mesh.");
     Mesh res{ volumeMesh_ };
     mergeMesh(res, surfaceMesh_);
-    logNumberOfTriangles(res.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
     
     reduceGrid(res, originalGrid_);
     Cleaner::cleanCoords(res);

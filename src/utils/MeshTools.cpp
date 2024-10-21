@@ -11,6 +11,18 @@ namespace meshlib {
 namespace utils {
 namespace meshTools {
 
+std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter) {
+    std::size_t res = 0;
+    for (auto const& g : mesh.groups) {
+        for (auto const& e : g.elements) {
+            if (countFilter(e)) {
+                res++;
+            }
+        }
+    }
+    return res;
+}
+
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
 {
     Mesh res = mesh;

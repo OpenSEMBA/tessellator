@@ -9,6 +9,7 @@ using namespace meshlib;
 using namespace tessellator;
 using namespace meshFixtures;
 using namespace utils;
+using namespace meshTools;
 
 class SlicerTest : public ::testing::Test {
 public:
@@ -76,7 +77,7 @@ TEST_F(SlicerTest, tri45_size1_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
-    EXPECT_EQ(1, out.countTriangles());
+    EXPECT_EQ(1, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(SlicerTest, tri45_2_size1_grid)
@@ -98,7 +99,7 @@ TEST_F(SlicerTest, tri45_2_size1_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
-    EXPECT_EQ(5, out.countTriangles());
+    EXPECT_EQ(5, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(SlicerTest, tri45_3_size1_grid)
@@ -123,7 +124,7 @@ TEST_F(SlicerTest, tri45_3_size1_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
-    EXPECT_EQ(5, out.countTriangles());
+    EXPECT_EQ(5, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(SlicerTest, tri45_size05_grid) 
@@ -131,7 +132,7 @@ TEST_F(SlicerTest, tri45_size05_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{ buildTri45Mesh(0.5) }.getMesh());
 
-    EXPECT_EQ(3, out.countTriangles());
+    EXPECT_EQ(3, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
@@ -141,8 +142,8 @@ TEST_F(SlicerTest, tri45_size025_grid)
     ASSERT_NO_THROW(out = Slicer{ buildTri45Mesh(0.25) }.getMesh());
 
     ASSERT_EQ(1, out.groups.size());
-    EXPECT_EQ(out.countTriangles(), out.groups[0].elements.size());
-    EXPECT_EQ(10, out.countTriangles());
+    EXPECT_EQ(countMeshElementsIf(out, isTriangle), out.groups[0].elements.size());
+    EXPECT_EQ(10, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
@@ -155,7 +156,7 @@ TEST_F(SlicerTest, cube1x1x1_size1_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
-    EXPECT_EQ(12, out.countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
@@ -168,7 +169,7 @@ TEST_F(SlicerTest, cube1x1x1_size05_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
-    EXPECT_EQ(48, out.countTriangles());
+    EXPECT_EQ(48, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
@@ -181,7 +182,7 @@ TEST_F(SlicerTest, cube1x1x1_size3_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
-    EXPECT_EQ(12, out.countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
     ASSERT_NO_THROW(meshTools::checkNoNullAreasExist(out));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
@@ -195,7 +196,7 @@ TEST_F(SlicerTest, tri_less45_size025_grid)
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
-    EXPECT_EQ(11, out.countTriangles());
+    EXPECT_EQ(11, countMeshElementsIf(out, isTriangle));
     ASSERT_NO_THROW(meshTools::checkNoNullAreasExist(out));
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
@@ -222,7 +223,7 @@ TEST_F(SlicerTest, meshTrisOnGridBoundaries)
 
         Mesh sliced = Slicer{m}.getMesh();
 
-        EXPECT_EQ(1, sliced.countTriangles());
+        EXPECT_EQ(1, countMeshElementsIf(sliced, isTriangle));
     }
 
     {
@@ -234,7 +235,7 @@ TEST_F(SlicerTest, meshTrisOnGridBoundaries)
 
         Mesh sliced = Slicer{m}.getMesh();
 
-        EXPECT_EQ(1, sliced.countTriangles());
+        EXPECT_EQ(1, countMeshElementsIf(sliced, isTriangle));
     }
 }
 

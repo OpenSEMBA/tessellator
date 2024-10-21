@@ -58,24 +58,24 @@ void StructuredDriver::process(Mesh& mesh) const
     mesh.grid = slicingGrid;
     mesh = Slicer{ mesh }.getMesh();
     
-    logNumberOfTriangles(mesh.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
     mesh = Collapser(mesh, decimalPlacesInCollapser_).getMesh();
 
-    logNumberOfTriangles(mesh.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Structuring.", 1);
     mesh = Structurer(mesh).getMesh();
 
-    logNumberOfQuads(mesh.countQuads());
-    logNumberOfLines(mesh.countLines());
+    logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
+    logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
 
     Cleaner::removeRepeatedElements(mesh);
 
-    logNumberOfQuads(mesh.countQuads());
-    logNumberOfLines(mesh.countLines());
+    logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
+    logNumberOfLines(countMeshElementsIf(mesh, isLine));
 }
 
 
@@ -84,9 +84,9 @@ Mesh StructuredDriver::mesh() const
     log("Building primal mesh.");
     Mesh resultMesh{ surfaceMesh_ };
 
-    logNumberOfQuads(resultMesh.countQuads());
-    logNumberOfLines(resultMesh.countLines());
-    logNumberOfNodes(resultMesh.countNodes());
+    logNumberOfQuads(countMeshElementsIf(resultMesh, isQuad));
+    logNumberOfLines(countMeshElementsIf(resultMesh, isLine));
+    logNumberOfNodes(countMeshElementsIf(resultMesh, isNode));
 
     reduceGrid(resultMesh, originalGrid_);
     Cleaner::cleanCoords(resultMesh);

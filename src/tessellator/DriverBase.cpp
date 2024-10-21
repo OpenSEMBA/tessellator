@@ -70,7 +70,7 @@ Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) {
 DriverBase::DriverBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
 
     logGridSize(inputMesh.grid);
-    logNumberOfTriangles(inputMesh.countTriangles());
+    logNumberOfTriangles(countMeshElementsIf(inputMesh, isTriangle));
 
     enlargedGrid_ = getEnlargedGridIncludingAllElements(inputMesh);
 }
