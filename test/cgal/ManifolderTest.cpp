@@ -15,6 +15,7 @@ using namespace meshlib;
 using namespace tessellator;
 using namespace cgal;
 using namespace meshFixtures;
+using namespace utils::meshTools;
 
 class ManifolderTest : public ::testing::Test {
 public:
@@ -143,7 +144,7 @@ TEST_F(ManifolderTest, one_tet)
 	
 	EXPECT_EQ(4, r.countElems());
 	EXPECT_EQ(4, r.coordinates.size());
-	EXPECT_EQ(4, r.countTriangles());
+	EXPECT_EQ(4, countMeshElementsIf(r, isTriangle));
 }
 
 TEST_F(ManifolderTest, two_connected_tets) 
@@ -165,7 +166,7 @@ TEST_F(ManifolderTest, two_connected_tets)
 	}
 	Mesh r = Manifolder(m).getClosedSurfacesMesh();
 
-	EXPECT_EQ(6, r.countTriangles());
+	EXPECT_EQ(6, countMeshElementsIf(r, isTriangle));
 	EXPECT_EQ(5, r.coordinates.size());
 
 	EXPECT_EQ(r.coordinates.size(), usedCoordIds(r).size());
@@ -195,7 +196,7 @@ TEST_F(ManifolderTest, two_disconnected_tets)
 	}
 	Mesh r = Manifolder(m).getClosedSurfacesMesh();
 
-	EXPECT_EQ(8, r.countTriangles());
+	EXPECT_EQ(8, countMeshElementsIf(r, isTriangle));
 	EXPECT_EQ(8, r.coordinates.size());
 
 	EXPECT_EQ(r.coordinates.size(), usedCoordIds(r).size());
@@ -206,8 +207,8 @@ TEST_F(ManifolderTest, tets_with_inner_point)
 {
 	Mesh r = Manifolder(buildTetMeshWithInnerPoint(1.0)).getClosedSurfacesMesh();
 	
-	EXPECT_EQ(4, r.countTriangles());
-	EXPECT_EQ(0, r.countElems() - r.countTriangles());
+	EXPECT_EQ(4, countMeshElementsIf(r, isTriangle));
+	EXPECT_EQ(0, r.countElems() - countMeshElementsIf(r, isTriangle));
 	EXPECT_EQ(4, usedCoordIds(r).size());
 
 	ASSERT_EQ(1, r.groups.size());
@@ -230,8 +231,8 @@ TEST_F(ManifolderTest, cubeMesh)
 	Mesh m = buildCubeVolumeMesh(1.0);
 	Mesh r = Manifolder(m).getClosedSurfacesMesh();
 
-	EXPECT_EQ(12, r.countTriangles());
-	EXPECT_EQ(0, r.countElems() - r.countTriangles());
+	EXPECT_EQ(12, countMeshElementsIf(r, isTriangle));
+	EXPECT_EQ(0, r.countElems() - countMeshElementsIf(r, isTriangle));
 
 	EXPECT_EQ(0, Manifolder(m).getOpenSurfacesMesh().countElems());
 }
@@ -261,6 +262,6 @@ TEST_F(ManifolderTest, smashed_tet)
 	
 	Manifolder mf{ m };
 	
-	EXPECT_EQ(2, mf.getOpenSurfacesMesh().countTriangles());
-	EXPECT_EQ(0, mf.getClosedSurfacesMesh().countTriangles());
+	EXPECT_EQ(2, countMeshElementsIf(mf.getOpenSurfacesMesh(), isTriangle));
+	EXPECT_EQ(0, countMeshElementsIf(mf.getClosedSurfacesMesh(), isTriangle));
 }

@@ -7,11 +7,18 @@ namespace utils {
 namespace meshTools {
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh);
-
+static bool isNode(const Element& e) { return e.isNode(); }
+static bool isNotNode(const Element& e) { return !e.isNode(); }
+static bool isLine(const Element& e) { return e.isLine(); }
+static bool isNotLine(const Element& e) { return !e.isLine(); }
 static bool isTriangle(const Element& e) { return e.isTriangle(); }
 static bool isNotTriangle(const Element& e) { return !e.isTriangle(); }
+static bool isQuad(const Element& e) { return e.isQuad(); }
+static bool isNotQuad(const Element& e) { return !e.isQuad(); }
 static bool isTetrahedron(const Element& e) { return e.isTetrahedron(); }
 static bool isNotTetrahedron(const Element& e) { return !e.isTetrahedron(); }
+
+std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter);
 
 Mesh buildMeshFilteringElements(
 	const Mesh& in, std::function<bool(const Element&)> filter);

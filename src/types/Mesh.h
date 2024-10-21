@@ -188,39 +188,6 @@ struct Mesh {
         return res;
     }
 
-    std::size_t countElemsWithCondition(std::function<bool(const Element&)> condition) const {
-        std::size_t res = 0;
-        for (auto const& g : groups) {
-            res += std::count_if(g.elements.begin(), g.elements.end(), condition);
-        }
-        return res;
-    }
-
-    std::size_t countTriangles() const 
-    {
-        std::size_t res = 0;
-        for (auto const& g: groups) {
-            for (auto const& e : g.elements) {
-                if (e.vertices.size() == 3 && e.type == Element::Type::Surface) {
-                    res++;
-                }
-            }
-        }
-        return res;
-    }
-    std::size_t countLines() const 
-    {
-        std::size_t res = 0;
-        for (auto const& g : groups) {
-            for (auto const& e : g.elements) {
-                if (e.vertices.size() == 2 && e.type == Element::Type::Line) {
-                    res++;
-                }
-            }
-        }
-        return res;
-    }
-
     std::map<CoordinateId, std::vector<GroupElementId>> buildCoordToElemMap() const {
         std::map<CoordinateId, std::vector<GroupElementId>> vToElem;
         for (auto const& g : groups) {
