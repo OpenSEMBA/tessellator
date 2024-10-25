@@ -10,6 +10,7 @@ using namespace meshlib;
 using namespace tessellator;
 using namespace utils;
 using namespace meshFixtures;
+using namespace meshTools;
 
 class SmootherTest : public ::testing::Test {
 protected:
@@ -46,12 +47,12 @@ TEST_F(SmootherTest, self_intersecting_after_smoothing)
 
 	auto r{ Smoother{m}.getMesh() }; 
 
-	EXPECT_EQ(2, r.countTriangles());
+	EXPECT_EQ(2, countMeshElementsIf(r, isTriangle));
 }
 
 TEST_F(SmootherTest, non_manifold)
 {
-	EXPECT_EQ(3, Smoother{ buildNonManifoldPatchMesh(1.0) }.getMesh().countTriangles());
+	EXPECT_EQ(3, countMeshElementsIf(Smoother{ buildNonManifoldPatchMesh(1.0) }.getMesh(), isTriangle));
 }
 
 TEST_F(SmootherTest, touching_by_single_point)
@@ -82,5 +83,5 @@ TEST_F(SmootherTest, touching_by_single_point)
 
 	auto r{ Smoother{m}.getMesh() };
 
-	EXPECT_EQ(2, r.countTriangles());
+	EXPECT_EQ(2, countMeshElementsIf(r, isTriangle));
 }

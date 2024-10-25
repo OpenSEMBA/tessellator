@@ -43,6 +43,52 @@ TEST_F(CleanerTest, removeRepeatedElements_with_indices_rotated)
 	EXPECT_EQ(m, r);
 }
 
+TEST_F(CleanerTest, testRemoveRepeatedLinesFromSameGroup)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(0.2);
+	m.coordinates = {
+		Coordinate({0.25, 0.25, 0.25}),
+		Coordinate({0.75, 0.75, 0.75}),
+	};
+	m.groups.resize(2);
+	m.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({0, 1}, Element::Type::Line),
+	};
+	m.groups[1].elements = {
+		Element({0, 1}, Element::Type::Line),
+	};
+
+	Cleaner::removeRepeatedElements(m);
+
+	EXPECT_EQ(m.coordinates.size(), 2);
+	EXPECT_EQ(m.groups.size(), 2);
+	EXPECT_EQ(m.groups[0].elements.size(), 1);
+	EXPECT_EQ(m.groups[1].elements.size(), 1);
+}
+
+TEST_F(CleanerTest, testDoNotRemoveOppositeLines)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(0.2);
+	m.coordinates = {
+		Coordinate({0.25, 0.25, 0.25}),
+		Coordinate({0.75, 0.75, 0.75}),
+	};
+	m.groups.resize(1);
+	m.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
+	};
+
+	auto resultMesh{ m };
+
+	Cleaner::removeRepeatedElements(resultMesh);
+
+	EXPECT_EQ(resultMesh, m);
+}
+
 TEST_F(CleanerTest, removeElementsWithCondition)
 {
 	Mesh m;

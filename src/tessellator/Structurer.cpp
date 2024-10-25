@@ -54,7 +54,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     for (std::size_t index = 0; index < edges.elements.size(); ++index) {
         auto& edge = edges.elements[index];
         if (isPureDiagonal(edge, originalRelativeCoordinates)) {
-            pureDiagonalIndex = index;
+            pureDiagonalIndex = int(index);
         }
         else {
             this->processLineAndAddToGroup(edge, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges);

@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
+#include "MeshTools.h"
 
 #include "Driver.h"
 #include "utils/Geometry.h"
@@ -8,6 +9,7 @@ using namespace meshlib;
 using namespace tessellator;
 using namespace filler;
 using namespace meshFixtures;
+using namespace utils::meshTools;
 
 class DriverTest : public ::testing::Test {
 public:
@@ -197,7 +199,7 @@ TEST_F(DriverTest, bowtie_corner_size5_grid_raw)
     Driver mesher(buildCornerBowtieMesh(5.0), buildRawOptions());
     Mesh out;
     ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(6, out.countTriangles());
+    EXPECT_EQ(6, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, bowtie_corner_size5_grid_adapted)
@@ -206,7 +208,7 @@ TEST_F(DriverTest, bowtie_corner_size5_grid_adapted)
     Driver mesher(buildCornerBowtieMesh(5.0), buildAdaptedOptions());
     Mesh out;
     ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(6, out.countTriangles());
+    EXPECT_EQ(6, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, plane45_size05_grid_adapted) 
@@ -248,7 +250,7 @@ TEST_F(DriverTest, plane45_size025_grid_adapted) {
     Mesh out;
 
     ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(32, out.countTriangles());
+    EXPECT_EQ(32, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, plane45_size025_grid_raw) 
@@ -259,7 +261,7 @@ TEST_F(DriverTest, plane45_size025_grid_raw)
     Mesh out;
 
     ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(40, out.countTriangles());
+    EXPECT_EQ(40, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, bowtie_two_triangles_adapted)
@@ -493,7 +495,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_0c25_grid_raw)
     Mesh out;
     ASSERT_NO_THROW(out = mesher.mesh());
     
-    EXPECT_EQ(192, out.countTriangles());
+    EXPECT_EQ(192, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, cube_1x1x1_volume_size_0c5_grid_raw)
@@ -502,7 +504,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_0c5_grid_raw)
     Driver mesher(buildCubeVolumeMesh(0.5), buildRawOptions());
     Mesh out;
     ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(48, out.countTriangles());
+    EXPECT_EQ(48, countMeshElementsIf(out, isTriangle));
 
 }
 
@@ -511,7 +513,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_raw)
     Mesh out;
     ASSERT_NO_THROW(out = Driver(buildCubeVolumeMesh(1.0), buildRawOptions()).mesh());
     
-    EXPECT_EQ(12, out.countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
 }
 
 TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_snapped)
@@ -521,7 +523,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_snapped)
     Driver mesher(buildCubeVolumeMesh(1.0), buildSnappedOptions());
     ASSERT_NO_THROW(p = mesher.mesh());
 
-    EXPECT_EQ(12, p.countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(p, isTriangle));
 }
 
 TEST_F(DriverTest, cube_1x1x1_surface_treat_as_volume)
@@ -534,7 +536,7 @@ TEST_F(DriverTest, cube_1x1x1_surface_treat_as_volume)
     Driver mesher(buildCubeSurfaceMesh(1.0), opts);
     ASSERT_NO_THROW(p = mesher.mesh());
     
-    EXPECT_EQ(12, p.countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(p, isTriangle));
 }
 
 TEST_F(DriverTest, slab_surface_treat_as_volume)
@@ -547,7 +549,7 @@ TEST_F(DriverTest, slab_surface_treat_as_volume)
     Mesh p;
     ASSERT_NO_THROW(p = Driver(buildSlabSurfaceMesh(1.0, 0.01), opts).mesh());
     
-    EXPECT_EQ(4, p.countTriangles());
+    EXPECT_EQ(4, countMeshElementsIf(p, isTriangle));
 }
 
 TEST_F(DriverTest, plane45_size1_grid)
@@ -567,7 +569,7 @@ TEST_F(DriverTest, tet_size1_grid)
     Mesh msh;
     ASSERT_NO_THROW(msh = mesher.mesh());
 
-    EXPECT_EQ(4, msh.countTriangles());
+    EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
 }
 
 TEST_F(DriverTest, tet_with_inner_point_size1_grid)
@@ -577,17 +579,17 @@ TEST_F(DriverTest, tet_with_inner_point_size1_grid)
     Mesh msh;
     ASSERT_NO_THROW(msh = mesher.mesh());
 
-    EXPECT_EQ(4, msh.countTriangles());
+    EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
 }
 
 TEST_F(DriverTest, elementsPartiallyOutOfGrid_bare)
 {
     Driver h{ buildTriPartiallyOutOfGridMesh(0.5), buildBareOptions() };
      
-    EXPECT_EQ(2, h.mesh().countTriangles());
+    EXPECT_EQ(2, countMeshElementsIf(h.mesh(), isTriangle));
 
     auto f{ h.fill() };
-    EXPECT_EQ(2, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(2, countMeshElementsIf(f.getMeshFilling(), isTriangle));
     EXPECT_TRUE(f.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
     EXPECT_TRUE(f.getFillingState({ Cell({ 1, 1, 1 }), Z }).full());
     EXPECT_TRUE(f.getFillingState({ Cell({ 2, 2, 1 }), Z }).full());
@@ -598,7 +600,7 @@ TEST_F(DriverTest, elementsPartiallyOutOfGrid_raw)
 {
     Driver h{ buildTriPartiallyOutOfGridMesh(0.5), buildRawOptions() };
 
-    EXPECT_EQ(32, h.mesh().countTriangles());
+    EXPECT_EQ(32, countMeshElementsIf(h.mesh(), isTriangle));
 
     auto f{ h.fill() };
     EXPECT_TRUE(f.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
@@ -611,7 +613,7 @@ TEST_F(DriverTest, elementsPartiallyOutOfGrid_dual_bare)
 {
     Driver h{ buildTriPartiallyOutOfGridMesh(1.0), buildBareOptions() };
 
-    EXPECT_EQ(2, h.mesh().countTriangles());
+    EXPECT_EQ(2, countMeshElementsIf(h.mesh(), isTriangle));
 
     auto df{ h.dualFill() };
     EXPECT_TRUE(df.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
@@ -631,7 +633,7 @@ TEST_F(DriverTest, elementsTotallyOutOfGrid)
 
     Driver h{ m };
 
-    EXPECT_EQ(0, h.mesh().countTriangles());
+    EXPECT_EQ(0, countMeshElementsIf(h.mesh(), isTriangle));
 
     EXPECT_EQ(0, h.fill().getMeshFilling().countElems());
     EXPECT_EQ(0, h.dualFill().getMeshFilling().countElems());
@@ -671,5 +673,5 @@ TEST_F(DriverTest, meshed_with_holes_issue)
     Mesh out;
     ASSERT_NO_THROW(out = Driver(m, buildRawOptions()).mesh());
 
-    EXPECT_LT(374, out.countTriangles());
+    EXPECT_LT(374, countMeshElementsIf(out, isTriangle));
 }
