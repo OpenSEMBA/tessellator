@@ -9,9 +9,11 @@
 #include "Smoother.h"
 #include "Snapper.h"
 
+#ifdef TESSELLATOR_USE_CGAL
 #include "filler/Filler.h"
 #include "cgal/Manifolder.h"
 #include "cgal/Repairer.h"
+#endif
 
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
@@ -22,7 +24,6 @@ namespace tessellator {
 
 using namespace utils;
 using namespace meshTools;
-using namespace filler;
 
 void log(const std::string& msg, std::size_t level = 0)
 {

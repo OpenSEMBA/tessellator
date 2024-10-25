@@ -13,9 +13,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 project(tessellator CXX)
 
 option(TESSELLATOR_ENABLE_TESTS "Compile tests" ON)
+option(TESSELLATOR_USE_CGAL "Compile using CGAL library" ON)
 option(TESSELLATOR_EXECUTION_POLICIES OFF)
 
 add_subdirectory(src/)
+
+if (TESSELLATOR_USE_CGAL)
+	add_definitions("-DTESSELLATOR_USE_CGAL")
+endif()
 					  
 if(TESSELLATOR_ENABLE_TESTS)
 	enable_testing()

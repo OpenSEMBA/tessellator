@@ -1,7 +1,9 @@
 # Tessellator mesher
 
-[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](https://opensource.org/licenses/gpl-3.0)
-[![Build and test](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml)
+[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](https://opensource.org/licenses/gpl-3.0) 
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/mit) 
+
+[![Windows tests](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml)
 
 ## Features
 
@@ -24,4 +26,4 @@ If you use this software, please give proper attribution by citing it as indicat
 
 
 ## Copyright and license
-This code and its copyright is property of to the University of Granada (UGR), CIF: Q1818002F, www.ugr.es. UGR has licensed its distribution under terms of the GPL-3.0 license (see [LICENSE](LICENSE) file) with the name of `meshlib` 
+This code and its copyright is property of to the University of Granada (UGR), CIF: Q1818002F, www.ugr.es. UGR has licensed its distribution under terms of the GPL-3.0 and MIT licenses (see [LICENSE](LICENSE) file) with the name of `meshlib` 

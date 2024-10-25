@@ -8,23 +8,31 @@ include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(
 	${PROJECT_SOURCE_DIR}/src/
 	${PROJECT_SOURCE_DIR}/src/tessellator/
-	${PROJECT_SOURCE_DIR}/src/cgal/
 	${PROJECT_SOURCE_DIR}/src/utils/
 	${PROJECT_SOURCE_DIR}/src/types/
 	${PROJECT_SOURCE_DIR}/test/
 )
 
+if (TESSELLATOR_USE_CGAL)
+	include_directories(
+		${PROJECT_SOURCE_DIR}/src/cgal/
+	)
+
+	add_library(tessellator_cgal_tests
+		"cgal/ArrangmentTest.cpp"
+		"cgal/ConvexHullTest.cpp"
+		"cgal/DelaunatorTest.cpp"
+		"cgal/HPolygonSetTest.cpp"
+		"cgal/LSFPlaneTest.cpp"
+		"cgal/ManifolderTest.cpp"
+		"cgal/PolyhedronToolsTest.cpp"
+		"cgal/RepairerTest.cpp"
+		"filler/FillerTest.cpp"
+		"filler/FillerToolsTest.cpp"
+	)
+endif()
+
 add_executable(tessellator_tests 
-	"cgal/ArrangmentTest.cpp"
-	"cgal/ConvexHullTest.cpp"
-	"cgal/DelaunatorTest.cpp"
-	"cgal/HPolygonSetTest.cpp"
-	"cgal/LSFPlaneTest.cpp"
-	"cgal/ManifolderTest.cpp"
-	"cgal/PolyhedronToolsTest.cpp"
-	"cgal/RepairerTest.cpp"
-	"tessellator/filler/FillerTest.cpp"
-	"tessellator/filler/FillerToolsTest.cpp"
 	"tessellator/CollapserTest.cpp"
 	"tessellator/DriverTest.cpp"
 	"tessellator/SlicerTest.cpp"
@@ -45,5 +53,9 @@ target_link_libraries(tessellator_tests
     GTest::gtest 
 	GTest::gtest_main
 )
+
+if (TESSELLATOR_USE_CGAL)
+	target_link_libraries(tessellator_tests tessellator_cgal_tests GTest::gtest)
+endif()
 
 add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)

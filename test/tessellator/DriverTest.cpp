@@ -6,7 +6,6 @@
 
 using namespace meshlib;
 using namespace tessellator;
-using namespace filler;
 using namespace meshFixtures;
 
 class DriverTest : public ::testing::Test {
