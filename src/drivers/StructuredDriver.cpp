@@ -6,7 +6,6 @@
 #include "Slicer.h"
 #include "Collapser.h"
 #include "Structurer.h"
-#include "Driver.cpp"
 
 #include "cgal/Manifolder.h"
 

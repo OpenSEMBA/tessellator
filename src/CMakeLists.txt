@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 message(STATUS "Creating build system for tessellator")
 
+include_directories(".")
+
 add_library(tessellator-utils
     "utils/Cleaner.cpp"
     "utils/CoordGraph.cpp"
@@ -11,6 +13,10 @@ add_library(tessellator-utils
     "utils/MeshTools.cpp"
     "utils/Tools.cpp"
 )
+
+find_package(Boost REQUIRED graph)
+include_directories(${Boost_INCLUDE_DIRS})
+target_link_libraries(tessellator-utils Boost::graph)
 
 if (TESSELLATOR_USE_CGAL)
     add_library(tessellator-cgal
@@ -22,42 +28,23 @@ if (TESSELLATOR_USE_CGAL)
         "cgal/PolyhedronTools.cpp"
         "cgal/Repairer.cpp"
         "cgal/Tools.cpp"
-        "filler/Filler.cpp"
-        "filler/FillerTools.cpp"
-        "filler/SegmentsArray.cpp"
-        "filler/Slice.cpp"
+        "cgal/filler/Filler.cpp"
+        "cgal/filler/FillerTools.cpp"
+        "cgal/filler/SegmentsArray.cpp"
+        "cgal/filler/Slice.cpp"
     )
 
     find_package(CGAL CONFIG REQUIRED)
-    target_link_libraries(tessellator-cgal tessellator-utils CGAL::CGAL)
+    target_link_libraries(tessellator-cgal CGAL::CGAL)
 endif()
 
-add_library(tessellator
-    "tessellator/Collapser.cpp"
-    "tessellator/Driver.cpp"
-    "tessellator/DriverBase.cpp"
-    "tessellator/DriverInterface.h"
-    "tessellator/Slicer.cpp"
-    "tessellator/Smoother.cpp"
-    "tessellator/SmootherTools.cpp"
-    "tessellator/Snapper.cpp"
-    "tessellator/Structurer.cpp"
-    "tessellator/StructuredDriver.cpp"
+add_library(tessellator-core
+    "core/Collapser.cpp"
+    "core/Slicer.cpp"
+    "core/Smoother.cpp"
+    "core/SmootherTools.cpp"
+    "core/Snapper.cpp"
+    "core/Structurer.cpp"
 )
 
-
-include_directories(".")
-
-find_package(Boost REQUIRED graph)
-include_directories(${Boost_INCLUDE_DIRS})
-target_link_libraries(tessellator tessellator-utils Boost::graph)
-
-if (TESSELLATOR_USE_CGAL)
-    target_link_libraries(tessellator tessellator-cgal)
-endif()
-
-if(TESSELLATOR_EXECUTION_POLICIES)
-    add_definitions(-DTESSELLATOR_EXECUTION_POLICIES)
-    find_package(TBB CONFIG REQUIRED)
-    target_link_libraries(tessellator TBB::tbb)
-endif()
+add_subdirectory(drivers)

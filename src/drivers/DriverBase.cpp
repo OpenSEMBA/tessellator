@@ -15,7 +15,7 @@ using namespace utils;
 using namespace meshTools;
 
 
-void log(const std::string& msg, std::size_t level = 0)
+void DriverBase::log(const std::string& msg, std::size_t level)
 {
     std::cout << "[Tessellator] ";
     for (std::size_t i = 0; i < level; i++) {
@@ -25,21 +25,21 @@ void log(const std::string& msg, std::size_t level = 0)
     std::cout << msg << std::endl;
 }
 
-void logNumberOfQuads(std::size_t nQuads)
+void DriverBase::logNumberOfQuads(std::size_t nQuads)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nQuads << " quads.";
     log(msg.str(), 2);
 }
 
-void logNumberOfTriangles(std::size_t nTris)
+void DriverBase::logNumberOfTriangles(std::size_t nTris)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nTris << " triangles.";
     log(msg.str(), 2);
 }
 
-void logNumberOfLines(std::size_t nLines)
+void DriverBase::logNumberOfLines(std::size_t nLines)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nLines << " lines.";
@@ -47,14 +47,14 @@ void logNumberOfLines(std::size_t nLines)
 }
 
 
-void logNumberOfNodes(std::size_t nNodes)
+void DriverBase::logNumberOfNodes(std::size_t nNodes)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nNodes << " nodes.";
     log(msg.str(), 2);
 }
 
-void logGridSize(const Grid& g)
+void DriverBase::logGridSize(const Grid& g)
 {
     std::stringstream msg;
     msg << "Grid size is "
@@ -62,8 +62,7 @@ void logGridSize(const Grid& g)
     log(msg.str(), 2);
 }
 
-
-Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) {
+Mesh DriverBase::extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) {
     return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
 }
 
@@ -81,7 +80,7 @@ Mesh DriverBase::buildSurfaceMesh(const Mesh& inputMesh) {
 
 
 
-Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
+Grid DriverBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
 {
     assert(primal.size() >= 2);
     assert(enlarged.size() >= 2);
@@ -101,9 +100,7 @@ Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
     return resultGrid;
 }
 
-
-
-Grid buildSlicingGrid(const Grid& primal, const Grid& enlarged)
+Grid DriverBase::buildSlicingGrid(const Grid& primal, const Grid& enlarged)
 {
     const auto nonSlicing{ buildNonSlicingGrid(primal, enlarged) };
     Grid r;

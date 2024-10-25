@@ -1,7 +1,7 @@
 
 #include "gtest/gtest.h"
 
-#include "tessellator/Slicer.h"
+#include "core/Slicer.h"
 #include "cgal/Manifolder.h"
 #include "MeshFixtures.h"
 #include "MeshTools.h"
