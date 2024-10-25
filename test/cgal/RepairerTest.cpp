@@ -99,7 +99,7 @@ TEST_F(RepairTest, fill_tet)
 	
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(1, r.groups[0].elements.size());
-	EXPECT_EQ(1, r.countElemsWithCondition([](const auto& e) {return e.isTetrahedron(); }));
+	EXPECT_EQ(1, countMeshElementsIf(r, isTetrahedron));
 }
 
 TEST_F(RepairTest, fill_tet_surface)

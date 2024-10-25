@@ -2,12 +2,13 @@
 
 #include "filler/Filler.h"
 #include "types/Mesh.h"
+#include "DriverBase.h"
 #include "DriverOptions.h"
 
 namespace meshlib {
 namespace tessellator {
 
-class Driver {
+class Driver : public DriverBase {
 public:
     Driver(const Mesh& in, const DriverOptions& opts = DriverOptions());
     virtual ~Driver() = default;
@@ -21,11 +22,10 @@ public:
 private:
     DriverOptions opts_;
 
-    Mesh vMesh_;
-    Mesh sMesh_;
-    Grid originalGrid_;
-    Grid enlargedGrid_;
+    Mesh volumeMesh_;
+    Mesh surfaceMesh_;
 
+    Mesh buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
     void process(Mesh&) const;
 
 };

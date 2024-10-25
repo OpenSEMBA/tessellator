@@ -11,6 +11,18 @@ namespace meshlib {
 namespace utils {
 namespace meshTools {
 
+std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter) {
+    std::size_t res = 0;
+    for (auto const& g : mesh.groups) {
+        for (auto const& e : g.elements) {
+            if (countFilter(e)) {
+                res++;
+            }
+        }
+    }
+    return res;
+}
+
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
 {
     Mesh res = mesh;
@@ -65,7 +77,7 @@ Grid getEnlargedGridIncludingAllElements(const Mesh& m)
 std::pair<VecD, VecD> getBoundingBox(const Mesh& m)
 {
     VecD minBB(std::numeric_limits<double>::max());
-    VecD maxBB(std::numeric_limits<double>::min());
+    VecD maxBB(std::numeric_limits<double>::lowest());
 
     GridTools gT{ m.grid };
     Coordinates newPos{ m.coordinates };
@@ -208,7 +220,20 @@ void checkNoNullAreasExist(const Mesh& m)
     bool nullAreas = false;
     for (const auto& g : m.groups) {
         for (auto const& e: g.elements) {
-            if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
+            if (e.isNode()) {
+                continue;
+            }
+            if (e.isLine()) {
+                auto line = Geometry::asLinV(e, m.coordinates);
+                if ((line.back() - line.front()).norm() == 0.0) {
+                    nullAreas = true;
+                    msg << std::endl;
+                    msg << "Group: " << &g - &m.groups.front()
+                        << ", Element: " << &e - &g.elements.front() << std::endl;
+                    msg << info(e, m) << std::endl;
+                }
+            }
+            else if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
                 nullAreas = true;
                 msg << std::endl;
                 msg << "Group: " << &g - &m.groups.front()

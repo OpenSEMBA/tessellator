@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
+#include "MeshTools.h"
 
 #include "filler/Filler.h"
 #include "Slicer.h"
@@ -8,6 +9,7 @@ using namespace meshlib;
 using namespace tessellator;
 using namespace filler;
 using namespace meshFixtures;
+using namespace utils::meshTools;
 
 class FillerTest : public ::testing::Test {
 public:
@@ -165,7 +167,7 @@ TEST_F(FillerTest, tet_stepSize1)
 {
     Filler f{ Slicer{buildTetSurfaceMesh(1.0)}.getMesh() };
 
-    EXPECT_EQ(3, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(3, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), X })));
     EXPECT_EQ(0, countPWHs(f.getFaceFilling({ Cell({1, 0, 0}), X })));
@@ -177,7 +179,7 @@ TEST_F(FillerTest, tet_stepSize1_no_slicing)
 {
     Filler f{ toRelative(buildTetSurfaceMesh(1.0)) };
 
-    EXPECT_EQ(3, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(3, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), X })));
     EXPECT_EQ(0, countPWHs(f.getFaceFilling({ Cell({1, 0, 0}), X })));
@@ -225,7 +227,7 @@ TEST_F(FillerTest, cube_stepSize1_cell_000)
 {
     Filler f{ Slicer{buildCubeSurfaceMesh(1.0) }.getMesh() };
     
-    EXPECT_EQ(12, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     Cell c({ 0, 0, 0 });
     EXPECT_EQ(0, countPWHs(f.getFaceFilling({ c, X })));
@@ -257,13 +259,13 @@ TEST_F(FillerTest, cube_stepSize0c5)
 {
     Filler f{ Slicer{buildCubeSurfaceMesh(0.5) }.getMesh() };
 
-    EXPECT_EQ(18, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(18, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 }
 
 TEST_F(FillerTest, cube_stepSize0c5_no_slicing)
 {
     Filler f{ toRelative(buildCubeSurfaceMesh(0.5)) };
-    EXPECT_EQ(18, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(18, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 }
 
 
@@ -275,7 +277,7 @@ TEST_F(FillerTest, cube_stepSize0c25)
 {
     Filler f{ Slicer{buildCubeSurfaceMesh(0.25) }.getMesh() };
 
-    EXPECT_EQ(30, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(30, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 }
 
 /// Fill the interior of a 1x1x1 cube in a grid with step size = 1,
@@ -287,7 +289,7 @@ TEST_F(FillerTest, cube_stepSize1_not_face_centered)
 
     Filler f{m};
 
-    EXPECT_EQ(6, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(6, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 }
 
 /// Fill the interior of a parallelogram that spans one cell on the xy plane 
@@ -296,7 +298,7 @@ TEST_F(FillerTest, parallelogram_as_volume)
 {   
     Filler f{ Slicer{ buildParalelogramMesh() }.getMesh() };
 
-    EXPECT_EQ(12, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), X })));
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 1}), X })));
@@ -309,7 +311,7 @@ TEST_F(FillerTest, parallelogram_as_volume_no_slicing)
 {
     Filler f{ toRelative(buildParalelogramMesh()) };
 
-    EXPECT_EQ(12, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(12, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), X })));
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 1}), X })));
@@ -323,7 +325,7 @@ TEST_F(FillerTest, parallelogram_as_surface)
 {
     Filler f{ Mesh(), Slicer{ buildParalelogramMesh() }.getMesh() };
 
-    EXPECT_EQ(10, f.getMeshFilling().countTriangles());
+    EXPECT_EQ(10, countMeshElementsIf(f.getMeshFilling(), isTriangle));
 
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), X })));
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 1}), X })));
@@ -338,8 +340,8 @@ TEST_F(FillerTest, planeXY_mesh_filling)
 
     auto mF{ f.getMeshFilling() };
     
-    EXPECT_EQ(2, mF.countTriangles());
-    EXPECT_EQ(0, mF.countLines());
+    EXPECT_EQ(2, countMeshElementsIf(mF, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(mF, isLine));
 }
 
 TEST_F(FillerTest, planeXY_mesh_filling_2)
@@ -357,8 +359,8 @@ TEST_F(FillerTest, planeXY_mesh_filling_2)
 
     auto mF{ f.getMeshFilling() };
 
-    EXPECT_EQ(2, mF.countTriangles());
-    EXPECT_EQ(0, mF.countLines());
+    EXPECT_EQ(2, countMeshElementsIf(mF, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(mF, isLine));
 }
 
 TEST_F(FillerTest, planeXY_mesh_filling_3)
@@ -369,8 +371,8 @@ TEST_F(FillerTest, planeXY_mesh_filling_3)
 
     auto mF{ Filler{ Slicer{ m }.getMesh() }.getMeshFilling() };
 
-    EXPECT_EQ(2, mF.countTriangles());
-    EXPECT_EQ(0, mF.countLines());
+    EXPECT_EQ(2, countMeshElementsIf(mF, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(mF, isLine));
 }
 
 TEST_F(FillerTest, planeXY_stepSize0c5_mesh_filling)
@@ -379,8 +381,8 @@ TEST_F(FillerTest, planeXY_stepSize0c5_mesh_filling)
 
     auto mF{ f.getMeshFilling() };
 
-    EXPECT_EQ(2, mF.countTriangles());
-    EXPECT_EQ(0, mF.countLines());
+    EXPECT_EQ(2, countMeshElementsIf(mF, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(mF, isLine));
 }
 
 TEST_F(FillerTest, planeXY_face_filling)
@@ -456,9 +458,10 @@ TEST_F(FillerTest, planeXY_edge_filling_empty_adjacent_cells)
 TEST_F(FillerTest, frameXY_stepSize1_mesh_filling)
 {
     Filler f{ Slicer{ buildFrameXYMesh(1.0) }.getMesh() };
+    auto& meshFilling = f.getMeshFilling();
 
-    EXPECT_EQ(8, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    EXPECT_EQ(8, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 }
 
 TEST_F(FillerTest, frameXY_stepSize1_face_filling)
@@ -514,9 +517,9 @@ TEST_F(FillerTest, planeXY_notFaceCentered_mesh_filling)
     addOffset(m.coordinates, Coordinate({ 0.0, 0.0, 0.5 }));
 
     Filler f{ Slicer{ m }.getMesh() };
-
-    EXPECT_EQ(0, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(4, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(4, countMeshElementsIf(meshFilling, isLine));
 }
 
 TEST_F(FillerTest, planeXY_notFaceCentered_face_filling)
@@ -561,8 +564,9 @@ TEST_F(FillerTest, two_planes_on_same_face)
 {
     Filler f{ buildTwoSquaresXYMesh(1.0) };
 
-    EXPECT_EQ(4, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto & meshFilling = f.getMeshFilling();
+    EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
     Cell c({ 0, 0, 0 });
     EXPECT_EQ(2, countPWHs(f.getFaceFilling({ c, Z })));
@@ -572,8 +576,9 @@ TEST_F(FillerTest, two_planes_on_same_face_different_pr)
 {
     Filler f{ buildTwoSquaresTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{10,0} };
 
-    EXPECT_EQ(4, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
     {
         Cell c({ 0, 0, 0 });
@@ -615,8 +620,9 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_not_simple)
         std::vector<Priority>{pr1, pr2} 
     };
 
-    EXPECT_EQ(4, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
     auto ff{ f.getFaceFilling({ Cell({ 0,0,0 }) , Z})};
     ASSERT_TRUE(ff.tris.find(pr1) != ff.tris.end());
@@ -631,8 +637,9 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_on_same_face)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{10,0} };
 
-    EXPECT_EQ(6, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
     {
         Cell c({ 0, 0, 0 });
@@ -671,8 +678,9 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_on_same_face_2)
     Priority pr1{ -10 }, pr2{ 20 };
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{pr1,pr2} };
 
-    EXPECT_EQ(6, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
     {
         Cell c({ 0, 0, 0 });
@@ -805,8 +813,9 @@ TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{0,0} };
 
-    EXPECT_EQ(6, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
     {
         Cell c({ 0, 0, 0 });
         EXPECT_EQ(1, countPWHs(f.getFaceFilling({ c, Z })));
@@ -826,8 +835,9 @@ TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face)
 TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face_2)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh2(1.0), Mesh{}, std::vector<Priority>{0,0} };
-    EXPECT_EQ(2, f.getMeshFilling().countTriangles());
-    EXPECT_EQ(0, f.getMeshFilling().countLines());
+    auto& meshFilling = f.getMeshFilling();
+    EXPECT_EQ(2, countMeshElementsIf(meshFilling, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
     {
         Cell c({ 0, 0, 0 });
         EXPECT_EQ(1, countPWHs(f.getFaceFilling({ c, Z })));
@@ -842,7 +852,7 @@ TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face_2)
 
 TEST_F(FillerTest, selfOverlapping_stepSize1)
 {
-    EXPECT_EQ(1, Filler{ buildSelfOverlappingMesh(1.0) }.getMeshFilling().countTriangles());
+    EXPECT_EQ(1, countMeshElementsIf(Filler{ buildSelfOverlappingMesh(1.0) }.getMeshFilling(), isTriangle));
 }
 
 TEST_F(FillerTest, selfOverlapping_partially_stepSize1)
@@ -850,7 +860,7 @@ TEST_F(FillerTest, selfOverlapping_partially_stepSize1)
     auto m{ buildSelfOverlappingMesh(1.0) };
     m.coordinates[3] = Coordinate({ 0.9, 0.9, 0.0 });
     
-    EXPECT_EQ(3, Filler{ m }.getMeshFilling().countTriangles());
+    EXPECT_EQ(3, countMeshElementsIf(Filler{ m }.getMeshFilling(), isTriangle));
 }
 
 TEST_F(FillerTest, fillingDetection_tet_surface)
