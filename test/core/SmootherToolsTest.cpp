@@ -7,7 +7,7 @@
 #include "MeshFixtures.h"
 
 using namespace meshlib;
-using namespace tessellator;
+using namespace core;
 using namespace utils;
 using namespace meshFixtures;
 

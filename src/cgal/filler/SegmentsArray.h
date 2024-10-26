@@ -2,9 +2,7 @@
 
 #include "FillerTools.h"
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 using namespace cgal;
 
@@ -26,6 +24,4 @@ private:
 	PrSegmentsMap prSeg_;
 };
 
-}
-}
 }

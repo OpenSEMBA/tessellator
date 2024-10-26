@@ -1,6 +1,6 @@
 #pragma once
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 struct SnapperOptions {
 	double forbiddenLength{ 0.0 };

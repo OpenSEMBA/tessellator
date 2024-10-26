@@ -5,7 +5,7 @@
 #include "types/Mesh.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 struct SmootherOptions {
     double featureDetectionAngle = 30.0;

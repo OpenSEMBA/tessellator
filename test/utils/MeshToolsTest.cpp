@@ -133,7 +133,7 @@ TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_do_cross)
 
 TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_no_cross)
 {
-	auto m{ tessellator::Slicer{buildCubeSurfaceMesh(0.2)}.getMesh() };
+	auto m{ core::Slicer{buildCubeSurfaceMesh(0.2)}.getMesh() };
 
 	ASSERT_NO_THROW(checkNoCellsAreCrossed(m));
 }
@@ -474,7 +474,7 @@ TEST_F(MeshToolsTest, reduceGrid_tri_out_of_grid_upper)
 	m.grid = getEnlargedGridIncludingAllElements(m);
 	
 	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
+		auto sliced{ core::Slicer(m).getMesh() };
 		EXPECT_EQ(1, sliced.countElems());
 		meshTools::reduceGrid(sliced, originalGrid);
 		EXPECT_EQ(0, sliced.countElems());
@@ -493,7 +493,7 @@ TEST_F(MeshToolsTest, reduceGrid_tri_out_of_grid_lower)
 	m.grid = getEnlargedGridIncludingAllElements(m);
 
 	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
+		auto sliced{ core::Slicer(m).getMesh() };
 		EXPECT_EQ(1, sliced.countElems());
 		meshTools::reduceGrid(sliced, originalGrid);
 		EXPECT_EQ(0, sliced.countElems());
@@ -511,7 +511,7 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 	m.grid = getEnlargedGridIncludingAllElements(m);
 
 	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
+		auto sliced{ core::Slicer(m).getMesh() };
 		ASSERT_NO_THROW(meshTools::reduceGrid(sliced, originalGrid));
 		EXPECT_EQ(6, sliced.countElems());
 	}

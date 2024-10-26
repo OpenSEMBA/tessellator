@@ -2,8 +2,7 @@
 
 #include "SnapperOptions.h"
 
-namespace meshlib {
-namespace tessellator {
+namespace meshlib::drivers {
 
 class DriverOptions {
 public:
@@ -17,5 +16,4 @@ public:
 
 };
 
-}
 }

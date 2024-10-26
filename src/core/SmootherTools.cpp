@@ -14,7 +14,7 @@
 #include <iostream>
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 using namespace utils;
 

@@ -17,9 +17,7 @@
 
 #include <CGAL/Polygon_mesh_processing/orientation.h>
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 using namespace cgal;
 using namespace polyhedronTools;
@@ -664,6 +662,4 @@ Mesh Filler::getMeshFilling() const
 }
 
 
-}
-}
 }

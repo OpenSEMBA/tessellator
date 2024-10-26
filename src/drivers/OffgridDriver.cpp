@@ -14,7 +14,7 @@
 #include "utils/Cleaner.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace drivers {
 
 using namespace utils;
 using namespace meshTools;
@@ -34,7 +34,7 @@ Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroup
     return resultMesh;
 }
 
-Driver::Driver(const Mesh& in, const DriverOptions& opts) :
+OffgridDriver::OffgridDriver(const Mesh& in, const DriverOptions& opts) :
     DriverBase::DriverBase(in),
     opts_{ opts }
 {        
@@ -53,7 +53,7 @@ Driver::Driver(const Mesh& in, const DriverOptions& opts) :
     log("Initial hull mesh built succesfully.");
 }
 
-Mesh Driver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
+Mesh OffgridDriver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
     auto resultMesh = DriverBase::buildSurfaceMesh(inputMesh);
     for (const auto& gId : volumeGroups) {
@@ -62,7 +62,7 @@ Mesh Driver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& vo
     return resultMesh;
 }
 
-void Driver::process(Mesh& mesh) const
+void OffgridDriver::process(Mesh& mesh) const
 {
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     
@@ -107,7 +107,7 @@ void Driver::process(Mesh& mesh) const
     }
 }
 
-Mesh Driver::mesh() const 
+Mesh OffgridDriver::mesh() const 
 {
     log("Building primal mesh.");
     Mesh res{ volumeMesh_ };
@@ -121,7 +121,7 @@ Mesh Driver::mesh() const
     return res;
 }
 
-Filler Driver::fill(const std::vector<Priority>& groupPriorities) const
+Filler OffgridDriver::fill(const std::vector<Priority>& groupPriorities) const
 {
     log("Building primal filler.", 1);
     
@@ -132,7 +132,7 @@ Filler Driver::fill(const std::vector<Priority>& groupPriorities) const
     };
 }
 
-Filler Driver::dualFill(const std::vector<Priority>& groupPriorities) const
+Filler OffgridDriver::dualFill(const std::vector<Priority>& groupPriorities) const
 {
     log("Building dual filler.", 1);
     const auto dGrid{ GridTools{ originalGrid_ }.getExtendedDualGrid() };

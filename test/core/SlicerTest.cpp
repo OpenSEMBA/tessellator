@@ -6,7 +6,7 @@
 #include "MeshTools.h"
 
 using namespace meshlib;
-using namespace tessellator;
+using namespace core;
 using namespace meshFixtures;
 using namespace utils;
 using namespace meshTools;

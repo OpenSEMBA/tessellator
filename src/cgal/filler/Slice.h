@@ -6,9 +6,7 @@
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 using namespace cgal;
 
@@ -118,6 +116,4 @@ private:
 	void removeInSuperiorPriorities(const Priority& pr);
 };
 
-}
-}
 }

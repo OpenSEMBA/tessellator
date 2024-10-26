@@ -1,9 +1,8 @@
 #include "gtest/gtest.h"
 
-#include "cgal/ConvexHull.h"
+#include "utils/ConvexHull.h"
 
 using namespace meshlib;
-using namespace cgal;
 
 class ConvexHullTest : public ::testing::Test {
 public:

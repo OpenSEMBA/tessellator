@@ -17,7 +17,7 @@
 #endif
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 using namespace utils;
 using namespace meshTools;

@@ -5,7 +5,7 @@
 #include "SnapperOptions.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 class Snapper {
 public:

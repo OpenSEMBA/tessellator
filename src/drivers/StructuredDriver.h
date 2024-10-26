@@ -3,24 +3,22 @@
 #include "types/Mesh.h"
 #include "DriverBase.h"
 
-namespace meshlib {
-    namespace tessellator {
+namespace meshlib::drivers {
 
-        class StructuredDriver: public DriverBase {
-        public:
-            StructuredDriver(const Mesh& in, int decimalPlacesInCollapser = 4);
-            virtual ~StructuredDriver() = default;
-            Mesh mesh() const;
+class StructuredDriver : public DriverBase {
+public:
+	StructuredDriver(const Mesh& in, int decimalPlacesInCollapser = 4);
+	virtual ~StructuredDriver() = default;
+	Mesh mesh() const;
 
-        private:
-            int decimalPlacesInCollapser_;
+private:
+	int decimalPlacesInCollapser_;
 
-            Mesh surfaceMesh_;
+	Mesh surfaceMesh_;
 
-            virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
-            void process(Mesh&) const;
+	virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
+	void process(Mesh&) const;
 
-        };
+};
 
-    }
 }

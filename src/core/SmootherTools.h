@@ -9,7 +9,7 @@
 #include <mutex>
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 class SmootherTools : public utils::GridTools {
 public:
 

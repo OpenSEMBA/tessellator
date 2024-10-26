@@ -3,11 +3,10 @@
 #include "utils/Geometry.h"
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
-#include "cgal/Manifolder.h"
 #include "Collapser.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 
 Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :

@@ -10,7 +10,7 @@ add_library(tessellator-drivers
 target_link_libraries(tessellator-drivers tessellator-core tessellator-utils Boost::graph)
 
 if (TESSELLATOR_USE_CGAL)
-    add_library(tessellator "Driver.cpp")
+    add_library(tessellator "OffgridDriver.cpp")
     target_link_libraries(tessellator-drivers tessellator-cgal)
 endif()
 

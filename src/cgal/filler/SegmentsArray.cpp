@@ -1,8 +1,7 @@
 #include "SegmentsArray.h"
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+
+namespace meshlib::cgal::filler {
 
 using namespace cgal;
 
@@ -147,6 +146,4 @@ void Segments::add(const Priority& pr, const Segments1& nS)
 	}
 }
 
-}
-}
 }

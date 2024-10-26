@@ -13,8 +13,7 @@
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
 
-namespace meshlib {
-namespace tessellator {
+namespace meshlib::drivers {
 
 using namespace utils;
 using namespace meshTools;
@@ -94,5 +93,4 @@ Mesh StructuredDriver::mesh() const
     return resultMesh;
 }
 
-}
 }

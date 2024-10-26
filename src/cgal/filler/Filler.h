@@ -8,9 +8,7 @@
 #include "Slice.h"
 #include "SegmentsArray.h"
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 class Filler {
 public:
@@ -47,6 +45,4 @@ private:
 
 };
 
-}
-}
 }

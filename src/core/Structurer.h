@@ -3,7 +3,7 @@
 #include "utils/GridTools.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 class Structurer : public utils::GridTools {
 public:

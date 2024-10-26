@@ -4,14 +4,16 @@
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
 
+#ifdef TESSELLATOR_USE_CGAL
 #include "cgal/ConvexHull.h"
+#endif
 
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
 #endif
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 using namespace utils;
 
 

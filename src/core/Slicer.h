@@ -7,7 +7,7 @@
 #include "utils/GridTools.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 class Slicer : public utils::GridTools {
 public:

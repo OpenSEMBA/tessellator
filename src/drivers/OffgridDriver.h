@@ -6,12 +6,12 @@
 #include "DriverOptions.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace drivers {
 
-class Driver : public DriverBase {
+class OffgridDriver : public DriverBase {
 public:
-    Driver(const Mesh& in, const DriverOptions& opts = DriverOptions());
-    virtual ~Driver() = default;
+    OffgridDriver(const Mesh& in, const DriverOptions& opts = DriverOptions());
+    virtual ~OffgridDriver() = default;
     Mesh mesh() const;
 
     filler::Filler fill(

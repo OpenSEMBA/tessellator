@@ -8,10 +8,7 @@
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 
-
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 using Bbox2 = CGAL::Bbox_2;
 
@@ -571,6 +568,4 @@ LinVs Slice::buildAllLinVs(const Priority& pr, Axis x, Height h) const
 	return res;
 }
 
-}
-}
 }

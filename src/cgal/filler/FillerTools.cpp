@@ -3,12 +3,7 @@
 #include "utils/CoordGraph.h"
 #include <boost/bimap.hpp>
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
-
-using namespace cgal;
-
+namespace meshlib::cgal::filler {
 
 Rectangle2 buildCellFace(const ArrayIndex& c)
 {
@@ -242,6 +237,4 @@ HPolygonSet buildPolygonSetFromPolyhedron(
 }
 
 
-}
-}
 }

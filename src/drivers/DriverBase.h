@@ -4,7 +4,7 @@
 #include "DriverInterface.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace drivers {
 
 class DriverBase : public DriverInterface {
 public:

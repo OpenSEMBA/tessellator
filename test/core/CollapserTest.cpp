@@ -8,7 +8,7 @@
 #include "utils/GridTools.h"
 
 using namespace meshlib;
-using namespace tessellator;
+using namespace core;
 using namespace utils;
 
 class CollapserTest : public ::testing::Test {

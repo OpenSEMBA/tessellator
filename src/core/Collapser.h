@@ -3,7 +3,7 @@
 #include "types/Mesh.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 
 class Collapser {
 public:

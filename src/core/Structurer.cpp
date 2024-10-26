@@ -3,7 +3,7 @@
 #include "utils/Cleaner.h"
 
 namespace meshlib {
-namespace tessellator {
+namespace core {
 using namespace utils;
 
 Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
