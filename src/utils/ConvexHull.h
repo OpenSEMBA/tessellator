@@ -15,13 +15,6 @@ private:
 	const Coordinates* globalCoords_ = nullptr;
 	static const double COPLANARITY_ANGLE_TOLERANCE;
 	
-	typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-	typedef K::Point_2 Point_2;
-	typedef CGAL::Convex_hull_traits_adapter_2<K,
-		CGAL::Pointer_property_map<Point_2>::type > Convex_hull_traits_2;
-
-	typedef std::map<Point_2, CoordinateId> IndexPointToId;
-
 	IndexPointToId buildPointsInIndex(const IdSet& inIds) const;
 };
 

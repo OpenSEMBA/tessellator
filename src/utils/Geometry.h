@@ -4,7 +4,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "cgal/LSFPlane.h"
 #include "Types.h"
 
 namespace meshlib {
@@ -13,6 +12,7 @@ namespace utils {
 class Geometry {
 public:
     static constexpr double NORM_TOLERANCE = 1e-13;
+    static constexpr double COPLANARITY_TOLERANCE = 1e-9;
 
     Geometry() = delete;
     Geometry(const Geometry&) = delete;
@@ -54,6 +54,39 @@ public:
     static VecD getMeanNormalOfElements(
         const ElementsView& elements,
         const Coordinates& coords);
+
+    template <class CoordinatesIt>
+    static bool arePointsInPlane(
+        const std::array<Coordinate, 3> plane,
+        const CoordinatesIt ini, const CoordinatesIt end)
+    {
+        
+        // Calculate vectors AB, AC, and AD
+        double a1 = plane[1][0] - plane[0][0];
+        double a2 = plane[1][1] - plane[0][1];
+        double a3 = plane[1][2] - plane[0][2];
+
+        double b1 = plane[2][0] - plane[0][0];
+        double b2 = plane[2][1] - plane[0][1];
+        double b3 = plane[2][2] - plane[0][2];
+
+        for (const auto pIt = ini; pIt != end; ++pIt) {
+            double c1 = (*pIt)[0] - plane[0][0];
+            double c2 = (*pIt)[1] - plane[0][1];
+            double c3 = (*pIt)[2] - plane[0][2];
+
+            const double det = 
+                  a1 * (b2 * c3 - b3 * c2)
+                - a2 * (b1 * c3 - b3 * c1)
+                + a3 * (b1 * c2 - b2 * c1);
+            
+            const bool isCoplanar{ det < COPLANARITY_TOLERANCE };
+
+            if (!isCoplanar) {
+                return false;
+            }
+        }
+        return true;
 
     template <class CoordinatesIt>
     static bool areCoordinatesCoplanar(

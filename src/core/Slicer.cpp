@@ -3,10 +3,7 @@
 #include "utils/Geometry.h"
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
-
-#ifdef TESSELLATOR_USE_CGAL
-#include "cgal/ConvexHull.h"
-#endif
+#include "utils/ConvexHull.h"
 
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
@@ -113,7 +110,7 @@ Elements Slicer::sliceTriangle(
             continue;
         }
 
-        auto path = cgal::ConvexHull(&sCoords).get(vIds);
+        auto path = utils::ConvexHull(&sCoords).get(vIds);
         Elements newTris = buildTrianglesFromPath(sCoords, path);
         res.insert(res.end(), newTris.begin(), newTris.end());
     }
