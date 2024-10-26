@@ -1,14 +1,14 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
-#include "StructuredDriver.h"
+#include "drivers/StructuredDriver.h"
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
 
 using namespace meshlib;
-using namespace core;
 using namespace meshFixtures;
+using namespace drivers;
 using namespace utils;
 using namespace meshTools;
 

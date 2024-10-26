@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
 message(STATUS "Creating build system for tessellator-drivers")
-include_directories("../core/")
 
 add_library(tessellator-drivers
     "DriverBase.cpp"
     "StructuredDriver.cpp"
 )
-target_link_libraries(tessellator-drivers tessellator-core tessellator-utils Boost::graph)
+target_link_libraries(tessellator-drivers tessellator-core tessellator-utils)
 
 if (TESSELLATOR_USE_CGAL)
     add_library(tessellator "OffgridDriver.cpp")

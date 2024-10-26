@@ -3,9 +3,9 @@
 #include <iostream>
 
 
-#include "Slicer.h"
-#include "Collapser.h"
-#include "Structurer.h"
+#include "core/Slicer.h"
+#include "core/Collapser.h"
+#include "core/Structurer.h"
 
 #include "cgal/Manifolder.h"
 
@@ -16,6 +16,7 @@
 namespace meshlib::drivers {
 
 using namespace utils;
+using namespace core;
 using namespace meshTools;
 
 

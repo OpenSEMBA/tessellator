@@ -4,7 +4,7 @@
 
 namespace meshlib::drivers {
 
-class DriverOptions {
+class OffgridDriverOptions {
 public:
 
     bool forceSlicing = true;

@@ -60,7 +60,7 @@ public:
         const std::array<Coordinate, 3> plane,
         const CoordinatesIt ini, const CoordinatesIt end)
     {
-        
+
         // Calculate vectors AB, AC, and AD
         double a1 = plane[1][0] - plane[0][0];
         double a2 = plane[1][1] - plane[0][1];
@@ -70,16 +70,16 @@ public:
         double b2 = plane[2][1] - plane[0][1];
         double b3 = plane[2][2] - plane[0][2];
 
-        for (const auto pIt = ini; pIt != end; ++pIt) {
+        for (auto pIt = ini; pIt != end; ++pIt) {
             double c1 = (*pIt)[0] - plane[0][0];
             double c2 = (*pIt)[1] - plane[0][1];
             double c3 = (*pIt)[2] - plane[0][2];
 
-            const double det = 
-                  a1 * (b2 * c3 - b3 * c2)
+            const double det =
+                a1 * (b2 * c3 - b3 * c2)
                 - a2 * (b1 * c3 - b3 * c1)
                 + a3 * (b1 * c2 - b2 * c1);
-            
+
             const bool isCoplanar{ det < COPLANARITY_TOLERANCE };
 
             if (!isCoplanar) {
@@ -87,6 +87,7 @@ public:
             }
         }
         return true;
+    }
 
     template <class CoordinatesIt>
     static bool areCoordinatesCoplanar(
@@ -97,7 +98,7 @@ public:
             return false;
         }
         
-        Coordinates seed;
+        std::array<Coordinate,3> seedPlane;
         {
             auto it = ini;
             while (isDegenerate(TriV{ *it, *std::next(it), *std::next(it,2) })) {
@@ -106,17 +107,18 @@ public:
                     return false;
                 }
             }
-            seed = { *it, *std::next(it), *std::next(it,2) };
+            seedPlane = { *it, *std::next(it), *std::next(it,2) };
         }
         
-        return cgal::LSFPlane(seed.begin(), seed.end()).arePointsInPlane(ini, end);
+        return arePointsInPlane(seedPlane, ini, end);
     }
 
     template <class coordinatesIt>
     static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, VecD normal = VecD({ 0.,0.,0. }))
     {
         if (normal.norm() == 0) {
-            normal = cgal::LSFPlane(ini, end).getNormal();
+            Coordinates cs(ini, end);
+            normal = getNormal(cs, COPLANARITY_TOLERANCE);
         }
 
         const VecD z({ 0.0, 0.0, 1.0 });

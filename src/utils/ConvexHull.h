@@ -13,9 +13,7 @@ public:
 
 private:
 	const Coordinates* globalCoords_ = nullptr;
-	static const double COPLANARITY_ANGLE_TOLERANCE;
-	
-	IndexPointToId buildPointsInIndex(const IdSet& inIds) const;
+	static constexpr double COPLANARITY_ANGLE_TOLERANCE{ 0.1 };
 };
 
 }
