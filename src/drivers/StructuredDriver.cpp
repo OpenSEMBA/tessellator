@@ -31,11 +31,8 @@ StructuredDriver::StructuredDriver(const Mesh& inputMesh, int decimalPlacesInCol
     DriverBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser)
 {
-    log("Preparing volume surface.");
-    auto volumeSurface = extractSurfaceFromVolumeMeshes(inputMesh);
-
     log("Preparing surfaces.");
-    surfaceMesh_ = buildSurfaceMesh(inputMesh, volumeSurface);
+    surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
 
     log("Processing surface mesh.");
     process(surfaceMesh_);

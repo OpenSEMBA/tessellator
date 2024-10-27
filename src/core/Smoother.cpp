@@ -7,7 +7,6 @@
 #include "Collapser.h"
 
 #include "cgal/Manifolder.h"
-
 #include <CGAL/Polygon_mesh_processing/manifoldness.h>
 
 #include <assert.h>

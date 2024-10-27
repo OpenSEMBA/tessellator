@@ -25,6 +25,7 @@ private:
     Mesh volumeMesh_;
     Mesh surfaceMesh_;
 
+    Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) const;
     Mesh buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
     void process(Mesh&) const;
 

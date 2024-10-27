@@ -7,8 +7,10 @@
 #include "Snapper.h"
 
 #ifdef TESSELLATOR_USE_CGAL
-#include "filler/Filler.h"
+#include "cgal/filler/Filler.h"
 #include "cgal/Repairer.h"
+#include "cgal/Manifolder.h"
+
 #endif
 
 #include "utils/Cleaner.h"
@@ -51,6 +53,11 @@ OffgridDriver::OffgridDriver(const Mesh& in, const DriverOptions& opts) :
     process(surfaceMesh_);
 
     log("Initial hull mesh built succesfully.");
+}
+
+Mesh OffgridDriver::extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) const
+{
+    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
 }
 
 Mesh OffgridDriver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)

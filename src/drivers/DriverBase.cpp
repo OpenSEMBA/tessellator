@@ -2,8 +2,6 @@
 
 #include <iostream>
 
-#include "cgal/Manifolder.h"
-
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
 
@@ -62,10 +60,6 @@ void DriverBase::logGridSize(const Grid& g)
     log(msg.str(), 2);
 }
 
-Mesh DriverBase::extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) {
-    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
-}
-
 DriverBase::DriverBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
 
     logGridSize(inputMesh.grid);
@@ -77,8 +71,6 @@ DriverBase::DriverBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
 Mesh DriverBase::buildSurfaceMesh(const Mesh& inputMesh) {
     return buildMeshFilteringElements(inputMesh, isNotTetrahedron);
 }
-
-
 
 Grid DriverBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
 {

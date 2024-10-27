@@ -26,8 +26,6 @@ protected:
     static Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged);
     static Grid buildSlicingGrid(const Grid& primal, const Grid& enlarged);
 
-    Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh);
-
     Grid originalGrid_;
     Grid enlargedGrid_;
 };
