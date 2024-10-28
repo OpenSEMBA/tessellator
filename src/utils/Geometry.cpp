@@ -168,6 +168,20 @@ VecD Geometry::getNormal(const Coordinates& inPts, double coplanarityAngleTolera
     return res / res.norm();
 }
 
+VecD Geometry::getLSFPlaneNormal(const Coordinates& inPts)
+{
+    //If you have n data points(x[i], y[i], z[i]), compute the 3x3 symmetric matrix A whose entries are :
+
+    //sum_i x[i] * x[i], sum_i x[i] * y[i], sum_i x[i]
+    //    sum_i x[i] * y[i], sum_i y[i] * y[i], sum_i y[i]
+    //    sum_i x[i], sum_i y[i], n
+    //    Also compute the 3 element vector b :
+
+    //{sum_i x[i] * z[i], sum_i y[i] * z[i], sum_i z[i]}
+
+    return res / res.norm();
+}
+
 VecD Geometry::getMeanNormalOfElements(
     const ElementsView& elements,
     const Coordinates& coords)

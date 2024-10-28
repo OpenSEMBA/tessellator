@@ -5,29 +5,15 @@
 
 namespace meshlib::utils {
 
-struct Vector2D {
-	double x;
-	double y;
+struct Point {
+	double x, y;
+	bool operator== (const Point& t) const 
+	{
+		return x == t.x && y == t.y;
+	}
 
-	Vector2D operator-(Vector2D r) {
-		return { x - r.x, y - r.y };
-	}
-	double operator*(const Vector2D& r) const {
-		return x * r.x + y * r.y;
-	}
-	Vector2D rotate90() {  // Rotate 90 degrees counter-clockwise
-		return { -y, x };
-	}
-	double manhattan_length() {
-		return abs(x) + abs(y);
-	}
-	bool operator==(const Vector2D& r) const {
-		return x == r.x && y == r.y;
-	}
-	bool operator!=(const Vector2D& r) const {
-		return x != r.x || y != r.y;
-	}
-	bool operator<(const Vector2D& r) const {
+	bool operator<(const Point& r) const 
+	{
 		if (x < r.x) {
 			return true;
 		}
@@ -40,51 +26,62 @@ struct Vector2D {
 	}
 };
 
-std::vector<Vector2D> graham_scan(std::vector<Vector2D> points) 
+int orientation(Point a, Point b, Point c) 
 {
-	Vector2D first_point = *std::min_element(
-		points.begin(), 
-		points.end(), 
-		[](Vector2D& left, Vector2D& right) 
-		{
-			return std::make_tuple(left.y, left.x) < std::make_tuple(right.y, right.x);
-		}
-	);  // Find the lowest and leftmost point
-
-	std::sort(
-		points.begin(), 
-		points.end(), 
-		[&](Vector2D& left, Vector2D& right) 
-	{
-		if (left == first_point) {
-			return right != first_point;
-		}
-		else if (right == first_point) {
-			return false;
-		}
-		double dir = (left - first_point).rotate90() * (right - first_point);
-		if (dir == 0) {  // If the points are on a line with first point, sort by distance (manhattan is equivalent here)
-			return (left - first_point).manhattan_length() < (right - first_point).manhattan_length();
-		}
-		return dir > 0;
-		// Alternative approach, closer to common algorithm formulation but inferior:
-		// return atan2(left.y - first_point.y, left.x - first_point.x) < atan2(right.y - first_point.y, right.x - first_point.x);
-		}
-	);  // Sort the points by angle to the chosen first point
-
-	std::vector<Vector2D> result;
-	for (auto pt : points) {
-		// For as long as the last 3 points cause the hull to be non-convex, discard the middle one
-		while (result.size() >= 2 &&
-			(result[result.size() - 1] - result[result.size() - 2]).rotate90() * (pt - result[result.size() - 1]) <= 0) {
-			result.pop_back();
-		}
-		result.push_back(pt);
-	}
-	return result;
+	double v = a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y);
+	if (v < 0) return -1; // clockwise
+	if (v > 0) return +1; // counter-clockwise
+	return 0;
 }
 
-std::map<Vector2D, CoordinateId> buildPointsInIndex(
+bool cw(Point a, Point b, Point c, bool include_collinear) 
+{
+	int o = orientation(a, b, c);
+	return o < 0 || (include_collinear && o == 0);
+}
+
+bool collinear(Point a, Point b, Point c) 
+{ 
+	return orientation(a, b, c) == 0; 
+}
+
+void grahamScan(std::vector<Point>& a, bool include_collinear = false) 
+{
+	Point p0 = *std::min_element(
+		a.begin(), 
+		a.end(), [](Point a, Point b) {
+			return std::make_pair(a.y, a.x) < std::make_pair(b.y, b.x);
+		}
+	);
+
+	std::sort(a.begin(), a.end(), [&p0](const Point& a, const Point& b) {
+		int o = orientation(p0, a, b);
+		if (o == 0)
+			return (p0.x - a.x) * (p0.x - a.x) + (p0.y - a.y) * (p0.y - a.y)
+			< (p0.x - b.x) * (p0.x - b.x) + (p0.y - b.y) * (p0.y - b.y);
+		return o < 0;
+		});
+	if (include_collinear) {
+		int i = (int)a.size() - 1;
+		while (i >= 0 && collinear(p0, a[i], a.back())) i--;
+		reverse(a.begin() + i + 1, a.end());
+	}
+
+	std::vector<Point> st;
+	for (int i = 0; i < (int)a.size(); i++) {
+		while (st.size() > 1 && !cw(st[st.size() - 2], st.back(), a[i], include_collinear)) {
+			st.pop_back();
+		}
+		st.push_back(a[i]);
+	}
+
+	if (include_collinear == false && st.size() == 2 && st[0] == st[1])
+		st.pop_back();
+
+	a = st;
+}
+
+std::map<Point, CoordinateId> buildPointsInIndex(
 	const Coordinates& globalCoords,
 	const IdSet& inIds)
 {
@@ -99,9 +96,9 @@ std::map<Vector2D, CoordinateId> buildPointsInIndex(
 	}
 	utils::Geometry::rotateToXYPlane(cs.begin(), cs.end());
 
-	std::map<Vector2D, CoordinateId> res;
+	std::map<Point, CoordinateId> res;
 	for (std::size_t i = 0; i < cs.size(); i++) {
-		res.emplace(Vector2D{ cs[i](0), cs[i](1) }, originalIds[i]);
+		res.emplace(Point{ cs[i](0), cs[i](1) }, originalIds[i]);
 	}
 	return res;
 }
@@ -117,23 +114,22 @@ ConvexHull::ConvexHull(const Coordinates* global)
 std::vector<CoordinateId> ConvexHull::get(const IdSet& ids) const
 {
 	if (ids.size() <= 2) {
-		std::vector<CoordinateId> res(ids.begin(), ids.end());
+		return std::vector<CoordinateId>(ids.begin(), ids.end());
 	}
-
-	
+		
 	auto pointsIndex{ buildPointsInIndex(*globalCoords_, ids) };
 
-	std::vector<Vector2D> points(pointsIndex.size());
+	std::vector<Point> points(pointsIndex.size());
 	auto it{ pointsIndex.begin() };
 	for (std::size_t i{ 0 }; i < points.size(); ++i) {
 		points[i] = it->first;
 		++it;
 	}
 
-	auto hull{ graham_scan(points) };
+	grahamScan(points, true);
 
 	std::vector<CoordinateId> res;
-	res.reserve(hull.size());
+	res.reserve(points.size());
 	for (const auto& point : points) {
 		CoordinateId id{ pointsIndex.find(point)->second };
 		res.push_back(id);

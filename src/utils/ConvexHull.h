@@ -13,7 +13,6 @@ public:
 
 private:
 	const Coordinates* globalCoords_ = nullptr;
-	static constexpr double COPLANARITY_ANGLE_TOLERANCE{ 0.1 };
 };
 
 }

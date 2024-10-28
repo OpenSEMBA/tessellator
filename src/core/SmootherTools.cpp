@@ -64,8 +64,8 @@ void SmootherTools::collapsePointsOnFeatureEdges(
     const ElementsView& patch,
     const SingularIds& singularIds)
 {
-    CoordGraph pt = CoordGraph(patch);
-    CoordGraph edges = pt.getBoundaryGraph().intersect(singularIds.featureIds());
+    CoordGraph Point = CoordGraph(patch);
+    CoordGraph edges = Point.getBoundaryGraph().intersect(singularIds.featureIds());
     if (edges.verticesSize() == 0) {
         return;
     }
@@ -104,7 +104,7 @@ void SmootherTools::collapsePointsOnFeatureEdges(
             continue;
         }
 
-        Coordinate closest = closestByDistance(coords, i, pt.getClosestVerticesInSet(i, validExterior));
+        Coordinate closest = closestByDistance(coords, i, Point.getClosestVerticesInSet(i, validExterior));
         if (isRelativeOnCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
             continue;
         }

@@ -13,6 +13,8 @@ class Geometry {
 public:
     static constexpr double NORM_TOLERANCE = 1e-13;
     static constexpr double COPLANARITY_TOLERANCE = 1e-9;
+    static constexpr double COPLANARITY_ANGLE_TOLERANCE = 0.1;
+
 
     Geometry() = delete;
     Geometry(const Geometry&) = delete;
@@ -51,6 +53,7 @@ public:
     static VecD getNormal(
         const Coordinates&, 
         double coplanarityAngleTolerance);
+    static VecD getLSFPlaneNormal(const Coordinates& inPts);
     static VecD getMeanNormalOfElements(
         const ElementsView& elements,
         const Coordinates& coords);
@@ -118,7 +121,7 @@ public:
     {
         if (normal.norm() == 0) {
             Coordinates cs(ini, end);
-            normal = getNormal(cs, COPLANARITY_TOLERANCE);
+            normal = getLSFPlaneNormal(cs, COPLANARITY_ANGLE_TOLERANCE);
         }
 
         const VecD z({ 0.0, 0.0, 1.0 });
