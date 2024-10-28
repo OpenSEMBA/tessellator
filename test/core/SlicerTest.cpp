@@ -5,8 +5,8 @@
 #include "Geometry.h"
 #include "MeshTools.h"
 
-using namespace meshlib;
-using namespace core;
+namespace meshlib::core {
+
 using namespace meshFixtures;
 using namespace utils;
 using namespace meshTools;
@@ -151,8 +151,6 @@ TEST_F(SlicerTest, cube1x1x1_size1_grid)
 {
     Mesh in = buildCubeSurfaceMesh(1.0);
     
-
-    
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
@@ -163,9 +161,7 @@ TEST_F(SlicerTest, cube1x1x1_size1_grid)
 TEST_F(SlicerTest, cube1x1x1_size05_grid)
 {
     Mesh in = buildCubeSurfaceMesh(0.5);
-    
-
-    
+        
     Mesh out;
     ASSERT_NO_THROW(out = Slicer{in}.getMesh());
 
@@ -650,4 +646,6 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
             EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
         }
     }
+}
+
 }

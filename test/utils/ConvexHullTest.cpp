@@ -2,56 +2,78 @@
 
 #include "utils/ConvexHull.h"
 
-using namespace meshlib;
+namespace meshlib::utils {
 
-class ConvexHullTest : public ::testing::Test {
+class ConvexHullTest_meshlib : public ::testing::Test {
 public:
 	static Coordinates buildCoordinates()
 	{
-		return Coordinates {
-			Coordinate({0.0, 0.0, 0.0}),
-			Coordinate({0.0, 1.0, 0.0}),
-			Coordinate({1.0, 1.0, 0.0}),
-			Coordinate({1.0, 0.0, 0.0}),
-			Coordinate({5.0, 5.0, 5.0}),
-		};
-	}
-
-	static Coordinates buildPathCoordinates()
-	{
 		return Coordinates{
-			Coordinate({0.0, 0.0, 0.0}),
-			Coordinate({0.0, 1.0, 0.0}),
-			Coordinate({1.0, 1.0, 0.0}),
-			Coordinate({1.0, 0.0, 0.0}),
-			Coordinate({0.25, 0.75, 0.0}),
-			Coordinate({0.75, 0.75, 0.0}),
-			Coordinate({5.0, 5.0, 5.0}),
+			Coordinate({0.0, 0.0, 0.0}),   // Boundary point
+			Coordinate({1.0, 0.0, 0.0}),   // Boundary point
+			Coordinate({1.0, 1.0, 0.0}),   // Boundary point
+			Coordinate({0.0, 1.0, 0.0}),   // Boundary point
+			Coordinate({0.25, 0.75, 0.0}), // Inner point
+			Coordinate({0.75, 0.75, 0.0}), // Inner point
+			Coordinate({5.0, 5.0, 5.0}),   // Out of plane
 		};
 	}
-	};
+};
 
 
-
-TEST_F(ConvexHullTest, convexHull)
+TEST_F(ConvexHullTest_meshlib, single_point)
 {
-	auto coords = buildPathCoordinates();
-
-	EXPECT_EQ(3, ConvexHull(&coords).get({0, 1, 2} ).size());
-	EXPECT_EQ(4, ConvexHull(&coords).get({0, 1, 2, 3, 4, 5}).size());
+	auto coords{ buildCoordinates() };
 	
-	ASSERT_NO_THROW(ConvexHull(&coords).get({ 0, 1, 2, 3, 4, 5, 6 }));
+	auto hull{ ConvexHull(&coords).get({ 0 }) };
 
+	EXPECT_EQ(CoordinateIds({ 0 }), hull);
 }
 
-TEST_F(ConvexHullTest, convexHull_2)
+TEST_F(ConvexHullTest_meshlib, two_points)
 {
-	Coordinates coords = {
-		Coordinate({4.0, 4.0, 0.0}),
-		Coordinate({3.0, 3.0, 0.0}),
-		Coordinate({4.0, 3.0, 0.0}),
-		Coordinate({3.0, 4.0, 0.0}),
-	};
+	auto coords{ buildCoordinates() };
 
-	EXPECT_EQ(4, ConvexHull(&coords).get({ 0, 1, 2, 3 }).size());
+	auto hull{ ConvexHull(&coords).get({ 0, 1 }) };
+
+	EXPECT_EQ(CoordinateIds({ 0, 1 }), hull);
+}
+
+TEST_F(ConvexHullTest_meshlib, three_points)
+{
+	auto coords{ buildCoordinates() };
+
+	auto hull{ ConvexHull(&coords).get({ 0, 1 }) };
+
+	EXPECT_EQ(CoordinateIds({ 0, 1, 2 }), hull);
+}
+
+TEST_F(ConvexHullTest_meshlib, three_points_aligned)
+{
+	auto coords{ buildCoordinates() };
+
+	auto hull{ ConvexHull(&coords).get({ 0, 1, 5 }) };
+
+	EXPECT_EQ(CoordinateIds({ 0, 1 }), hull);
+}
+
+TEST_F(ConvexHullTest_meshlib, in_plane_points)
+{
+	auto coords{ buildCoordinates() };
+
+	auto hull{ ConvexHull(&coords).get({ 0, 1, 2, 3, 4, 5 }) };
+
+	EXPECT_EQ(CoordinateIds({ 0, 1, 2, 3, 4 }), hull);
+}
+
+TEST_F(ConvexHullTest_meshlib, out_of_plane)
+{
+	auto coords{ buildCoordinates() };
+
+	auto hull{ ConvexHull(&coords).get({ 0, 1, 2, 3, 6 }).size() };
+	
+	EXPECT_EQ(CoordinateIds({0, 1, 6, 2}), hull);
+}
+
+
 }

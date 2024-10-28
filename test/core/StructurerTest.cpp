@@ -14,6 +14,8 @@ using namespace core;
 using namespace utils;
 using namespace meshFixtures;
 
+namespace meshlib::core {
+
 class StructurerTest : public ::testing::Test {
 protected:
 };
@@ -1843,4 +1845,6 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
             }
         }
     }
+}
+
 }

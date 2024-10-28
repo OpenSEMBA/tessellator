@@ -5,8 +5,8 @@
 #include "Cleaner.h"
 #include "MeshFixtures.h"
 
-using namespace meshlib;
-using namespace utils;
+namespace meshlib::utils {
+
 using namespace meshFixtures;
 
 class CleanerTest : public ::testing::Test {
@@ -129,3 +129,4 @@ TEST_F(CleanerTest, removeElementsWithCondition)
 
 }
 
+}

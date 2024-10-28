@@ -6,8 +6,8 @@
 #include "MeshFixtures.h"
 #include "MeshTools.h"
 
-using namespace meshlib;
-using namespace utils;
+namespace meshlib::utils {
+
 using namespace meshTools;
 using namespace meshFixtures;
 
@@ -556,4 +556,6 @@ TEST_F(MeshToolsTest, setGrid_2)
 
 	ASSERT_EQ(3, r.coordinates.size());
 	EXPECT_EQ(Coordinate({ 0.5, 1.0, 0.5 }), r.coordinates[0]);
+}
+
 }

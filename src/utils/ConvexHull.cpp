@@ -40,12 +40,22 @@ struct Vector2D {
 	}
 };
 
-std::vector<Vector2D> graham_scan(std::vector<Vector2D> points) {
-	Vector2D first_point = *std::min_element(points.begin(), points.end(), [](Vector2D& left, Vector2D& right) {
-		return std::make_tuple(left.y, left.x) < std::make_tuple(right.y, right.x);
-		});  // Find the lowest and leftmost point
+std::vector<Vector2D> graham_scan(std::vector<Vector2D> points) 
+{
+	Vector2D first_point = *std::min_element(
+		points.begin(), 
+		points.end(), 
+		[](Vector2D& left, Vector2D& right) 
+		{
+			return std::make_tuple(left.y, left.x) < std::make_tuple(right.y, right.x);
+		}
+	);  // Find the lowest and leftmost point
 
-	std::sort(points.begin(), points.end(), [&](Vector2D& left, Vector2D& right) {
+	std::sort(
+		points.begin(), 
+		points.end(), 
+		[&](Vector2D& left, Vector2D& right) 
+	{
 		if (left == first_point) {
 			return right != first_point;
 		}
@@ -59,7 +69,8 @@ std::vector<Vector2D> graham_scan(std::vector<Vector2D> points) {
 		return dir > 0;
 		// Alternative approach, closer to common algorithm formulation but inferior:
 		// return atan2(left.y - first_point.y, left.x - first_point.x) < atan2(right.y - first_point.y, right.x - first_point.x);
-		});  // Sort the points by angle to the chosen first point
+		}
+	);  // Sort the points by angle to the chosen first point
 
 	std::vector<Vector2D> result;
 	for (auto pt : points) {
@@ -105,10 +116,28 @@ ConvexHull::ConvexHull(const Coordinates* global)
 
 std::vector<CoordinateId> ConvexHull::get(const IdSet& ids) const
 {
-	assert(ids.size() > 1);
+	if (ids.size() <= 2) {
+		std::vector<CoordinateId> res(ids.begin(), ids.end());
+	}
+
+	
 	auto pointsIndex{ buildPointsInIndex(*globalCoords_, ids) };
 
+	std::vector<Vector2D> points(pointsIndex.size());
+	auto it{ pointsIndex.begin() };
+	for (std::size_t i{ 0 }; i < points.size(); ++i) {
+		points[i] = it->first;
+		++it;
+	}
+
+	auto hull{ graham_scan(points) };
+
 	std::vector<CoordinateId> res;
+	res.reserve(hull.size());
+	for (const auto& point : points) {
+		CoordinateId id{ pointsIndex.find(point)->second };
+		res.push_back(id);
+	}
 
 	return res;
 }

@@ -7,8 +7,8 @@
 #include "utils/CoordGraph.h"
 #include "utils/GridTools.h"
 
-using namespace meshlib;
-using namespace core;
+namespace meshlib::core {
+
 using namespace utils;
 
 class CollapserTest : public ::testing::Test {
@@ -422,4 +422,6 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 			}
 		}
 	}
+}
+
 }

@@ -6,9 +6,9 @@
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
 
-using namespace meshlib;
+namespace meshlib::drivers {
+
 using namespace meshFixtures;
-using namespace drivers;
 using namespace utils;
 using namespace meshTools;
 
@@ -231,4 +231,6 @@ TEST_F(StructuredDriverTest, testStructuredTriangleWithUniformGrid)
     EXPECT_EQ(10, countMeshElementsIf(resultMesh, isQuad));
     EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine));
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
+}
+
 }

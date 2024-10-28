@@ -36,12 +36,11 @@ endif()
 add_executable(tessellator_tests 
 	"core/CollapserTest.cpp"
 	"core/SlicerTest.cpp"
-	"core/SmootherTest.cpp"
-	"core/SmootherToolsTest.cpp"
 	"core/SnapperTest.cpp"
     "core/StructurerTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/CleanerTest.cpp"
+	"utils/ConvexHullTest.cpp"
 	"utils/CoordGraphTest.cpp"
 	"utils/ElemGraphTest.cpp"
 	"utils/GeometryTest.cpp"
@@ -57,7 +56,11 @@ target_link_libraries(tessellator_tests
 )
 
 if (TESSELLATOR_USE_CGAL)
-	add_executable(tessellator_tests "drivers/DriverTest.cpp")
+	add_executable(tessellator_tests 
+		"core/SmootherTest.cpp"
+		"core/SmootherToolsTest.cpp"
+		"drivers/OffgridDriverTest.cpp"
+	)
 	target_link_libraries(tessellator_tests tessellator_cgal_tests)
 endif()
 

@@ -3,8 +3,7 @@
 
 #include "GridTools.h"
 
-using namespace meshlib;
-using namespace utils;
+namespace meshlib::utils {
 
 class GridToolsTest : public ::testing::Test {
 public:
@@ -241,3 +240,4 @@ TEST_F(GridToolsTest, nonUniformDualGrid) {
 
 }
 
+}

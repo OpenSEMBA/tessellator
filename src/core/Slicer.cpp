@@ -247,7 +247,6 @@ Elements Slicer::buildTrianglesFromPath(
     return tris;
 }
 
-
 Slicer::PolylineV meshSegment(const Coordinate& relPrev, const Coordinate& relNext)
 {
     Slicer::PolylineV res;
