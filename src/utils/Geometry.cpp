@@ -179,6 +179,8 @@ VecD Geometry::getLSFPlaneNormal(const Coordinates& inPts)
 
     //{sum_i x[i] * z[i], sum_i y[i] * z[i], sum_i z[i]}
 
+    throw std::runtime_error("Not implemented");
+    VecD res({ 0.0, 0.0, 0.0 });
     return res / res.norm();
 }
 
@@ -193,12 +195,14 @@ VecD Geometry::getMeanNormalOfElements(
     return normal / (double) elements.size();
 }
 
-VecD Geometry::normal(const TriV& a) {
+VecD Geometry::normal(const TriV& a) 
+{
     return (a[1] - a[0]) ^ (a[2] - a[0]);
 }
 
 VecD Geometry::getCentroid(
-    const Element& elem, const std::vector<Coordinate>& coords) {
+    const Element& elem, const std::vector<Coordinate>& coords) 
+{
     VecD res;
     for (auto const& vId : elem.vertices) {
         res += coords[vId] / (double) elem.vertices.size();
@@ -207,7 +211,8 @@ VecD Geometry::getCentroid(
 }
 
 VecD Geometry::getCentroid(
-    const TriV& tri) {
+    const TriV& tri) 
+{
     VecD res;
     for (auto const& v : tri) {
         res += v / (double) tri.size();

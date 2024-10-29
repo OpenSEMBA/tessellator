@@ -9,7 +9,7 @@ class ConvexHull {
 public:
 	ConvexHull(const Coordinates* globalCoordinates);
 
-	std::vector<CoordinateId> get(const IdSet& vertexIds) const;
+	std::vector<CoordinateId> get(const IdSet& vertexIds, const VecD& normalVector) const;
 
 private:
 	const Coordinates* globalCoords_ = nullptr;

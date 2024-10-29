@@ -117,12 +117,9 @@ public:
     }
 
     template <class coordinatesIt>
-    static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, VecD normal = VecD({ 0.,0.,0. }))
+    static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, const VecD& normal)
     {
-        if (normal.norm() == 0) {
-            Coordinates cs(ini, end);
-            normal = getLSFPlaneNormal(cs, COPLANARITY_ANGLE_TOLERANCE);
-        }
+        assert(normal.norm() != 0.0);
 
         const VecD z({ 0.0, 0.0, 1.0 });
         const VecD u = normal ^ z;

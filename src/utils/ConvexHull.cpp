@@ -83,7 +83,8 @@ void grahamScan(std::vector<Point>& a, bool include_collinear = false)
 
 std::map<Point, CoordinateId> buildPointsInIndex(
 	const Coordinates& globalCoords,
-	const IdSet& inIds)
+	const IdSet& inIds,
+	const VecD& normalVec)
 {
 	Coordinates cs;
 	cs.reserve(inIds.size());
@@ -94,7 +95,7 @@ std::map<Point, CoordinateId> buildPointsInIndex(
 		cs.push_back(globalCoords[id]);
 		originalIds.push_back(id);
 	}
-	utils::Geometry::rotateToXYPlane(cs.begin(), cs.end());
+	Geometry::rotateToXYPlane(cs.begin(), cs.end(), normalVec);
 
 	std::map<Point, CoordinateId> res;
 	for (std::size_t i = 0; i < cs.size(); i++) {
@@ -111,13 +112,13 @@ ConvexHull::ConvexHull(const Coordinates* global)
 	globalCoords_ = global;
 }
 
-std::vector<CoordinateId> ConvexHull::get(const IdSet& ids) const
+std::vector<CoordinateId> ConvexHull::get(const IdSet& ids, const VecD& normalVec) const
 {
 	if (ids.size() <= 2) {
 		return std::vector<CoordinateId>(ids.begin(), ids.end());
 	}
 		
-	auto pointsIndex{ buildPointsInIndex(*globalCoords_, ids) };
+	auto pointsIndex{ buildPointsInIndex(*globalCoords_, ids, normalVec) };
 
 	std::vector<Point> points(pointsIndex.size());
 	auto it{ pointsIndex.begin() };

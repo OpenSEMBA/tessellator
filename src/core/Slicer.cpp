@@ -110,7 +110,8 @@ Elements Slicer::sliceTriangle(
             continue;
         }
 
-        auto path = utils::ConvexHull(&sCoords).get(vIds);
+        auto n{ utils::Geometry::normal(tri) };
+        auto path = utils::ConvexHull(&sCoords).get(vIds, n);
         Elements newTris = buildTrianglesFromPath(sCoords, path);
         res.insert(res.end(), newTris.begin(), newTris.end());
     }
