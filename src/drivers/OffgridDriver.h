@@ -1,16 +1,18 @@
 #pragma once
 
-#include "filler/Filler.h"
+#include "cgal/filler/Filler.h"
 #include "types/Mesh.h"
 #include "DriverBase.h"
-#include "DriverOptions.h"
+#include "OffgridDriverOptions.h"
 
 namespace meshlib {
 namespace drivers {
 
+using namespace cgal;
+
 class OffgridDriver : public DriverBase {
 public:
-    OffgridDriver(const Mesh& in, const DriverOptions& opts = DriverOptions());
+    OffgridDriver(const Mesh& in, const OffgridDriverOptions& opts = OffgridDriverOptions());
     virtual ~OffgridDriver() = default;
     Mesh mesh() const;
 
@@ -20,12 +22,11 @@ public:
         const std::vector<Priority>& groupPriorities = std::vector<Priority>()) const;
 
 private:
-    DriverOptions opts_;
+    OffgridDriverOptions opts_;
 
     Mesh volumeMesh_;
     Mesh surfaceMesh_;
 
-    Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) const;
     Mesh buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
     void process(Mesh&) const;
 

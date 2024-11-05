@@ -8,7 +8,7 @@ add_library(tessellator-core
 )
 
 if (TESSELLATOR_USE_CGAL)
-    add_library(tessellator-core
+    target_sources(tessellator-core PRIVATE
         "Smoother.cpp"
         "SmootherTools.cpp"
     )

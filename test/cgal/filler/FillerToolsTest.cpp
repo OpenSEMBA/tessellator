@@ -3,10 +3,9 @@
 
 #include "filler/FillerTools.h"
 
-using namespace meshlib;
-using namespace tessellator;
+namespace meshlib::cgal::filler {
+
 using namespace filler;
-using namespace cgal;
 
 class FillerToolsTest : public ::testing::Test {
 public:
@@ -118,4 +117,6 @@ TEST_F(FillerToolsTest, intersectionTriWithCell_degenerate)
             { 0, 0 }
         )
     );
+}
+
 }

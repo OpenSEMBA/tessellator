@@ -6,8 +6,8 @@
 #include "utils/MeshTools.h"
 #include "MeshFixtures.h"
 
-using namespace meshlib;
-using namespace core;
+namespace meshlib::core {
+
 using namespace utils;
 using namespace meshFixtures;
 
@@ -858,4 +858,6 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_in_interior)
 	ASSERT_EQ(8, collapsed.size());
 	EXPECT_EQ(collapsed[2], collapsed[3]);
 	EXPECT_EQ(collapsed[5], collapsed[4]);
+}
+
 }

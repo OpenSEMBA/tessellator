@@ -8,9 +8,7 @@
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 
-namespace meshlib {
-namespace tessellator {
-namespace filler {
+namespace meshlib::cgal::filler {
 
 using Height = cgal::KType;
 
@@ -48,6 +46,4 @@ cgal::HPolygonSet buildPolygonSetFromPolyhedron(
 	const cgal::Polyhedron& p, const Axis& x);
 
 
-}
-}
 }

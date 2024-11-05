@@ -9,7 +9,9 @@ add_library(tessellator-drivers
 target_link_libraries(tessellator-drivers tessellator-core tessellator-utils)
 
 if (TESSELLATOR_USE_CGAL)
-    add_library(tessellator "OffgridDriver.cpp")
+    target_sources(tessellator-drivers PRIVATE
+        "OffgridDriver.cpp"
+    )
     target_link_libraries(tessellator-drivers tessellator-cgal)
 endif()
 

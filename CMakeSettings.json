@@ -24,7 +24,7 @@
       "variables": [
         {
           "name": "TESSELLATOR_USE_CGAL",
-          "value": "False",
+          "value": "True",
           "type": "BOOL"
         }
       ]

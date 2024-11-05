@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SnapperOptions.h"
+#include "core/SnapperOptions.h"
 
 namespace meshlib::drivers {
 
@@ -10,7 +10,7 @@ public:
     bool forceSlicing = true;
     bool collapseInternalPoints = true;
     bool snap = true;
-    SnapperOptions snapperOptions;
+    core::SnapperOptions snapperOptions;
     int decimalPlacesInCollapser = 4;
     std::set<GroupId> volumeGroups{};
 

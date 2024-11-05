@@ -5,11 +5,10 @@
 #include "cgal/PolyhedronTools.h"
 #include "MeshTools.h"
 
-using namespace meshlib;
+namespace meshlib::cgal {
 
 using namespace meshFixtures;
 
-using namespace cgal;
 using namespace polyhedronTools;
 
 class PolyhedronToolsTest: public ::testing::Test {
@@ -26,3 +25,4 @@ TEST_F(PolyhedronToolsTest, buildPolyhedronFromMesh)
 }
 
 
+}

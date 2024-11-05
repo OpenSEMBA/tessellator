@@ -6,8 +6,7 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 
-using namespace meshlib;
-using namespace core;
+namespace meshlib::core {
 using namespace utils;
 using namespace meshFixtures;
 using namespace meshTools;
@@ -84,4 +83,6 @@ TEST_F(SmootherTest, touching_by_single_point)
 	auto r{ Smoother{m}.getMesh() };
 
 	EXPECT_EQ(2, countMeshElementsIf(r, isTriangle));
+}
+
 }

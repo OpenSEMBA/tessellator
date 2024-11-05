@@ -3,8 +3,7 @@
 #include "cgal/Delaunator.h"
 #include "utils/Types.h"
 
-using namespace meshlib;
-using namespace cgal;
+namespace meshlib::cgal {
 
 class DelaunatorTest : public ::testing::Test {
 public:
@@ -269,4 +268,6 @@ TEST_F(DelaunatorTest, DISABLED_mesh_repeating_ids)
 	auto coords = buildCoordinates();
 	Delaunator delaunator(&coords);
 	EXPECT_ANY_THROW(delaunator.mesh({}, { { 0, 1, 5, 2, 3 } } ));
+}
+
 }

@@ -2,40 +2,40 @@
 #include "MeshFixtures.h"
 #include "MeshTools.h"
 
-#include "Driver.h"
+#include "drivers/OffgridDriver.h"
 #include "utils/Geometry.h"
 
-using namespace meshlib;
-using namespace tessellator;
+namespace meshlib::drivers {
 using namespace meshFixtures;
 using namespace utils::meshTools;
+using namespace cgal::filler;
 
-class DriverTest : public ::testing::Test {
+class OffgridDriverTest : public ::testing::Test {
 public:
-    static DriverOptions buildSnappedOptions() {
-        DriverOptions opts;
+    static OffgridDriverOptions buildSnappedOptions() {
+        OffgridDriverOptions opts;
         opts.collapseInternalPoints = true;
         opts.snap = true;
         return opts;
     }
 
-    static DriverOptions buildAdaptedOptions() {
-        DriverOptions opts;
+    static OffgridDriverOptions buildAdaptedOptions() {
+        OffgridDriverOptions opts;
         opts.collapseInternalPoints = true;
         opts.snap = false;
         return opts;
     }
 
-    static DriverOptions buildRawOptions() {
-        DriverOptions opts;
+    static OffgridDriverOptions buildRawOptions() {
+        OffgridDriverOptions opts;
         opts.forceSlicing = true;
         opts.collapseInternalPoints = false;
         opts.snap = false;
         return opts;
     }
 
-    static DriverOptions buildBareOptions() {
-        DriverOptions opts;
+    static OffgridDriverOptions buildBareOptions() {
+        OffgridDriverOptions opts;
         opts.forceSlicing = false;
         opts.collapseInternalPoints = false;
         opts.snap = false;
@@ -86,7 +86,7 @@ public:
 
 };
 
-TEST_F(DriverTest, cubes_overlap_different_materials)
+TEST_F(OffgridDriverTest, cubes_overlap_different_materials)
 {
     auto opts{ buildAdaptedOptions() };
     opts.volumeGroups = { 0, 1 };
@@ -99,7 +99,7 @@ TEST_F(DriverTest, cubes_overlap_different_materials)
     EXPECT_EQ(20, r.groups[1].elements.size());
 }
 
-TEST_F(DriverTest, two_materials_with_overlap_no_intersect)
+TEST_F(OffgridDriverTest, two_materials_with_overlap_no_intersect)
 {
     auto opts = buildAdaptedOptions();
     
@@ -122,7 +122,7 @@ TEST_F(DriverTest, two_materials_with_overlap_no_intersect)
     ASSERT_EQ(2, outTwoMats.groups.size());   
 }
 
-TEST_F(DriverTest, two_materials_with_no_overlap_same_as_one_material)
+TEST_F(OffgridDriverTest, two_materials_with_no_overlap_same_as_one_material)
 {
     auto opts = buildAdaptedOptions();
     double stepSize = 1.0;
@@ -141,7 +141,7 @@ TEST_F(DriverTest, two_materials_with_no_overlap_same_as_one_material)
     }
 }
 
-TEST_F(DriverTest, plane45_size1_grid_adapted) 
+TEST_F(OffgridDriverTest, plane45_size1_grid_adapted) 
 {
     OffgridDriver mesher(buildPlane45Mesh(1.0), buildAdaptedOptions());
     Mesh out;
@@ -149,7 +149,7 @@ TEST_F(DriverTest, plane45_size1_grid_adapted)
     EXPECT_EQ(2, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, plane45_size1_grid_raw)
+TEST_F(OffgridDriverTest, plane45_size1_grid_raw)
 {
     OffgridDriver mesher(buildPlane45Mesh(1.0), buildRawOptions());
     Mesh out;
@@ -157,7 +157,7 @@ TEST_F(DriverTest, plane45_size1_grid_raw)
     EXPECT_EQ(4, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, tri_non_uniform_grid_adapted)
+TEST_F(OffgridDriverTest, tri_non_uniform_grid_adapted)
 {
     Mesh out;
     ASSERT_NO_THROW(out = OffgridDriver(buildTriNonUniformGridMesh(), buildAdaptedOptions()).mesh());
@@ -166,7 +166,7 @@ TEST_F(DriverTest, tri_non_uniform_grid_adapted)
     EXPECT_EQ(27, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, tri_non_uniform_grid_snapped)
+TEST_F(OffgridDriverTest, tri_non_uniform_grid_snapped)
 {
     auto opts = buildSnappedOptions();
     opts.snapperOptions.forbiddenLength = 0.25;
@@ -178,14 +178,14 @@ TEST_F(DriverTest, tri_non_uniform_grid_snapped)
     EXPECT_EQ(24, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, tet_size1_grid_raw) 
+TEST_F(OffgridDriverTest, tet_size1_grid_raw) 
 {
     OffgridDriver mesher(buildTetMesh(1.0), buildRawOptions());
     Mesh out;
     ASSERT_NO_THROW(out = mesher.mesh());
     EXPECT_EQ(4, out.groups[0].elements.size());
 }
-TEST_F(DriverTest, tet_size1_grid_adapted) 
+TEST_F(OffgridDriverTest, tet_size1_grid_adapted) 
 {
     OffgridDriver mesher(buildTetMesh(1.0), buildAdaptedOptions());
     Mesh out;
@@ -193,7 +193,7 @@ TEST_F(DriverTest, tet_size1_grid_adapted)
     EXPECT_EQ(4, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, bowtie_corner_size5_grid_raw)
+TEST_F(OffgridDriverTest, bowtie_corner_size5_grid_raw)
 {
     OffgridDriver mesher(buildCornerBowtieMesh(5.0), buildRawOptions());
     Mesh out;
@@ -201,7 +201,7 @@ TEST_F(DriverTest, bowtie_corner_size5_grid_raw)
     EXPECT_EQ(6, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, bowtie_corner_size5_grid_adapted)
+TEST_F(OffgridDriverTest, bowtie_corner_size5_grid_adapted)
 {
 
     OffgridDriver mesher(buildCornerBowtieMesh(5.0), buildAdaptedOptions());
@@ -210,7 +210,7 @@ TEST_F(DriverTest, bowtie_corner_size5_grid_adapted)
     EXPECT_EQ(6, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, plane45_size05_grid_adapted) 
+TEST_F(OffgridDriverTest, plane45_size05_grid_adapted) 
 {
  
     OffgridDriver mesher(buildPlane45Mesh(0.5), buildAdaptedOptions());
@@ -221,7 +221,7 @@ TEST_F(DriverTest, plane45_size05_grid_adapted)
     EXPECT_EQ(8, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, tets_sharing_edge_adapted)
+TEST_F(OffgridDriverTest, tets_sharing_edge_adapted)
 {
     OffgridDriver mesher(buildTetsSharingEdgeMesh(), buildAdaptedOptions());
 
@@ -231,7 +231,7 @@ TEST_F(DriverTest, tets_sharing_edge_adapted)
     }
 }
 
-TEST_F(DriverTest, plane45_size05_grid_raw)
+TEST_F(OffgridDriverTest, plane45_size05_grid_raw)
 {
 
     OffgridDriver mesher(buildPlane45Mesh(0.5), buildRawOptions());
@@ -242,7 +242,7 @@ TEST_F(DriverTest, plane45_size05_grid_raw)
     EXPECT_EQ(12, out.groups[0].elements.size());
 }
 
-TEST_F(DriverTest, plane45_size025_grid_adapted) {
+TEST_F(OffgridDriverTest, plane45_size025_grid_adapted) {
 
     OffgridDriver mesher(buildPlane45Mesh(0.25), buildAdaptedOptions());
 
@@ -252,7 +252,7 @@ TEST_F(DriverTest, plane45_size025_grid_adapted) {
     EXPECT_EQ(32, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, plane45_size025_grid_raw) 
+TEST_F(OffgridDriverTest, plane45_size025_grid_raw) 
 {
 
     OffgridDriver mesher(buildPlane45Mesh(0.25), buildRawOptions());
@@ -263,7 +263,7 @@ TEST_F(DriverTest, plane45_size025_grid_raw)
     EXPECT_EQ(40, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, bowtie_two_triangles_adapted)
+TEST_F(OffgridDriverTest, bowtie_two_triangles_adapted)
 {
 
     OffgridDriver mesher(buildTwoTrianglesFromBowtieCoarseMesh(), buildAdaptedOptions());
@@ -273,7 +273,7 @@ TEST_F(DriverTest, bowtie_two_triangles_adapted)
     ASSERT_NO_THROW(out = mesher.mesh());
 }
 
-TEST_F(DriverTest, bowtie_subset_1_adapted)
+TEST_F(OffgridDriverTest, bowtie_subset_1_adapted)
 {
 
     OffgridDriver mesher(buildBowtieSubset1Mesh(), buildAdaptedOptions());
@@ -283,7 +283,7 @@ TEST_F(DriverTest, bowtie_subset_1_adapted)
     ASSERT_NO_THROW(out = mesher.mesh());
 }
 
-TEST_F(DriverTest, tri) 
+TEST_F(OffgridDriverTest, tri) 
 {
 
     Mesh in;
@@ -307,7 +307,7 @@ TEST_F(DriverTest, tri)
         in = Mesh{ grid, coords, groups };
     }
     
-    DriverOptions opts;
+    OffgridDriverOptions opts;
     opts.snap = false;
 
     OffgridDriver mesher(in, opts);
@@ -323,7 +323,7 @@ TEST_F(DriverTest, tri)
 
 }
 
-TEST_F(DriverTest, tri_dual)
+TEST_F(OffgridDriverTest, tri_dual)
 {
 
     Mesh in;
@@ -344,7 +344,7 @@ TEST_F(DriverTest, tri_dual)
         in = Mesh{ grid, coords, groups };
     }
 
-    DriverOptions opts;
+    OffgridDriverOptions opts;
     opts.snap = false;
 
     OffgridDriver mesher(in, opts);
@@ -360,7 +360,7 @@ TEST_F(DriverTest, tri_dual)
     EXPECT_EQ(1, d.getEdgeFilling(CellIndex{ Cell{{1,1,0}}, Z }).lins[0].size());
 }
 
-TEST_F(DriverTest, smoother_generates_triangles_crossing_grid) 
+TEST_F(OffgridDriverTest, smoother_generates_triangles_crossing_grid) 
 {
     Mesh m;
     {
@@ -394,7 +394,7 @@ TEST_F(DriverTest, smoother_generates_triangles_crossing_grid)
     ASSERT_NO_THROW(OffgridDriver(m, opts).mesh());
 }
 
-TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_2)
+TEST_F(OffgridDriverTest, smoother_generates_triangles_crossing_grid_2)
 {
     Mesh m;
     {
@@ -424,7 +424,7 @@ TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_2)
     ASSERT_NO_THROW(OffgridDriver(m, opts).mesh());
 }
 
-TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_3)
+TEST_F(OffgridDriverTest, smoother_generates_triangles_crossing_grid_3)
 {
     Mesh m;
     {
@@ -451,7 +451,7 @@ TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_3)
     ASSERT_NO_THROW(OffgridDriver(m, opts).mesh());
 }
 
-TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_4)
+TEST_F(OffgridDriverTest, smoother_generates_triangles_crossing_grid_4)
 {
 
     auto opts = buildAdaptedOptions();
@@ -460,7 +460,7 @@ TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_4)
     ASSERT_NO_THROW(OffgridDriver(buildCylinderPatchMesh(), opts).mesh());
 }
 
-TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_5)
+TEST_F(OffgridDriverTest, smoother_generates_triangles_crossing_grid_5)
 {
     Mesh m;
     {
@@ -487,7 +487,7 @@ TEST_F(DriverTest, smoother_generates_triangles_crossing_grid_5)
     ASSERT_NO_THROW(OffgridDriver(m, opts).mesh());
 }
 
-TEST_F(DriverTest, cube_1x1x1_volume_size_0c25_grid_raw)
+TEST_F(OffgridDriverTest, cube_1x1x1_volume_size_0c25_grid_raw)
 {
     OffgridDriver mesher(buildCubeVolumeMesh(0.25), buildRawOptions());
 
@@ -497,7 +497,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_0c25_grid_raw)
     EXPECT_EQ(192, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, cube_1x1x1_volume_size_0c5_grid_raw)
+TEST_F(OffgridDriverTest, cube_1x1x1_volume_size_0c5_grid_raw)
 {
 
     OffgridDriver mesher(buildCubeVolumeMesh(0.5), buildRawOptions());
@@ -507,7 +507,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_0c5_grid_raw)
 
 }
 
-TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_raw)
+TEST_F(OffgridDriverTest, cube_1x1x1_volume_size_1c0_grid_raw)
 {
     Mesh out;
     ASSERT_NO_THROW(out = OffgridDriver(buildCubeVolumeMesh(1.0), buildRawOptions()).mesh());
@@ -515,7 +515,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_raw)
     EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
 }
 
-TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_snapped)
+TEST_F(OffgridDriverTest, cube_1x1x1_volume_size_1c0_grid_snapped)
 {
     Mesh p;
 
@@ -525,7 +525,7 @@ TEST_F(DriverTest, cube_1x1x1_volume_size_1c0_grid_snapped)
     EXPECT_EQ(12, countMeshElementsIf(p, isTriangle));
 }
 
-TEST_F(DriverTest, cube_1x1x1_surface_treat_as_volume)
+TEST_F(OffgridDriverTest, cube_1x1x1_surface_treat_as_volume)
 {
     Mesh p;
 
@@ -538,7 +538,7 @@ TEST_F(DriverTest, cube_1x1x1_surface_treat_as_volume)
     EXPECT_EQ(12, countMeshElementsIf(p, isTriangle));
 }
 
-TEST_F(DriverTest, slab_surface_treat_as_volume)
+TEST_F(OffgridDriverTest, slab_surface_treat_as_volume)
 {
 
     auto opts{ buildSnappedOptions() };
@@ -551,9 +551,9 @@ TEST_F(DriverTest, slab_surface_treat_as_volume)
     EXPECT_EQ(4, countMeshElementsIf(p, isTriangle));
 }
 
-TEST_F(DriverTest, plane45_size1_grid)
+TEST_F(OffgridDriverTest, plane45_size1_grid)
 {
-    DriverOptions vOpts;
+    OffgridDriverOptions vOpts;
     vOpts.collapseInternalPoints = false;
     vOpts.snap = false;
 
@@ -561,9 +561,9 @@ TEST_F(DriverTest, plane45_size1_grid)
     ASSERT_NO_THROW(vMsh = OffgridDriver(buildPlane45Mesh(1.0), vOpts).mesh());
 }
 
-TEST_F(DriverTest, tet_size1_grid)
+TEST_F(OffgridDriverTest, tet_size1_grid)
 {
-    OffgridDriver mesher(buildTetMesh(1.0), DriverOptions ());
+    OffgridDriver mesher(buildTetMesh(1.0), OffgridDriverOptions ());
 
     Mesh msh;
     ASSERT_NO_THROW(msh = mesher.mesh());
@@ -571,9 +571,9 @@ TEST_F(DriverTest, tet_size1_grid)
     EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
 }
 
-TEST_F(DriverTest, tet_with_inner_point_size1_grid)
+TEST_F(OffgridDriverTest, tet_with_inner_point_size1_grid)
 {
-    OffgridDriver mesher(buildTetMeshWithInnerPoint(1.0), DriverOptions());
+    OffgridDriver mesher(buildTetMeshWithInnerPoint(1.0), OffgridDriverOptions());
 
     Mesh msh;
     ASSERT_NO_THROW(msh = mesher.mesh());
@@ -581,7 +581,7 @@ TEST_F(DriverTest, tet_with_inner_point_size1_grid)
     EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
 }
 
-TEST_F(DriverTest, elementsPartiallyOutOfGrid_bare)
+TEST_F(OffgridDriverTest, elementsPartiallyOutOfGrid_bare)
 {
     OffgridDriver h{ buildTriPartiallyOutOfGridMesh(0.5), buildBareOptions() };
      
@@ -595,7 +595,7 @@ TEST_F(DriverTest, elementsPartiallyOutOfGrid_bare)
     EXPECT_TRUE(f.getFillingState({ Cell({ 3, 3, 1 }), Z }).partial());
 }
 
-TEST_F(DriverTest, elementsPartiallyOutOfGrid_raw)
+TEST_F(OffgridDriverTest, elementsPartiallyOutOfGrid_raw)
 {
     OffgridDriver h{ buildTriPartiallyOutOfGridMesh(0.5), buildRawOptions() };
 
@@ -608,7 +608,7 @@ TEST_F(DriverTest, elementsPartiallyOutOfGrid_raw)
     EXPECT_TRUE(f.getFillingState({ Cell({ 3, 3, 1 }), Z }).partial());
 }
 
-TEST_F(DriverTest, elementsPartiallyOutOfGrid_dual_bare)
+TEST_F(OffgridDriverTest, elementsPartiallyOutOfGrid_dual_bare)
 {
     OffgridDriver h{ buildTriPartiallyOutOfGridMesh(1.0), buildBareOptions() };
 
@@ -621,7 +621,7 @@ TEST_F(DriverTest, elementsPartiallyOutOfGrid_dual_bare)
     EXPECT_TRUE(df.getFillingState({ Cell({ 0, 1, 1 }), Z }).full());
 }
 
-TEST_F(DriverTest, elementsTotallyOutOfGrid)
+TEST_F(OffgridDriverTest, elementsTotallyOutOfGrid)
 {
     Mesh m = buildTriPartiallyOutOfGridMesh(1.0);
     m.coordinates = {
@@ -638,7 +638,7 @@ TEST_F(DriverTest, elementsTotallyOutOfGrid)
     EXPECT_EQ(0, h.dualFill().getMeshFilling().countElems());
 }
 
-TEST_F(DriverTest, snapping_issue)
+TEST_F(OffgridDriverTest, snapping_issue)
 {
     Mesh m;
     m.grid =  buildProblematicTriMesh2().grid;
@@ -650,14 +650,14 @@ TEST_F(DriverTest, snapping_issue)
     m.groups = { Group{} };
     m.groups[0].elements = { {{0,1,2}} };
 
-    DriverOptions opts;
+    OffgridDriverOptions opts;
     opts.snapperOptions.edgePoints = 0;
     opts.snapperOptions.forbiddenLength = 0.1;
     
     ASSERT_NO_THROW(OffgridDriver(m, opts).mesh());
 }
 
-TEST_F(DriverTest, meshed_with_holes_issue)
+TEST_F(OffgridDriverTest, meshed_with_holes_issue)
 {
     Mesh m;
     m.grid = buildProblematicTriMesh2().grid;
@@ -673,4 +673,6 @@ TEST_F(DriverTest, meshed_with_holes_issue)
     ASSERT_NO_THROW(out = OffgridDriver(m, buildRawOptions()).mesh());
 
     EXPECT_LT(374, countMeshElementsIf(out, isTriangle));
+}
+
 }

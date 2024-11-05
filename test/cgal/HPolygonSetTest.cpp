@@ -2,8 +2,7 @@
 
 #include "cgal/HPolygonSet.h"
 	
-using namespace meshlib;
-using namespace cgal;
+namespace meshlib::cgal {
 
 class HPolygonSetTest : public ::testing::Test {
 public:
@@ -287,4 +286,6 @@ TEST_F(HPolygonSetTest, simplify_collinears)
 	pS = pS.simplifyCollinears();
 	ASSERT_EQ(1, pS.size());
 	EXPECT_EQ(3, pS.getPolygonsWithHoles()[0].outer_boundary().size());
+}
+
 }

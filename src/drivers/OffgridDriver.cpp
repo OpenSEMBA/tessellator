@@ -1,25 +1,28 @@
-#include "Driver.h"
+#include "OffgridDriver.h"
 
 #include "DriverBase.cpp"
-#include "Slicer.h"
-#include "Collapser.h"
-#include "Smoother.h"
-#include "Snapper.h"
+#include "core/Slicer.h"
+#include "core/Collapser.h"
+#include "core/Smoother.h"
+#include "core/Snapper.h"
 
-#ifdef TESSELLATOR_USE_CGAL
 #include "cgal/filler/Filler.h"
 #include "cgal/Repairer.h"
 #include "cgal/Manifolder.h"
 
-#endif
-
 #include "utils/Cleaner.h"
 
-namespace meshlib {
-namespace drivers {
+namespace meshlib::drivers {
 
 using namespace utils;
 using namespace meshTools;
+using namespace core;
+using namespace cgal::filler;
+
+Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh)
+{
+    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
+}
 
 Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
@@ -36,7 +39,7 @@ Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroup
     return resultMesh;
 }
 
-OffgridDriver::OffgridDriver(const Mesh& in, const DriverOptions& opts) :
+OffgridDriver::OffgridDriver(const Mesh& in, const OffgridDriverOptions& opts) :
     DriverBase::DriverBase(in),
     opts_{ opts }
 {        
@@ -53,11 +56,6 @@ OffgridDriver::OffgridDriver(const Mesh& in, const DriverOptions& opts) :
     process(surfaceMesh_);
 
     log("Initial hull mesh built succesfully.");
-}
-
-Mesh OffgridDriver::extractSurfaceFromVolumeMeshes(const Mesh& inputMesh) const
-{
-    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
 }
 
 Mesh OffgridDriver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
@@ -151,5 +149,4 @@ Filler OffgridDriver::dualFill(const std::vector<Priority>& groupPriorities) con
     };
 }
 
-}
 }

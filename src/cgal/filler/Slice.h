@@ -1,12 +1,13 @@
 #pragma once
 
 #include "FillerTools.h"
-#include "cgal/HPolygonSet.h"
+#include "../HPolygonSet.h"
 
 #include <boost/unordered_set.hpp>
 #include <boost/unordered_map.hpp>
 
-namespace meshlib::cgal::filler {
+namespace meshlib::cgal {
+namespace filler {
 
 using namespace cgal;
 
@@ -116,4 +117,5 @@ private:
 	void removeInSuperiorPriorities(const Priority& pr);
 };
 
+}
 }

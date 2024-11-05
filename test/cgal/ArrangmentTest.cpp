@@ -14,11 +14,10 @@
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Arr_segment_traits_2.h>
 
-using namespace meshlib;
+namespace meshlib::cgal {
 
 using namespace meshFixtures;
 
-using namespace cgal;
 
 class ArrangmentTest : public ::testing::Test {
 public:
@@ -174,8 +173,6 @@ TEST_F(ArrangmentTest, arrangment_1face) {
     }
     EXPECT_EQ(1, faces.size());
     EXPECT_EQ(4, faces.front().size());
-
-
- 
+}
 
 }

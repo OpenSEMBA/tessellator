@@ -3,13 +3,14 @@
 #include "MeshTools.h"
 
 #include "filler/Filler.h"
-#include "Slicer.h"
+#include "core/Slicer.h"
 
-using namespace meshlib;
-using namespace tessellator;
+namespace meshlib::cgal::filler {
+
 using namespace filler;
 using namespace meshFixtures;
 using namespace utils::meshTools;
+using namespace core;
 
 class FillerTest : public ::testing::Test {
 public:
@@ -890,3 +891,4 @@ TEST_F(FillerTest, fillingDetection_cube)
     }
 }
 
+}

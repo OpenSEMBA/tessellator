@@ -14,25 +14,6 @@ include_directories(
 	${PROJECT_SOURCE_DIR}/test/
 )
 
-if (TESSELLATOR_USE_CGAL)
-	include_directories(
-		${PROJECT_SOURCE_DIR}/src/cgal/
-	)
-
-	add_library(tessellator_cgal_tests
-		"cgal/ArrangmentTest.cpp"
-		"cgal/ConvexHullTest.cpp"
-		"cgal/DelaunatorTest.cpp"
-		"cgal/HPolygonSetTest.cpp"
-		"cgal/LSFPlaneTest.cpp"
-		"cgal/ManifolderTest.cpp"
-		"cgal/PolyhedronToolsTest.cpp"
-		"cgal/RepairerTest.cpp"
-		"cgal/filler/FillerTest.cpp"
-		"cgal/filler/FillerToolsTest.cpp"
-	)
-endif()
-
 add_executable(tessellator_tests 
 	"core/CollapserTest.cpp"
 	"core/SlicerTest.cpp"
@@ -56,12 +37,24 @@ target_link_libraries(tessellator_tests
 )
 
 if (TESSELLATOR_USE_CGAL)
-	add_executable(tessellator_tests 
+	include_directories(
+		${PROJECT_SOURCE_DIR}/src/cgal/
+	)
+
+	target_sources(tessellator_tests PRIVATE
+		"cgal/ArrangmentTest.cpp"
+		"cgal/DelaunatorTest.cpp"
+		"cgal/HPolygonSetTest.cpp"
+		"cgal/LSFPlaneTest.cpp"
+		"cgal/ManifolderTest.cpp"
+		"cgal/PolyhedronToolsTest.cpp"
+		"cgal/RepairerTest.cpp"
+		"cgal/filler/FillerTest.cpp"
+		"cgal/filler/FillerToolsTest.cpp"
 		"core/SmootherTest.cpp"
 		"core/SmootherToolsTest.cpp"
 		"drivers/OffgridDriverTest.cpp"
-	)
-	target_link_libraries(tessellator_tests tessellator_cgal_tests)
+	)	
 endif()
 
 add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)
