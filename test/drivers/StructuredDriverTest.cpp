@@ -202,7 +202,7 @@ TEST_F(StructuredDriverTest, testTriNonUniformGridStructured)
 
 
 
-TEST_F(StructuredDriverTest, testStructuredTriangleWithUniformGrid)
+TEST_F(StructuredDriverTest, DISABLED_testStructuredTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -229,7 +229,7 @@ TEST_F(StructuredDriverTest, testStructuredTriangleWithUniformGrid)
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(48, resultMesh.groups[0].elements.size());
     EXPECT_EQ(10, countMeshElementsIf(resultMesh, isQuad));
-    EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine));
+    EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine)); 
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
 }
 

@@ -120,10 +120,11 @@ public:
     static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, const VecD& normal)
     {
         assert(normal.norm() != 0.0);
+        const VecD n{ normal / normal.norm() };
 
         const VecD z({ 0.0, 0.0, 1.0 });
-        const VecD u = normal ^ z;
-        const double cTh = normal(2);
+        const VecD u = n ^ z;
+        const double cTh = n(2);
         const double sTh = sin(acos(cTh));
         for (auto it = ini; it != end; ++it) {
             const VecD& v = *it;

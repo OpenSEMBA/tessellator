@@ -61,6 +61,20 @@ TEST_F(ConvexHullTest_meshlib, in_plane_points)
 	EXPECT_EQ(CoordinateIds({ 0, 3, 2, 1 }), hull);
 }
 
+TEST_F(ConvexHullTest_meshlib, coords_in_diag_plane)
+{
+	Coordinates coords{
+			Coordinate({2.6938780000000002, 2.6938780000000002, 2.6938780000000002}),
+			Coordinate({2.8979590000000002, 2.7959179999999999, 2.8979590000000002}),
+			Coordinate({3.0,                3.0,                3.0}),  
+		};
+	const VecD nVec({ 300.0, 0.0, -300.0 });
+
+	auto hull{ ConvexHull(&coords).get({ 0, 1, 2}, nVec) };
+
+	EXPECT_EQ(CoordinateIds({ 0, 1, 2 }), hull);
+}
+
 TEST_F(ConvexHullTest_meshlib, out_of_plane)
 {
 	auto coords{ buildCoordinates() };

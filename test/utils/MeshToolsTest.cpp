@@ -473,12 +473,10 @@ TEST_F(MeshToolsTest, reduceGrid_tri_out_of_grid_upper)
 
 	m.grid = getEnlargedGridIncludingAllElements(m);
 	
-	{
-		auto sliced{ core::Slicer(m).getMesh() };
-		EXPECT_EQ(1, sliced.countElems());
-		meshTools::reduceGrid(sliced, originalGrid);
-		EXPECT_EQ(0, sliced.countElems());
-	}
+	auto sliced{ core::Slicer(m).getMesh() };
+	EXPECT_EQ(1, sliced.countElems());
+	meshTools::reduceGrid(sliced, originalGrid);
+	EXPECT_EQ(0, sliced.countElems());
 
 }
 
