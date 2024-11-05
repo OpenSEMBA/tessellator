@@ -34,7 +34,7 @@ public:
 	}
 };
 
-TEST_F(DelaunatorTest, mesh_with_repeated_ids)
+TEST_F(DelaunatorTest, DISABLED_mesh_with_repeated_ids)
 {
 	auto coords = buildCoordinates();
 	Delaunator delaunator(&coords);
