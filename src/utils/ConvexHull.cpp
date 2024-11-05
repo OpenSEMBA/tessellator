@@ -117,8 +117,16 @@ std::vector<CoordinateId> ConvexHull::get(const IdSet& ids, const VecD& normalVe
 	if (ids.size() <= 2) {
 		return std::vector<CoordinateId>(ids.begin(), ids.end());
 	}
-		
+
 	auto pointsIndex{ buildPointsInIndex(*globalCoords_, ids, normalVec) };
+	if (pointsIndex.size() <= 2) {
+		std::vector<CoordinateId> res;
+		for (const auto& point : pointsIndex) {
+			res.push_back(point.second);
+		}
+		return res;
+	}
+		
 
 	std::vector<Point> points(pointsIndex.size());
 	auto it{ pointsIndex.begin() };
