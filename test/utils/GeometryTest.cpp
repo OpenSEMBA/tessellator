@@ -5,9 +5,7 @@
 #include "Geometry.h"
 #include "utils/Tools.h"
 
-
-using namespace meshlib;
-using namespace utils;
+namespace meshlib::utils {
 
 class GeometryTest : public ::testing::Test {
 
@@ -379,4 +377,6 @@ TEST_F(GeometryTest, convertElementToLinV)
 			EXPECT_EQ(resultLineV[v][axis], expectedLineV[v][axis]);
 		}
 	}
+}
+
 }

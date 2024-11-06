@@ -9,8 +9,8 @@
 
 #include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
 
-using namespace meshlib;
-using namespace cgal;
+namespace meshlib::cgal {
+
 using namespace polyhedronTools;
 using namespace meshFixtures;
 using namespace utils::meshTools;
@@ -138,4 +138,6 @@ TEST_F(RepairTest, throw_if_self_intersections)
 	ASSERT_ANY_THROW( 
 		repair( readMeshFromFile("Substrate_self_intersections.stl") ) 
 	);
+}
+
 }

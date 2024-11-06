@@ -10,10 +10,8 @@
 #include "utils/Geometry.h"
 #include "MeshTools.h"
 
+namespace meshlib::cgal {
 
-using namespace meshlib;
-using namespace tessellator;
-using namespace cgal;
 using namespace meshFixtures;
 using namespace utils::meshTools;
 
@@ -264,4 +262,6 @@ TEST_F(ManifolderTest, smashed_tet)
 	
 	EXPECT_EQ(2, countMeshElementsIf(mf.getOpenSurfacesMesh(), isTriangle));
 	EXPECT_EQ(0, countMeshElementsIf(mf.getClosedSurfacesMesh(), isTriangle));
+}
+
 }
