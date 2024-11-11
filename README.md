@@ -27,3 +27,5 @@ If you use this software, please give proper attribution by citing it as indicat
 
 ## Copyright and license
 This code and its copyright is property of to the University of Granada (UGR), CIF: Q1818002F, www.ugr.es. UGR has licensed its distribution under terms of the GPL-3.0 and MIT licenses (see [LICENSE](LICENSE) file) with the name of `meshlib` 
+
+testData/cervezas_alhambra logo has been downloaded from https://cults3d.com/es/modelo-3d/arte/celosia-alhambra-logo-cervezas-alhambra where is available with license CC BY-NC-SA.
