@@ -55,7 +55,9 @@ void Cleaner::removeRepeatedElements(Mesh& m)
         for (const auto& e : g.elements) {
             auto eId{ &e - &g.elements.front() };
             CoordinateIds vIds{ e.vertices };
-            std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
+            if (vIds.size() > 2) {
+                std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
+            }
             if (vToE.count(vIds) == 0) {
                 vToE.emplace(vIds, eId);
             }
@@ -149,6 +151,10 @@ void Cleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const double& are
     bool breaksPostCondition = false;
     for (auto const& g : m.groups) {
         for (auto const& e : g.elements) {
+            if (e.isNode() || e.isLine()) {
+                continue;
+            }
+
             double area = Geometry::area(Geometry::asTriV(e, m.coordinates));
             if (e.isTriangle() && area < areaThreshold) {
                 breaksPostCondition = true;

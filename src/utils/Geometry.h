@@ -4,7 +4,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "cgal/LSFPlane.h"
 #include "Types.h"
 
 namespace meshlib {
@@ -13,6 +12,9 @@ namespace utils {
 class Geometry {
 public:
     static constexpr double NORM_TOLERANCE = 1e-13;
+    static constexpr double COPLANARITY_TOLERANCE = 1e-9;
+    static constexpr double COPLANARITY_ANGLE_TOLERANCE = 0.1;
+
 
     Geometry() = delete;
     Geometry(const Geometry&) = delete;
@@ -27,6 +29,7 @@ public:
     
 
     static TriV asTriV(const Element&, const Coordinates&);
+    static LinV asLinV(const Element&, const Coordinates&);
     
     static bool approxEqualLines(const LinV& a, const LinV& b);
     static bool approximatelyAligned(const TriV& a, const TriV& b, const double& angle);
@@ -50,9 +53,44 @@ public:
     static VecD getNormal(
         const Coordinates&, 
         double coplanarityAngleTolerance);
+    static VecD getLSFPlaneNormal(const Coordinates& inPts);
     static VecD getMeanNormalOfElements(
         const ElementsView& elements,
         const Coordinates& coords);
+
+    template <class CoordinatesIt>
+    static bool arePointsInPlane(
+        const std::array<Coordinate, 3> plane,
+        const CoordinatesIt ini, const CoordinatesIt end)
+    {
+
+        // Calculate vectors AB, AC, and AD
+        double a1 = plane[1][0] - plane[0][0];
+        double a2 = plane[1][1] - plane[0][1];
+        double a3 = plane[1][2] - plane[0][2];
+
+        double b1 = plane[2][0] - plane[0][0];
+        double b2 = plane[2][1] - plane[0][1];
+        double b3 = plane[2][2] - plane[0][2];
+
+        for (auto pIt = ini; pIt != end; ++pIt) {
+            double c1 = (*pIt)[0] - plane[0][0];
+            double c2 = (*pIt)[1] - plane[0][1];
+            double c3 = (*pIt)[2] - plane[0][2];
+
+            const double det =
+                a1 * (b2 * c3 - b3 * c2)
+                - a2 * (b1 * c3 - b3 * c1)
+                + a3 * (b1 * c2 - b2 * c1);
+
+            const bool isCoplanar{ det < COPLANARITY_TOLERANCE };
+
+            if (!isCoplanar) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     template <class CoordinatesIt>
     static bool areCoordinatesCoplanar(
@@ -63,7 +101,7 @@ public:
             return false;
         }
         
-        Coordinates seed;
+        std::array<Coordinate,3> seedPlane;
         {
             auto it = ini;
             while (isDegenerate(TriV{ *it, *std::next(it), *std::next(it,2) })) {
@@ -72,22 +110,21 @@ public:
                     return false;
                 }
             }
-            seed = { *it, *std::next(it), *std::next(it,2) };
+            seedPlane = { *it, *std::next(it), *std::next(it,2) };
         }
         
-        return cgal::LSFPlane(seed.begin(), seed.end()).arePointsInPlane(ini, end);
+        return arePointsInPlane(seedPlane, ini, end);
     }
 
     template <class coordinatesIt>
-    static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, VecD normal = VecD({ 0.,0.,0. }))
+    static void rotateToXYPlane(coordinatesIt ini, coordinatesIt end, const VecD& normal)
     {
-        if (normal.norm() == 0) {
-            normal = cgal::LSFPlane(ini, end).getNormal();
-        }
+        assert(normal.norm() != 0.0);
+        const VecD n{ normal / normal.norm() };
 
         const VecD z({ 0.0, 0.0, 1.0 });
-        const VecD u = normal ^ z;
-        const double cTh = normal(2);
+        const VecD u = n ^ z;
+        const double cTh = n(2);
         const double sTh = sin(acos(cTh));
         for (auto it = ini; it != end; ++it) {
             const VecD& v = *it;

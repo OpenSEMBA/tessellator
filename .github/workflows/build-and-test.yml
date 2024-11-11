@@ -33,12 +33,6 @@ jobs:
       with:
         vcpkgJsonGlob: 'vcpkg.json'
  
-    # - name: Configure and build
-    #   uses: lukka/run-cmake@v10
-    #   with:
-    #     configurePreset: 'msbuild-vcpkg'
-    #     buildPreset: 'msbuild-vcpkg'
-    #     buildPresetAdditionalArgs: "['--config Release']"
     - name: Configure and build
       run: |
         cmake --preset "msbuild-vcpkg" -S . -B build

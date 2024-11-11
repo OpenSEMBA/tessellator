@@ -44,15 +44,24 @@ struct Element {
         return type == Type::None && vertices.size() == 0;
     }
 
+    bool isNode() const
+    {
+        return type == Type::Node && vertices.size() == 1;
+    }
 
     bool isLine() const 
     {
         return type == Type::Line && vertices.size() == 2;
     }
 
-    bool isTriangle() const 
+    bool isTriangle() const
     {
         return type == Type::Surface && vertices.size() == 3;
+    }
+
+    bool isQuad() const
+    {
+        return type == Type::Surface && vertices.size() == 4;
     }
 
     bool isTetrahedron() const 
@@ -175,39 +184,6 @@ struct Mesh {
         std::size_t res = 0;
         for (auto const& g: groups) {
             res += g.elements.size();
-        }
-        return res;
-    }
-
-    std::size_t countElemsWithCondition(std::function<bool(const Element&)> condition) const {
-        std::size_t res = 0;
-        for (auto const& g : groups) {
-            res += std::count_if(g.elements.begin(), g.elements.end(), condition);
-        }
-        return res;
-    }
-
-    std::size_t countTriangles() const 
-    {
-        std::size_t res = 0;
-        for (auto const& g: groups) {
-            for (auto const& e : g.elements) {
-                if (e.vertices.size() == 3 && e.type == Element::Type::Surface) {
-                    res++;
-                }
-            }
-        }
-        return res;
-    }
-    std::size_t countLines() const 
-    {
-        std::size_t res = 0;
-        for (auto const& g : groups) {
-            for (auto const& e : g.elements) {
-                if (e.vertices.size() == 2 && e.type == Element::Type::Line) {
-                    res++;
-                }
-            }
         }
         return res;
     }

@@ -1,8 +1,8 @@
 #include "Delaunator.h"
 #include "utils/Geometry.h"
+#include "LSFPlane.h"
 
-namespace meshlib {
-namespace cgal {
+namespace meshlib::cgal {
 
 using namespace utils;
 
@@ -181,6 +181,9 @@ Delaunator::IndexPointToId Delaunator::buildPointsInIndex(
     {
         normal = utils::Geometry::getMeanNormalOfElements(elements_, *globalCoords_);
     }
+    else {
+        normal = LSFPlane(cs.begin(), cs.end()).getNormal();
+    }
     
     utils::Geometry::rotateToXYPlane(cs.begin(), cs.end(), normal);
 
@@ -195,5 +198,4 @@ Delaunator::IndexPointToId Delaunator::buildPointsInIndex(
     return res;
 }
 
-}
 }

@@ -1,13 +1,13 @@
 
 #include "gtest/gtest.h"
 
-#include "tessellator/Slicer.h"
+#include "core/Slicer.h"
 #include "cgal/Manifolder.h"
 #include "MeshFixtures.h"
 #include "MeshTools.h"
 
-using namespace meshlib;
-using namespace utils;
+namespace meshlib::utils {
+
 using namespace meshTools;
 using namespace meshFixtures;
 
@@ -15,6 +15,104 @@ class MeshToolsTest : public ::testing::Test {
 public:
 	
 };
+
+
+
+TEST_F(MeshToolsTest, countElements)
+{
+	float lowerCoordinateValue = -0.5;
+	float upperCoordinateValue = 0.5;
+	int numberOfCells = 4;
+	float step = 0.25;
+	assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells) == step);
+
+	Mesh inputMesh;
+	inputMesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+	inputMesh.coordinates = {
+		Coordinate({-0.20, -0.20, -0.20}), // 0
+		Coordinate({-0.20,  0.20, -0.20}), // 1
+		Coordinate({ 0.20,  0.20, -0.20}), // 2
+		Coordinate({ 0.20, -0.20, -0.20}), // 3
+		Coordinate({-0.20, -0.20,  0.20}), // 4
+		Coordinate({-0.20,  0.20,  0.20}), // 5
+		Coordinate({ 0.20,  0.20,  0.20}), // 6
+		Coordinate({ 0.20, -0.20,  0.20}), // 7
+	};
+
+	inputMesh.groups.resize(8);
+	inputMesh.groups[0].elements = {
+		Element({0}, Element::Type::Node),
+	};
+	inputMesh.groups[1].elements = {
+		Element({1}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+	};
+	inputMesh.groups[2].elements = {
+		Element({2}, Element::Type::Node),
+		Element({1, 2}, Element::Type::Line),
+		Element({0, 1, 2}, Element::Type::Surface),
+	};
+	inputMesh.groups[3].elements = {
+		Element({3}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 0}, Element::Type::Line),
+		Element({2, 3, 0}, Element::Type::Surface),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+
+	};
+	inputMesh.groups[4].elements = {
+		Element({4}, Element::Type::Node),
+		Element({0, 4}, Element::Type::Line),
+		Element({0, 1, 4}, Element::Type::Surface),
+		Element({0, 1, 3, 4}, Element::Type::Volume),
+	};
+	inputMesh.groups[5].elements = {
+		Element({5}, Element::Type::Node),
+		Element({1, 5}, Element::Type::Line),
+		Element({4, 5}, Element::Type::Line),
+		Element({1, 5, 4}, Element::Type::Surface),
+		Element({1, 2, 5}, Element::Type::Surface),
+		Element({0, 1, 5, 4}, Element::Type::Surface),
+	};
+	inputMesh.groups[6].elements = {
+		Element({6}, Element::Type::Node),
+		Element({2, 6}, Element::Type::Line),
+		Element({5, 6}, Element::Type::Line),
+		Element({2, 6, 5}, Element::Type::Surface),
+		Element({2, 3, 6}, Element::Type::Surface),
+		Element({4, 5, 6}, Element::Type::Surface),
+		Element({1, 2, 6, 5}, Element::Type::Surface),
+		Element({1, 5, 4, 6}, Element::Type::Volume),
+		Element({1, 2, 3, 6}, Element::Type::Volume),
+		Element({1, 3, 4, 6}, Element::Type::Volume),
+	};
+	inputMesh.groups[7].elements = {
+		Element({7}, Element::Type::Node),
+		Element({3, 7}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({7, 4}, Element::Type::Line),
+		Element({3, 7, 6}, Element::Type::Surface),
+		Element({3, 0, 7}, Element::Type::Surface),
+		Element({0, 4, 7}, Element::Type::Surface),
+		Element({6, 7, 4}, Element::Type::Surface),
+		Element({2, 3, 7, 6}, Element::Type::Surface),
+		Element({3, 0, 4, 7}, Element::Type::Surface),
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+		Element({3, 6, 7, 4}, Element::Type::Volume),
+	};
+	// 43
+
+	ASSERT_EQ(8, countMeshElementsIf(inputMesh, isNode));
+	ASSERT_EQ(35, countMeshElementsIf(inputMesh, isNotNode));
+	ASSERT_EQ(12, countMeshElementsIf(inputMesh, isLine));
+	ASSERT_EQ(31, countMeshElementsIf(inputMesh, isNotLine));
+	ASSERT_EQ(12, countMeshElementsIf(inputMesh, isTriangle));
+	ASSERT_EQ(31, countMeshElementsIf(inputMesh, isNotTriangle));
+	ASSERT_EQ(6, countMeshElementsIf(inputMesh, isQuad));
+	ASSERT_EQ(37, countMeshElementsIf(inputMesh, isNotQuad));
+	ASSERT_EQ(5, countMeshElementsIf(inputMesh, isTetrahedron));
+	ASSERT_EQ(38, countMeshElementsIf(inputMesh, isNotTetrahedron));
+}
 
 TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_do_cross)
 {
@@ -35,7 +133,7 @@ TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_do_cross)
 
 TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_no_cross)
 {
-	auto m{ tessellator::Slicer{buildCubeSurfaceMesh(0.2)}.getMesh() };
+	auto m{ core::Slicer{buildCubeSurfaceMesh(0.2)}.getMesh() };
 
 	ASSERT_NO_THROW(checkNoCellsAreCrossed(m));
 }
@@ -182,6 +280,76 @@ TEST_F(MeshToolsTest, checkNoAreaBelowThreshold_2)
 	ASSERT_ANY_THROW(checkNoNullAreasExist(m));
 }
 
+TEST_F(MeshToolsTest, testNodesAreValid)
+{
+	Mesh m;
+	Coordinate expectedCoordinate;
+	{
+		m.coordinates = { expectedCoordinate };
+
+		m.groups = { Group() };
+		m.groups[0].elements = {
+			Element({0}, Element::Type::Node),
+		};
+	}
+
+	ASSERT_NO_THROW(checkNoNullAreasExist(m));
+
+	ASSERT_EQ(m.coordinates.size(), 1);
+	for (Axis axis = X; axis <= Z; ++axis) {
+		EXPECT_EQ(m.coordinates[0][axis], expectedCoordinate[axis]);
+	}
+	ASSERT_EQ(m.groups.size(), 1);
+	ASSERT_EQ(m.groups[0].elements.size(), 1);
+
+	auto& resultElement = m.groups[0].elements[0];
+	ASSERT_EQ(resultElement.vertices.size(), 1);
+	ASSERT_EQ(resultElement.vertices[0], 0);
+	ASSERT_TRUE(resultElement.isNode());
+}
+
+TEST_F(MeshToolsTest, testLinesAreValidUnlessLengthIsZero)
+{
+	Coordinates expectedCoordinates = {
+			Coordinate({0.0, 0.0, 0.0}),
+			Coordinate({0.1, 0.1, 0.1})
+	};
+	auto expectedElement = Element({ 0, 1 }, Element::Type::Line);
+	Mesh m;
+	{
+
+		m.coordinates = expectedCoordinates;
+
+		m.groups = { Group() };
+		m.groups[0].elements = { expectedElement };
+	}
+
+	ASSERT_NO_THROW(checkNoNullAreasExist(m));
+
+	ASSERT_EQ(m.coordinates.size(), expectedCoordinates.size());
+	for (std::size_t c = 0; c < expectedCoordinates.size(); ++c) {
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(m.coordinates[c][axis], expectedCoordinates[c][axis]);
+		}
+	}
+	ASSERT_EQ(m.groups.size(), 1);
+	ASSERT_EQ(m.groups[0].elements.size(), 1);
+
+	auto& resultElement = m.groups[0].elements[0];
+
+	ASSERT_TRUE(resultElement.isLine());
+	ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+	for (std::size_t v = 0; v < expectedCoordinates.size(); ++v) {
+		EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+	}
+
+	m.coordinates.push_back(Coordinate({ 0.1, 0.1, 0.1 }));
+	m.groups[0].elements.push_back(Element({ 1, 2 }, Element::Type::Line));
+
+	ASSERT_ANY_THROW(checkNoNullAreasExist(m));
+		
+}
+
 TEST_F(MeshToolsTest, duplicateCoordinatesUsedByDifferentGroups) 
 {
 	Mesh m;
@@ -305,12 +473,10 @@ TEST_F(MeshToolsTest, reduceGrid_tri_out_of_grid_upper)
 
 	m.grid = getEnlargedGridIncludingAllElements(m);
 	
-	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
-		EXPECT_EQ(1, sliced.countElems());
-		meshTools::reduceGrid(sliced, originalGrid);
-		EXPECT_EQ(0, sliced.countElems());
-	}
+	auto sliced{ core::Slicer(m).getMesh() };
+	EXPECT_EQ(1, sliced.countElems());
+	meshTools::reduceGrid(sliced, originalGrid);
+	EXPECT_EQ(0, sliced.countElems());
 
 }
 
@@ -325,7 +491,7 @@ TEST_F(MeshToolsTest, reduceGrid_tri_out_of_grid_lower)
 	m.grid = getEnlargedGridIncludingAllElements(m);
 
 	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
+		auto sliced{ core::Slicer(m).getMesh() };
 		EXPECT_EQ(1, sliced.countElems());
 		meshTools::reduceGrid(sliced, originalGrid);
 		EXPECT_EQ(0, sliced.countElems());
@@ -343,7 +509,7 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 	m.grid = getEnlargedGridIncludingAllElements(m);
 
 	{
-		auto sliced{ tessellator::Slicer(m).getMesh() };
+		auto sliced{ core::Slicer(m).getMesh() };
 		ASSERT_NO_THROW(meshTools::reduceGrid(sliced, originalGrid));
 		EXPECT_EQ(6, sliced.countElems());
 	}
@@ -388,4 +554,6 @@ TEST_F(MeshToolsTest, setGrid_2)
 
 	ASSERT_EQ(3, r.coordinates.size());
 	EXPECT_EQ(Coordinate({ 0.5, 1.0, 0.5 }), r.coordinates[0]);
+}
+
 }

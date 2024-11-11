@@ -2,8 +2,7 @@
 
 #include "cgal/LSFPlane.h"
 
-using namespace meshlib;
-using namespace cgal;
+namespace meshlib::cgal {
 
 class LSFPlaneTest : public ::testing::Test {
 public:
@@ -113,4 +112,5 @@ TEST_F(LSFPlaneTest, DISABLED_fitYZPlane)
 	}
 
 
+}
 }

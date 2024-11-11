@@ -81,6 +81,18 @@ TriV Geometry::asTriV(const Element& el, const std::vector<Coordinate>& co) {
     return res;
 }
 
+
+LinV Geometry::asLinV(const Element& el, const std::vector<Coordinate>& co) {
+    if (el.vertices.size() != 2) {
+        throw std::logic_error("Invalid conversion from element to LinV");
+    }
+    LinV res;
+    for (std::size_t i = 0; i < el.vertices.size(); i++) {
+        res[i] = co[el.vertices[i]];
+    }
+    return res;
+}
+
 bool Geometry::approximatelyAligned(
     const TriV& a, const TriV& b, const double& approxAngle) {
     const double pi = atan(1) * 4.0;
@@ -156,6 +168,22 @@ VecD Geometry::getNormal(const Coordinates& inPts, double coplanarityAngleTolera
     return res / res.norm();
 }
 
+VecD Geometry::getLSFPlaneNormal(const Coordinates& inPts)
+{
+    //If you have n data points(x[i], y[i], z[i]), compute the 3x3 symmetric matrix A whose entries are :
+
+    //sum_i x[i] * x[i], sum_i x[i] * y[i], sum_i x[i]
+    //    sum_i x[i] * y[i], sum_i y[i] * y[i], sum_i y[i]
+    //    sum_i x[i], sum_i y[i], n
+    //    Also compute the 3 element vector b :
+
+    //{sum_i x[i] * z[i], sum_i y[i] * z[i], sum_i z[i]}
+
+    throw std::runtime_error("Not implemented");
+    VecD res({ 0.0, 0.0, 0.0 });
+    return res / res.norm();
+}
+
 VecD Geometry::getMeanNormalOfElements(
     const ElementsView& elements,
     const Coordinates& coords)
@@ -167,12 +195,14 @@ VecD Geometry::getMeanNormalOfElements(
     return normal / (double) elements.size();
 }
 
-VecD Geometry::normal(const TriV& a) {
+VecD Geometry::normal(const TriV& a) 
+{
     return (a[1] - a[0]) ^ (a[2] - a[0]);
 }
 
 VecD Geometry::getCentroid(
-    const Element& elem, const std::vector<Coordinate>& coords) {
+    const Element& elem, const std::vector<Coordinate>& coords) 
+{
     VecD res;
     for (auto const& vId : elem.vertices) {
         res += coords[vId] / (double) elem.vertices.size();
@@ -181,7 +211,8 @@ VecD Geometry::getCentroid(
 }
 
 VecD Geometry::getCentroid(
-    const TriV& tri) {
+    const TriV& tri) 
+{
     VecD res;
     for (auto const& v : tri) {
         res += v / (double) tri.size();
