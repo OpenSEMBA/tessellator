@@ -10,11 +10,11 @@ class DriverBase : public DriverInterface {
 public:
     DriverBase(const Mesh& in);
     virtual ~DriverBase() = default;
-    virtual Mesh mesh() const abstract = 0;
+    virtual Mesh mesh() const = 0;
 
 protected:
     virtual Mesh buildSurfaceMesh(const Mesh& inputMesh);
-    virtual void process(Mesh&) const abstract = 0;
+    virtual void process(Mesh&) const = 0;
 
     static void log(const std::string& msg, std::size_t level = 0);
     static void logNumberOfQuads(std::size_t nQuads);

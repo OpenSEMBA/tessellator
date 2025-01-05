@@ -492,10 +492,10 @@ bool Structurer::isPureDiagonal(const Element& edge, const Coordinates & coordin
         return false;
     }
 
-    auto& startPoint = coordinates[edge.vertices[0]];
-    auto& endPoint = coordinates[edge.vertices[1]];
-    auto& startCell = calculateStructuredCell(startPoint);
-    auto& endCell = calculateStructuredCell(endPoint);
+    const auto& startPoint = coordinates[edge.vertices[0]];
+    const auto& endPoint = coordinates[edge.vertices[1]];
+    auto startCell = calculateStructuredCell(startPoint);
+    auto endCell = calculateStructuredCell(endPoint);
     std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);
 
     if (difference != 3) {

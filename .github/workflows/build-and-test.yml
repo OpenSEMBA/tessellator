@@ -1,12 +1,9 @@
 name: "Build and test"
 
 on:
-  push:
-    branches:
-      - master
-      - dev
   pull_request:
     branches:
+      - main
       - dev
     
   workflow_dispatch:
@@ -54,7 +51,7 @@ jobs:
         cmake --preset ${{matrix.preset}} -S . -B build
         cmake --build build -j
         
-    - name: Ubunut Run tests
+    - name: Ubuntu Run tests
       if: matrix.preset=='gnu'
       run: build/bin/tessellator_tests
 
