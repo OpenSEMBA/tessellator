@@ -7,7 +7,7 @@ add_library(tessellator-core
     "Structurer.cpp"
 )
 
-if (TESSELLATOR_USE_CGAL)
+if (TESSELLATOR_ENABLE_CGAL)
     target_sources(tessellator-core PRIVATE
         "Smoother.cpp"
         "SmootherTools.cpp"

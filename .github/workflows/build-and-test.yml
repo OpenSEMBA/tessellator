@@ -16,9 +16,14 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
+        preset: ["msbuild"]
+        build-type: ["Debug", "Release"]
         
-    name: ${{ matrix.os }}-${{ matrix.target }}
-
+        include:
+        - os: ubuntu-latest
+          preset: "gnu"
+        
+    name: ${{ matrix.os }} / ${{matrix.preset}} / ${{matrix.build-type}}
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -33,12 +38,25 @@ jobs:
       with:
         vcpkgJsonGlob: 'vcpkg.json'
  
-    - name: Configure and build
+    - name: Windows configure and build
+      if: matrix.preset=='msbuild'
       run: |
-        cmake --preset "msbuild-vcpkg" -S . -B build
-        cmake --build build --config Release -j
+        cmake --preset ${{matrix.preset}} -S . -B build
+        cmake --build build --config ${{matrix.build-type}} -j
 
-    - name: Run tests
-      run: build/bin/Release/tessellator_tests.exe
+    - name: Windows Run tests
+      if: matrix.preset=='msbuild'
+      run: build/bin/${{matrix.build-type}}/tessellator_tests.exe
+
+    - name: Ubuntu configure and build
+      if: matrix.preset=='gnu'
+      run: |
+        cmake --preset ${{matrix.preset}} -S . -B build
+        cmake --build build -j
+        
+    - name: Ubunut Run tests
+      if: matrix.preset=='gnu'
+      run: build/bin/tessellator_tests
+
         
     
