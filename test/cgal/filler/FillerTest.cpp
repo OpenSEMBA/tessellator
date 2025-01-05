@@ -459,7 +459,7 @@ TEST_F(FillerTest, planeXY_edge_filling_empty_adjacent_cells)
 TEST_F(FillerTest, frameXY_stepSize1_mesh_filling)
 {
     Filler f{ Slicer{ buildFrameXYMesh(1.0) }.getMesh() };
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
 
     EXPECT_EQ(8, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
@@ -518,7 +518,7 @@ TEST_F(FillerTest, planeXY_notFaceCentered_mesh_filling)
     addOffset(m.coordinates, Coordinate({ 0.0, 0.0, 0.5 }));
 
     Filler f{ Slicer{ m }.getMesh() };
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(4, countMeshElementsIf(meshFilling, isLine));
 }
@@ -565,7 +565,7 @@ TEST_F(FillerTest, two_planes_on_same_face)
 {
     Filler f{ buildTwoSquaresXYMesh(1.0) };
 
-    auto & meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
@@ -577,7 +577,7 @@ TEST_F(FillerTest, two_planes_on_same_face_different_pr)
 {
     Filler f{ buildTwoSquaresTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{10,0} };
 
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
@@ -621,7 +621,7 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_not_simple)
         std::vector<Priority>{pr1, pr2} 
     };
 
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(4, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
@@ -638,7 +638,7 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_on_same_face)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{10,0} };
 
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
@@ -679,7 +679,7 @@ TEST_F(FillerTest, two_overlapping_groups_different_pr_on_same_face_2)
     Priority pr1{ -10 }, pr2{ 20 };
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{pr1,pr2} };
 
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
 
@@ -814,7 +814,7 @@ TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh(1.0), Mesh{}, std::vector<Priority>{0,0} };
 
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(6, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
     {
@@ -836,7 +836,7 @@ TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face)
 TEST_F(FillerTest, two_overlapping_groups_same_pr_on_same_face_2)
 {
     Filler f{ buildOverlappingTwoGroupsXYMesh2(1.0), Mesh{}, std::vector<Priority>{0,0} };
-    auto& meshFilling = f.getMeshFilling();
+    auto meshFilling = f.getMeshFilling();
     EXPECT_EQ(2, countMeshElementsIf(meshFilling, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(meshFilling, isLine));
     {
