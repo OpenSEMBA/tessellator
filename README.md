@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](https://opensource.org/licenses/gpl-3.0) 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/mit) 
 
-[![Windows tests](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml)
+[![Build and test](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/OpenSEMBA/tessellator/actions/workflows/build-and-test.yml)
 
 ## Features
 
@@ -18,6 +18,28 @@ Tessellator is a mesher focused on generate meshes and data structures which are
 ## Compilation
 
 When using presets, make sure to define the environment variable `VCPKG_ROOT` to your `vcpkg` installation.
+This can be done using a `CMakeUserPreset.json` file, for example:
+
+```json
+{
+  "version": 4,
+
+  "include": ["CMakePresets.json"],
+  "configurePresets": [
+    {
+      "name": "gnu-local",
+      "displayName": "GNU local",
+      "environment": {
+        "VCPKG_ROOT": "~/workspace/vcpkg/"
+      },
+      "cacheVariables": {
+        "TESSELLATOR_ENABLE_CGAL": true
+      },
+      "inherits": "gnu"
+    }
+  ]
+}
+```
 
 ## Contributing
 
