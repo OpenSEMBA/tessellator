@@ -6,5 +6,6 @@ if (TESSELLATOR_ENABLE_CGAL)
     add_subdirectory(cgal)
 endif()
 
+add_subdirectory(app)
 add_subdirectory(core)
 add_subdirectory(drivers)

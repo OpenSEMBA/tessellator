@@ -15,42 +15,28 @@ include_directories(
 
 add_executable(tessellator_tests 
 	"app/LauncherTest.cpp"
-	# "core/CollapserTest.cpp"
-	# "core/SlicerTest.cpp"
-	# "core/SnapperTest.cpp"
-    # "core/StructurerTest.cpp"
-	# "types/MeshTest.cpp"
-	# "utils/CleanerTest.cpp"
-	# "utils/ConvexHullTest.cpp"
-	# "utils/CoordGraphTest.cpp"
-	# "utils/ElemGraphTest.cpp"
-	# "utils/GeometryTest.cpp"
-	# "utils/GridToolsTest.cpp"
-	# "utils/MeshToolsTest.cpp"
-    # "drivers/StructuredDriverTest.cpp"
+	"app/VTKParserTest.cpp"
+	"core/CollapserTest.cpp"
+	"core/SlicerTest.cpp"
+	"core/SnapperTest.cpp"
+    "core/StructurerTest.cpp"
+	"types/MeshTest.cpp"
+	"utils/CleanerTest.cpp"
+	"utils/ConvexHullTest.cpp"
+	"utils/CoordGraphTest.cpp"
+	"utils/ElemGraphTest.cpp"
+	"utils/GeometryTest.cpp"
+	"utils/GridToolsTest.cpp"
+	"utils/MeshToolsTest.cpp"
+    "drivers/StructuredDriverTest.cpp"
 )
 
-find_package(VTK COMPONENTS 
-  CommonColor
-  CommonCore
-  FiltersSources
-  IOGeometry
-  IOLegacy
-  IOPLY
-  IOXML
-  InteractionStyle
-  RenderingContextOpenGL2
-  RenderingCore
-  RenderingFreeType
-  RenderingGL2PSOpenGL2
-  RenderingOpenGL2
-)
 
 target_link_libraries(tessellator_tests	
 	tessellator-drivers
+	tessellator-app
     GTest::gtest 
 	GTest::gtest_main
-	${VTK_LIBRARIES}
 )
 
 if (TESSELLATOR_ENABLE_CGAL)
