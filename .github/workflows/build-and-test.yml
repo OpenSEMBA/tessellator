@@ -32,8 +32,8 @@ jobs:
     - name: setup ninja
       uses: seanmiddleditch/gha-setup-ninja@master
 
-    # - name: getcmake
-    #   uses: lukka/get-cmake@latest
+    - name: getcmake
+      uses: lukka/get-cmake@latest
 
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
