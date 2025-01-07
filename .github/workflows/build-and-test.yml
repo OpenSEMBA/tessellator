@@ -16,7 +16,7 @@ jobs:
       matrix:
         preset: [
           {"os": windows-latest, "name": "msbuild"},
-          {"os": ubuntu-22.04, "name": "gnu"}
+          {"os": ubuntu-latest, "name": "gnu"}
         ]
         build-type: ["Debug", "Release"]
         
@@ -29,12 +29,11 @@ jobs:
     - name: checkout repository
       uses: actions/checkout@v3
 
-    - name: setup ninja
-      uses: seanmiddleditch/gha-setup-ninja@master
+    # - name: setup ninja
+    #   uses: seanmiddleditch/gha-setup-ninja@master
 
-    - name: getcmake
-      uses: lukka/get-cmake@latest
-
+    # - name: getcmake
+    #   uses: lukka/get-cmake@latest
 
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
