@@ -19,10 +19,6 @@ if(TESSELLATOR_ENABLE_CGAL)
     list(APPEND VCPKG_MANIFEST_FEATURES "cgal")
 endif()
 					  
-if(TESSELLATOR_ENABLE_TESTS)
-    list(APPEND VCPKG_MANIFEST_FEATURES "tests")
-endif()
-
 project(tessellator CXX)
 
 add_subdirectory(src/)

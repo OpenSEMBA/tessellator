@@ -1,12 +1,12 @@
 {
   "dependencies": [
-    "boost-graph"
+    "boost-graph", 
+    "boost-program-options", 
+    "vtk",
+    "nlohmann-json",
+    "gtest"
   ],
   "features": {
-    "tests": {
-      "description": "Enables testing.",
-      "dependencies": ["gtest"]
-    },
     "cgal": {
       "description": "Enables CGAL features: Offgrid Driver, manifolding, repairer, etc.",
       "dependencies": ["cgal", "eigen3"]
