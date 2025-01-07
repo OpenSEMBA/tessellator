@@ -16,7 +16,7 @@ jobs:
       matrix:
         preset: [
           {"os": windows-latest, "name": "msbuild"},
-          {"os": ubuntu-latest, "name": "gnu"}
+          # {"os": ubuntu-latest, "name": "gnu"}
         ]
         build-type: ["Debug", "Release"]
         
@@ -35,13 +35,11 @@ jobs:
     - name: getcmake
       uses: lukka/get-cmake@latest
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
 
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
-      # with:
-      #   vcpkgJsonGlob: 'vcpkg.json'
  
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'
