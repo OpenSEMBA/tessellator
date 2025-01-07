@@ -16,7 +16,7 @@ jobs:
       matrix:
         preset: [
           {"os": windows-latest, "name": "msbuild"},
-          {"os": ubuntu-latest, "name": "gnu"}
+          {"os": ubuntu-22.04, "name": "gnu"}
         ]
         build-type: ["Debug", "Release"]
         
