@@ -1,5 +1,6 @@
 #include "types/Mesh.h"
 
+#include <vtksys/SystemTools.hxx>
 #include <vtkTriangle.h>
 #include <vtkPolyDataReader.h>
 #include <vtkSTLReader.h>
