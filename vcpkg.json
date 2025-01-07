@@ -2,7 +2,7 @@
   "dependencies": [
     "boost-graph", 
     "boost-program-options", 
-    { "name": "vtk", "default-features": false },
+    { "name": "vtk", "default-features": false, "platform": "windows"},
     "nlohmann-json",
     "gtest"
   ],

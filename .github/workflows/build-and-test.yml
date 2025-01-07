@@ -29,14 +29,25 @@ jobs:
     - name: checkout repository
       uses: actions/checkout@v3
 
+    - name: setup ninja
+      uses: seanmiddleditch/gha-setup-ninja@master
+
     - name: getcmake
       uses: lukka/get-cmake@latest
 
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
+
+    # I am having issues installing vcpkg in ubuntu.
+    - name: Setup vtk in ubuntu
+      if: matrix.preset.os=='ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libvtk9-dev
+
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgJsonGlob: 'vcpkg.json'
- 
+    
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'
       run: |
