@@ -3,6 +3,7 @@
 #include <vtksys/SystemTools.hxx>
 #include <vtkCellData.h>
 #include <vtkTriangle.h>
+#include <vtkQuad.h>
 
 #include <vtkPolyDataReader.h>
 #include <vtkSTLReader.h>
@@ -97,7 +98,8 @@ Mesh vtkPolydataToMesh(vtkPolyData* polyData)
     return mesh;
 }
 
-vtkSmartPointer<vtkPolyData> meshToVTKPolydata(const Mesh& mesh)
+// Assumes coordinates are absolute (not relative to the grid).
+vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
 {
     vtkNew<vtkPolyData> polyData;
 
@@ -134,26 +136,75 @@ vtkSmartPointer<vtkPolyData> meshToVTKPolydata(const Mesh& mesh)
     return polyData;
 }
 
+vtkSmartPointer<vtkPolyData> gridToVTKPolydata(const Grid& grid)
+{
+    vtkNew<vtkPolyData> polyData;
+
+    using bound = std::array<double,2>;
+    std::array<bound,3> bbox = {
+        bound{grid[0].front(), grid[0].back()},
+        bound{grid[1].front(), grid[1].back()},
+        bound{grid[2].front(), grid[2].back()}    
+    };
+
+    auto numElements = grid[0].size() + grid[1].size() + grid[2].size();
+
+    vtkNew<vtkPoints> points;
+    vtkNew<vtkCellArray> vtkCells;
+    points->Allocate(numElements*4);
+    vtkCells->Allocate(numElements);
+    for (auto x = 0; x < 3; x++) {
+        auto y = (x+1)%3;
+        auto z = (x+2)%3;
+        for (const auto gridLine : grid[x]) {
+            vtkIdType ids[4];
+            double p[3];
+            p[x] = gridLine; 
+            p[y] = bbox[y][0]; p[z] = bbox[z][0]; ids[0] = points->InsertNextPoint(p);
+            p[y] = bbox[y][1]; p[z] = bbox[z][0]; ids[1] = points->InsertNextPoint(p);
+            p[y] = bbox[y][1]; p[z] = bbox[z][1]; ids[2] = points->InsertNextPoint(p);
+            p[y] = bbox[y][0]; p[z] = bbox[z][1]; ids[3] = points->InsertNextPoint(p);
+            vtkNew<vtkQuad> quad;
+            for (auto i = 0; i < 4; i++) {
+                quad->GetPointIds()->SetId(i, ids[i]);
+            }
+            vtkCells->InsertNextCell(quad);
+        }
+    }
+    polyData->SetPoints(points);
+    polyData->SetPolys(vtkCells);
+
+    return polyData;
+}
+
 Mesh readMesh(const std::string &fileName)
 {
     vtkSmartPointer<vtkPolyData> polyData = readVTKPolyData(fileName);
     return vtkPolydataToMesh(polyData);
 }
 
-void exportMeshToVTP(const std::string& fn, const Mesh& mesh)
+void exportVTKPolyDataToVTP(const std::string& fn, const vtkSmartPointer<vtkPolyData>& polyData)
 {
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
     if (extension != ".vtp") {
         throw std::runtime_error("Only vtp files are supported for writing");
     }
-
-    auto polyData = meshToVTKPolydata(mesh);
-
     vtkNew<vtkXMLPolyDataWriter> writer;
     writer->SetDataModeToAscii();
     writer->SetFileName(fn.c_str());
     writer->SetInputData(polyData);
     writer->Write();
 }
+
+void exportMeshToVTP(const std::string& fn, const Mesh& mesh)
+{
+    exportVTKPolyDataToVTP(fn, meshElementsToVTKPolydata(mesh));
+}
+
+void exportGridToVTP(const std::string& fn, const Grid& grid)
+{
+    exportVTKPolyDataToVTP(fn, gridToVTKPolydata(grid));
+}
+
 
 }

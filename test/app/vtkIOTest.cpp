@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "app/vtkIO.h"
+#include "utils/GridTools.h"
 
 using namespace meshlib::vtkIO;
 
@@ -40,4 +41,19 @@ TEST_F(VTKIOTest, exportMeshToVTP)
     auto exported{ readMesh(fn) };
 
     EXPECT_EQ(exported, mesh);
+}
+
+TEST_F(VTKIOTest, exportGridToVTP)
+{
+    meshlib::Grid grid;
+    grid[0] = meshlib::utils::GridTools::linspace(-60, 60, 121);
+    grid[1] = meshlib::utils::GridTools::linspace(-60, 60, 121);
+    grid[2] = meshlib::utils::GridTools::linspace(-10, 10, 21);
+
+    std::string fn{"tmp_exported_grid.vtp"};
+    exportGridToVTP(fn, grid);
+
+    auto exported{ readMesh(fn) };
+
+    EXPECT_EQ(121+121+21, exported.countElems());
 }
