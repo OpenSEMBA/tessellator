@@ -15,7 +15,7 @@ include_directories(
 
 add_executable(tessellator_tests 
 	"app/LauncherTest.cpp"
-	"app/VTKParserTest.cpp"
+	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"

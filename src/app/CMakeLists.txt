@@ -1,12 +1,11 @@
 message(STATUS "Creating build system for tessellator-app")
 
 add_library(tessellator-app
-    "VTKParser.cpp"
+    "vtkIO.cpp"
 )
 
 find_package(VTK COMPONENTS 
   CommonCore
-#   FiltersSources
   IOGeometry
   IOLegacy
   IOXML
