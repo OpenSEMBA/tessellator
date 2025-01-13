@@ -14,4 +14,5 @@ add_library(tessellator-cgal
 )
 
 find_package(CGAL CONFIG REQUIRED)
+
 target_link_libraries(tessellator-cgal CGAL::CGAL)

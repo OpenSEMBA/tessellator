@@ -1,6 +1,6 @@
 #include "OffgridDriver.h"
 
-#include "DriverBase.cpp"
+#include "DriverBase.h"
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 #include "core/Smoother.h"
@@ -11,6 +11,7 @@
 #include "cgal/Manifolder.h"
 
 #include "utils/Cleaner.h"
+#include "utils/MeshTools.h"
 
 namespace meshlib::drivers {
 

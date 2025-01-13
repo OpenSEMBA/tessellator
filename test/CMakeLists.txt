@@ -1,6 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
-
-message(STATUS "Creating build system for tessellator_tests")
+message(STATUS "Creating build system for tessellator-tests")
 
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
@@ -36,7 +34,7 @@ target_link_libraries(tessellator_tests
 	GTest::gtest_main
 )
 
-if (TESSELLATOR_USE_CGAL)
+if (TESSELLATOR_ENABLE_CGAL)
 	include_directories(
 		${PROJECT_SOURCE_DIR}/src/cgal/
 	)

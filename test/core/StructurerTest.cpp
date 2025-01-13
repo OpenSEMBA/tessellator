@@ -166,7 +166,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
         Element({0, 3}, Element::Type::Line)
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -279,7 +279,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -474,7 +474,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -584,7 +584,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -732,7 +732,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -867,7 +867,7 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -876,7 +876,7 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
     }
     for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis], "coordinate " + std::string(i) + ", axis " + std::string(axis));
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
         }
     }
 
@@ -965,7 +965,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1046,7 +1046,7 @@ TEST_F(StructurerTest, transformGroupsWithMultipleLines)
             Element({2, 3}, Element::Type::Line),
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
@@ -1118,7 +1118,7 @@ TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1197,7 +1197,7 @@ TEST_F(StructurerTest, transformTriangleIntoNode)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1288,7 +1288,7 @@ TEST_F(StructurerTest, transformTriangleIntoLines)
         }
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1376,7 +1376,7 @@ TEST_F(StructurerTest, transformTriangleIntoSurfacesAndLines)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1466,7 +1466,7 @@ TEST_F(StructurerTest, transformTriangleIntoTwoSurfaces)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1773,7 +1773,7 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
         },
     };
 
-    Mesh& resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Structurer{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());

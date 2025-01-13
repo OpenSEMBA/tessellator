@@ -4,10 +4,6 @@
 
 #include "cgal/Tools.h"
 
-#include <CGAL/AABB_tree.h>
-#include <CGAL/AABB_traits.h>
-#include <CGAL/AABB_face_graph_triangle_primitive.h>
-
 namespace meshlib::cgal::filler {
 
 using Bbox2 = CGAL::Bbox_2;
@@ -85,8 +81,8 @@ bool isCellCrossedByPolylines(const Polylines2& pls, const ArrayIndex& idx)
 		for (auto it{ pl.begin() }; std::next(it) != pl.end(); ++it) {
 			Segment2 seg{ *it, *std::next(it) };
 			if (CGAL::do_intersect(cF, seg)) {
-				auto intersection{*CGAL::intersection(cF, seg)};
-				if (!boost::get<Point2 >(&intersection)) {
+				const auto result = CGAL::intersection(cF, seg);
+				if (result && !std::get_if<Point2>(&*result)) {
 					return true;
 				}
 			}
@@ -333,12 +329,12 @@ Polygon buildPolygonFromFaceTriIntersection(
 		return Polygon();
 	}
 	Polygon r;
-	if (const auto& t = boost::get<Triangle2>(&*intResult)) {
+	if (const auto& t = std::get_if<Triangle2>(&*intResult)) {
 		for (int i{ 0 }; i < 3; ++i) {
 			r.push_back(t->vertex(i));
 		}
 	}
-	else if (const auto& ps = boost::get<std::vector<Point2>>(&*intResult)) {
+	else if (const auto& ps = std::get_if<std::vector<Point2>>(&*intResult)) {
 		assert(ps->size() > 3);
 		for (std::size_t i{ 0 }; i < ps->size(); ++i) {
 			r.push_back((*ps)[i]);
@@ -358,7 +354,7 @@ Polyline2 buildCellLineIntersection(
 		if (!intResult) {
 			continue;
 		};
-		if (const auto& p = boost::get<Segment2>(&*intResult)) {
+		if (const auto& p = std::get_if<Segment2>(&*intResult)) {
 			if ((*p)[0] == (*p)[1]) {
 				continue;
 			}

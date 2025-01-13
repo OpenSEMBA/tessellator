@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.20)
-
 message(STATUS "Creating build system for tessellator-drivers")
 
 add_library(tessellator-drivers
@@ -8,7 +6,7 @@ add_library(tessellator-drivers
 )
 target_link_libraries(tessellator-drivers tessellator-core tessellator-utils)
 
-if (TESSELLATOR_USE_CGAL)
+if (TESSELLATOR_ENABLE_CGAL)
     target_sources(tessellator-drivers PRIVATE
         "OffgridDriver.cpp"
     )

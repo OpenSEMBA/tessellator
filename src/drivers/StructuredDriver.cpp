@@ -7,8 +7,6 @@
 #include "core/Collapser.h"
 #include "core/Structurer.h"
 
-#include "cgal/Manifolder.h"
-
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
