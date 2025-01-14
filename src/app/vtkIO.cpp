@@ -77,7 +77,6 @@ Mesh vtkPolydataToMesh(vtkPolyData* polyData)
     }
 
     if (polyData->GetCellData()->HasArray(GROUPS_TAG_NAME)) {
-        polyData->GetCellData()->GetAbstractArray(GROUPS_TAG_NAME);
         vtkIntArray* groupsDataArray = 
             vtkIntArray::SafeDownCast(polyData->GetCellData()->GetArray(GROUPS_TAG_NAME));
         mesh.groups.resize(groupsDataArray->GetRange()[1] + 1);
