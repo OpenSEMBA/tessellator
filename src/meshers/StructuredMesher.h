@@ -1,14 +1,14 @@
 #pragma once
 
 #include "types/Mesh.h"
-#include "DriverBase.h"
+#include "MesherBase.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
-class StructuredDriver : public DriverBase {
+class StructuredMesher : public MesherBase {
 public:
-	StructuredDriver(const Mesh& in, int decimalPlacesInCollapser = 4);
-	virtual ~StructuredDriver() = default;
+	StructuredMesher(const Mesh& in, int decimalPlacesInCollapser = 4);
+	virtual ~StructuredMesher() = default;
 	Mesh mesh() const;
 
 private:

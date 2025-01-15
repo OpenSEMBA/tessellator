@@ -1,4 +1,4 @@
-#include "DriverBase.h"
+#include "MesherBase.h"
 
 #include <iostream>
 
@@ -6,14 +6,14 @@
 #include "utils/GridTools.h"
 
 namespace meshlib {
-namespace drivers {
+namespace meshers {
 
 
 using namespace utils;
 using namespace meshTools;
 
 
-void DriverBase::log(const std::string& msg, std::size_t level)
+void MesherBase::log(const std::string& msg, std::size_t level)
 {
     std::cout << "[Tessellator] ";
     for (std::size_t i = 0; i < level; i++) {
@@ -23,21 +23,21 @@ void DriverBase::log(const std::string& msg, std::size_t level)
     std::cout << msg << std::endl;
 }
 
-void DriverBase::logNumberOfQuads(std::size_t nQuads)
+void MesherBase::logNumberOfQuads(std::size_t nQuads)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nQuads << " quads.";
     log(msg.str(), 2);
 }
 
-void DriverBase::logNumberOfTriangles(std::size_t nTris)
+void MesherBase::logNumberOfTriangles(std::size_t nTris)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nTris << " triangles.";
     log(msg.str(), 2);
 }
 
-void DriverBase::logNumberOfLines(std::size_t nLines)
+void MesherBase::logNumberOfLines(std::size_t nLines)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nLines << " lines.";
@@ -45,14 +45,14 @@ void DriverBase::logNumberOfLines(std::size_t nLines)
 }
 
 
-void DriverBase::logNumberOfNodes(std::size_t nNodes)
+void MesherBase::logNumberOfNodes(std::size_t nNodes)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nNodes << " nodes.";
     log(msg.str(), 2);
 }
 
-void DriverBase::logGridSize(const Grid& g)
+void MesherBase::logGridSize(const Grid& g)
 {
     std::stringstream msg;
     msg << "Grid size is "
@@ -60,7 +60,7 @@ void DriverBase::logGridSize(const Grid& g)
     log(msg.str(), 2);
 }
 
-DriverBase::DriverBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
+MesherBase::MesherBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
 
     logGridSize(inputMesh.grid);
     logNumberOfTriangles(countMeshElementsIf(inputMesh, isTriangle));
@@ -68,11 +68,11 @@ DriverBase::DriverBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
     enlargedGrid_ = getEnlargedGridIncludingAllElements(inputMesh);
 }
 
-Mesh DriverBase::buildSurfaceMesh(const Mesh& inputMesh) {
+Mesh MesherBase::buildSurfaceMesh(const Mesh& inputMesh) {
     return buildMeshFilteringElements(inputMesh, isNotTetrahedron);
 }
 
-Grid DriverBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
+Grid MesherBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
 {
     assert(primal.size() >= 2);
     assert(enlarged.size() >= 2);
@@ -92,7 +92,7 @@ Grid DriverBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
     return resultGrid;
 }
 
-Grid DriverBase::buildSlicingGrid(const Grid& primal, const Grid& enlarged)
+Grid MesherBase::buildSlicingGrid(const Grid& primal, const Grid& enlarged)
 {
     const auto nonSlicing{ buildNonSlicingGrid(primal, enlarged) };
     Grid r;

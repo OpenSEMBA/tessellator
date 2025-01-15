@@ -1,4 +1,4 @@
-#include "StructuredDriver.h"
+#include "StructuredMesher.h"
 
 #include <iostream>
 
@@ -11,22 +11,22 @@
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
 using namespace utils;
 using namespace core;
 using namespace meshTools;
 
 
-Mesh StructuredDriver::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
+Mesh StructuredMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
-    auto resultMesh = DriverBase::buildSurfaceMesh(inputMesh);
+    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
     mergeMesh(resultMesh, volumeSurface);
     return resultMesh;
 }
 
-StructuredDriver::StructuredDriver(const Mesh& inputMesh, int decimalPlacesInCollapser) :
-    DriverBase(inputMesh),
+StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
+    MesherBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser)
 {
     log("Preparing surfaces.");
@@ -38,7 +38,7 @@ StructuredDriver::StructuredDriver(const Mesh& inputMesh, int decimalPlacesInCol
     log("Initial hull mesh built succesfully.");
 }
 
-void StructuredDriver::process(Mesh& mesh) const
+void StructuredMesher::process(Mesh& mesh) const
 {
     
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
@@ -73,7 +73,7 @@ void StructuredDriver::process(Mesh& mesh) const
 }
 
 
-Mesh StructuredDriver::mesh() const
+Mesh StructuredMesher::mesh() const
 {
     log("Building primal mesh.");
     Mesh resultMesh{ surfaceMesh_ };

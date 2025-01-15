@@ -8,4 +8,4 @@ endif()
 
 add_subdirectory(app)
 add_subdirectory(core)
-add_subdirectory(drivers)
+add_subdirectory(meshers)

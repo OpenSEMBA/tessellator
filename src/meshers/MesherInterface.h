@@ -2,11 +2,11 @@
 
 #include "types/Mesh.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
-    class DriverInterface {
+    class MesherInterface {
     public:
-        virtual ~DriverInterface() = default;
+        virtual ~MesherInterface() = default;
         virtual Mesh mesh() const = 0;
 
     protected:
