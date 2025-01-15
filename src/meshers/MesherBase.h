@@ -1,12 +1,11 @@
 #pragma once
 
 #include "types/Mesh.h"
-#include "MesherInterface.h"
 
 namespace meshlib {
 namespace meshers {
 
-class MesherBase : public MesherInterface {
+class MesherBase {
 public:
     MesherBase(const Mesh& in);
     virtual ~MesherBase() = default;
