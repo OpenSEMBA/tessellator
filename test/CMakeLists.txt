@@ -5,6 +5,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 include_directories(
 	${PROJECT_SOURCE_DIR}/src/
+	${PROJECT_SOURCE_DIR}/src/app/
 	${PROJECT_SOURCE_DIR}/src/core/
 	${PROJECT_SOURCE_DIR}/src/drivers/
 	${PROJECT_SOURCE_DIR}/src/utils/
@@ -13,6 +14,8 @@ include_directories(
 )
 
 add_executable(tessellator_tests 
+	"app/LauncherTest.cpp"
+	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
@@ -28,8 +31,10 @@ add_executable(tessellator_tests
     "drivers/StructuredDriverTest.cpp"
 )
 
+
 target_link_libraries(tessellator_tests	
 	tessellator-drivers
+	tessellator-app
     GTest::gtest 
 	GTest::gtest_main
 )
