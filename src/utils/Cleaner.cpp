@@ -13,18 +13,6 @@
 namespace meshlib {
 namespace utils {
 
-void Cleaner::clean(Mesh& output, Map& map) 
-{
-    cleanElems_ (output, map);
-    cleanCoords_(output, map);
-}
-
-void Cleaner::cleanCoords(Mesh& output) 
-{
-    Map map;
-    cleanCoords_(output, map);
-}
-
 void Cleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
@@ -179,51 +167,8 @@ void Cleaner::fuseCoords(Mesh& mesh)
     });
 }
 
-
-void Cleaner::cleanElems_(Mesh& output, Map& map) 
+void Cleaner::cleanCoords(Mesh& output) 
 {
-    std::size_t numUnstrElems = 0;
-    std::size_t numStrElems = 0;
-    for (GroupId g = 0; g < map.groups.size(); g++) {
-        numUnstrElems += map.groups[g].elements.size();
-        numStrElems   += output.groups[g].elements.size();
-    }
-    
-    for (GroupId g = 0; g < map.groups.size(); g++) {
-        std::vector<bool> elemsUsed(output.groups[g].elements.size(), false);
-        for (ElementId e = 0; e < map.groups[g].elements.size(); e++) {
-            for (ElementId
-                 mE = 0; mE < map.groups[g].elements[e].size(); mE++) {
-                elemsUsed[map.groups[g].elements[e][mE]] = true;
-            }
-        }
-        std::map<ElementId, ElementId> elemsMap;
-        std::vector<Element> aux = output.groups[g].elements;
-        output.groups[g].elements.clear();
-        for (ElementId e = 0; e < aux.size(); e++) {
-            if (elemsUsed[e]) {
-                elemsMap[e] = output.groups[g].elements.size();
-                output.groups[g].elements.push_back(aux[e]);
-            }
-            
-        }
-        for (ElementId e = 0; e < map.groups[g].elements.size(); e++) {
-            Map::Element aux = map.groups[g].elements[e];
-            map.groups[g].elements[e].clear();
-            for (ElementId mE = 0; mE < aux.size(); mE++) {
-                if (elemsMap.count(aux[mE]) != 0) {
-                    map.groups[g].elements[e].push_back(elemsMap[aux[mE]]);
-                }
-            }
-            
-        }
-    }
-    
-}
-
-void Cleaner::cleanCoords_(Mesh& output, Map& map) 
-{
-    const std::size_t& numUnstrCoords = map.coordinates.size();
     const std::size_t& numStrCoords = output.coordinates.size();
 
     IdSet coordsUsed;
@@ -232,9 +177,6 @@ void Cleaner::cleanCoords_(Mesh& output, Map& map)
         for (auto const& e: g.elements) {
                 coordsUsed.insert(e.vertices.begin(), e.vertices.end());
         }
-    }
-    for (auto const strCoords: map.coordinates) {
-            coordsUsed.insert(strCoords.begin(), strCoords.end());
     }
 
     std::map<CoordinateId, CoordinateId> remap;
@@ -255,12 +197,6 @@ void Cleaner::cleanCoords_(Mesh& output, Map& map)
             }
             
         }
-    }
-
-    for (CoordinateId c = 0; c < map.coordinates.size(); c++) {
-        for (std::size_t i = 0; i < map.coordinates[c].size(); i++) {
-            map.coordinates[c][i] = remap[map.coordinates[c][i]];
-        }       
     }
     
 }
