@@ -1,0 +1,10 @@
+{
+    "grid": {
+        "numberOfCells": [121, 121, 21],
+        "boundingBox": {
+            "min": [-60.0, -60.0, -10.0],
+            "max": [ 60.0,  60.0,  10.0]
+        }
+    },
+    "object": "alhambra.vtk"
+}
