@@ -17,39 +17,54 @@ namespace meshlib::app {
 
 namespace po = boost::program_options;
 
-Mesh readMesh(const std::string &fileName)
+Grid parseGridFromJSON(const nlohmann::json &j)
+{
+    std::array<int,3> nCells = {
+        j["numberOfCells"][0], 
+        j["numberOfCells"][1], 
+        j["numberOfCells"][2]
+    }; 
+    std::array<double,3> min, max;
+    min = j["boundingBox"][0];
+    max = j["boundingBox"][1];
+
+    return {
+        utils::GridTools::linspace(min[0], max[0], nCells[0]),
+        utils::GridTools::linspace(min[1], max[1], nCells[1]),
+        utils::GridTools::linspace(min[2], max[2], nCells[2])
+    }; 
+}
+
+std::string getCaseFolder(const std::string& fn)
+{
+
+}
+
+Mesh readMesh(const std::string &fn)
 {
     nlohmann::json j;
+    
     {
-        std::ifstream i(fileName);
+        std::ifstream i(fn);
         i >> j;
     }
 
-    Mesh res = vtkIO::readMesh(j["object"]);
-    
-    auto g = j["grid"];
-    std::array<int,3> nCells = {
-        g["numberOfCells"][0], 
-        g["numberOfCells"][1], 
-        g["numberOfCells"][2]
-    }; 
-    std::array<double,3> min, max;
-    min = g["boundingBox"]["min"];
-    max = g["boundingBox"]["max"];
+    std::string caseFolder = std::filesystem::path(fn).parent_path();
+    std::string objPathFromInput = j["object"]["filename"];
+    std::string meshObjectPath = caseFolder + objPathFromInput;
 
-    // res.grid = {
-    //     GridTools::linspace(min[0], max[0], nCells[0]),
-    //     GridTools::linspace(min[1], max[1], nCells[1]),
-    //     GridTools::linspace(min[2], max[2], nCells[2])
-    // }; 
+    Mesh res = vtkIO::readMeshGroups(meshObjectPath);
+    
+    res.grid = parseGridFromJSON(j["grid"]);
+    
     return res;
 }
 
-int launcher(int argc, char* argv[])
+int launcher(int argc, const char* argv[])
 {
     po::options_description desc("Allowed options");
     desc.add_options()
-        ("help", "produce help message")
+        ("help,h", "produce help message")
         ("input,i", po::value<std::string>(), "input file");
 
     po::variables_map vm;

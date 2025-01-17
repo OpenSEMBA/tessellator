@@ -4,6 +4,6 @@
 
 namespace meshlib::app {
 
-int launcher(int argc, char* argv[]);
+int launcher(int argc, const char* argv[]);
 
 }

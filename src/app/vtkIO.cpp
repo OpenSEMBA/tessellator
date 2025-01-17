@@ -17,6 +17,16 @@ namespace meshlib::vtkIO
 
 vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::string &fileName)
 {
+    // Check if file can be accessed.
+    {
+        std::ifstream inputStream;
+        inputStream.open(fileName.c_str(), ios::in);
+        if(!inputStream) {
+            auto msg = "File could not be opened: " + fileName;
+            throw std::runtime_error(msg);
+        }
+    } 
+
     vtkSmartPointer<vtkPolyData> polyData;
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fileName);
 
@@ -24,6 +34,8 @@ vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::string &fileName)
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);
 
+
+    
     if (extension == ".vtp")
     {
         vtkNew<vtkXMLPolyDataReader> reader;
@@ -44,6 +56,7 @@ vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::string &fileName)
         reader->SetFileName(fileName.c_str());
         reader->Update();
         polyData = reader->GetOutput();
+
     }
     return polyData;
 }
@@ -176,7 +189,7 @@ vtkSmartPointer<vtkPolyData> gridToVTKPolydata(const Grid& grid)
     return polyData;
 }
 
-Mesh readMesh(const std::string &fileName)
+Mesh readMeshGroups(const std::string &fileName)
 {
     vtkSmartPointer<vtkPolyData> polyData = readVTKPolyData(fileName);
     return vtkPolydataToMesh(polyData);
