@@ -17,39 +17,58 @@ namespace meshlib::app {
 
 namespace po = boost::program_options;
 
-Mesh readMesh(const std::string &fileName)
+Grid parseGridFromJSON(const nlohmann::json &j)
+{
+    std::array<int,3> nCells = {
+        j["numberOfCells"][0], 
+        j["numberOfCells"][1], 
+        j["numberOfCells"][2]
+    }; 
+    std::array<double,3> min, max;
+    min = j["boundingBox"][0];
+    max = j["boundingBox"][1];
+
+    return {
+        utils::GridTools::linspace(min[0], max[0], nCells[0]+1),
+        utils::GridTools::linspace(min[1], max[1], nCells[1]+1),
+        utils::GridTools::linspace(min[2], max[2], nCells[2]+1)
+    }; 
+}
+
+Mesh readMesh(const std::string &fn)
 {
     nlohmann::json j;
+    
     {
-        std::ifstream i(fileName);
+        std::ifstream i(fn);
         i >> j;
     }
 
-    Mesh res = vtkIO::readMesh(j["object"]);
-    
-    auto g = j["grid"];
-    std::array<int,3> nCells = {
-        g["numberOfCells"][0], 
-        g["numberOfCells"][1], 
-        g["numberOfCells"][2]
-    }; 
-    std::array<double,3> min, max;
-    min = g["boundingBox"]["min"];
-    max = g["boundingBox"]["max"];
+    std::filesystem::path caseFolder = std::filesystem::path(fn).parent_path();
+    std::filesystem::path objPathFromInput = j["object"]["filename"];
+    std::filesystem::path meshObjectPath = caseFolder / objPathFromInput;
 
-    // res.grid = {
-    //     GridTools::linspace(min[0], max[0], nCells[0]),
-    //     GridTools::linspace(min[1], max[1], nCells[1]),
-    //     GridTools::linspace(min[2], max[2], nCells[2])
-    // }; 
+    std::cout << "Reading mesh groups from: " << meshObjectPath;
+    Mesh res = vtkIO::readMeshGroups(meshObjectPath);
+    std::cout << "....... [OK]" << std::endl;
+    
+    std::cout << "Reading grid from input file";
+    res.grid = parseGridFromJSON(j["grid"]);
+    std::cout << "....... [OK]" << std::endl;
+
+    std::cout << "Grid has " 
+        << res.grid[0].size()-1 << "x"
+        << res.grid[1].size()-1 << "x"
+        << res.grid[2].size()-1 << " cells" << std::endl;
+    
     return res;
 }
 
-int launcher(int argc, char* argv[])
+int launcher(int argc, const char* argv[])
 {
     po::options_description desc("Allowed options");
     desc.add_options()
-        ("help", "produce help message")
+        ("help,h", "produce help message")
         ("input,i", po::value<std::string>(), "input file");
 
     po::variables_map vm;
@@ -69,13 +88,17 @@ int launcher(int argc, char* argv[])
     Mesh mesh = readMesh(inputFilename);
     
     // Mesh
-    meshlib::meshers::StructuredMesher mesher{mesh,};
+    meshlib::meshers::StructuredMesher mesher{mesh};
     Mesh resultMesh = mesher.mesh();
 
     // Output
-    std::string basename = std::filesystem::path(inputFilename).stem();
-    std::string outputFilename = basename + ".out.vtp";
-    meshlib::vtkIO::exportMeshToVTP(outputFilename, resultMesh);
+    utils::GridTools gT{resultMesh.grid};
+    resultMesh.coordinates = gT.relativeToAbsolute(resultMesh.coordinates);
+
+    std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
+    std::string basename = std::filesystem::path(inputFilename).stem().stem();
+    meshlib::vtkIO::exportMeshToVTP(outputFolder / (basename + ".tessellator.out.vtp"), resultMesh);
+    meshlib::vtkIO::exportGridToVTP(outputFolder / (basename + ".tessellator.grid.vtp"), resultMesh.grid);
 
     return EXIT_SUCCESS;
 }

@@ -1,6 +1,6 @@
 #include "launcher.h"
 
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
-    return meshlib::app::launcher(argc, argv);
+    return meshlib::app::launcher(argc, argv);;
 }
