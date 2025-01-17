@@ -2,8 +2,10 @@
 
 #include <vtksys/SystemTools.hxx>
 #include <vtkCellData.h>
+#include <vtkCellType.h>
 #include <vtkTriangle.h>
 #include <vtkQuad.h>
+#include <vtkLine.h>
 
 #include <vtkPolyDataReader.h>
 #include <vtkSTLReader.h>
@@ -135,12 +137,25 @@ vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
     vtkCells->Allocate(mesh.countElems());
     for (const auto& group : mesh.groups) {
         for (const auto& elem : group.elements) {
-            vtkNew<vtkTriangle> triangle;
+            vtkSmartPointer<vtkCell> cell;
+            if (elem.isTriangle()) {
+                cell = vtkSmartPointer<vtkTriangle>::New();
+            } else if (elem.isQuad()) {
+                cell = vtkSmartPointer<vtkQuad>::New();
+            } else if (elem.isLine()) {
+                // cell = vtkSmartPointer<vtkLine>::New();
+                continue;
+            } else if (elem.isNode()) {
+                // cell = vtkSmartPointer<vtkVertex>::New();
+                continue;
+            } else {
+                throw std::runtime_error("Unsupported element type");
+            }
             vtkIdType id = 0;
             for (const auto& vId : elem.vertices) {
-                triangle->GetPointIds()->SetId(id++, vId);
+                cell->GetPointIds()->SetId(id++, vId);
             }
-            vtkCells->InsertNextCell(triangle);
+            vtkCells->InsertNextCell(cell);
         }
     }
     polyData->SetPolys(vtkCells);

@@ -29,15 +29,10 @@ Grid parseGridFromJSON(const nlohmann::json &j)
     max = j["boundingBox"][1];
 
     return {
-        utils::GridTools::linspace(min[0], max[0], nCells[0]),
-        utils::GridTools::linspace(min[1], max[1], nCells[1]),
-        utils::GridTools::linspace(min[2], max[2], nCells[2])
+        utils::GridTools::linspace(min[0], max[0], nCells[0]+1),
+        utils::GridTools::linspace(min[1], max[1], nCells[1]+1),
+        utils::GridTools::linspace(min[2], max[2], nCells[2]+1)
     }; 
-}
-
-std::string getCaseFolder(const std::string& fn)
-{
-
 }
 
 Mesh readMesh(const std::string &fn)
@@ -49,13 +44,22 @@ Mesh readMesh(const std::string &fn)
         i >> j;
     }
 
-    std::string caseFolder = std::filesystem::path(fn).parent_path();
-    std::string objPathFromInput = j["object"]["filename"];
-    std::string meshObjectPath = caseFolder + objPathFromInput;
+    std::filesystem::path caseFolder = std::filesystem::path(fn).parent_path();
+    std::filesystem::path objPathFromInput = j["object"]["filename"];
+    std::filesystem::path meshObjectPath = caseFolder / objPathFromInput;
 
+    std::cout << "Reading mesh groups from: " << meshObjectPath;
     Mesh res = vtkIO::readMeshGroups(meshObjectPath);
+    std::cout << "....... [OK]" << std::endl;
     
+    std::cout << "Reading grid from input file";
     res.grid = parseGridFromJSON(j["grid"]);
+    std::cout << "....... [OK]" << std::endl;
+
+    std::cout << "Grid has " 
+        << res.grid[0].size()-1 << "x"
+        << res.grid[1].size()-1 << "x"
+        << res.grid[2].size()-1 << " cells" << std::endl;
     
     return res;
 }
@@ -84,12 +88,13 @@ int launcher(int argc, const char* argv[])
     Mesh mesh = readMesh(inputFilename);
     
     // Mesh
-    meshlib::meshers::StructuredMesher mesher{mesh,};
+    meshlib::meshers::StructuredMesher mesher{mesh};
     Mesh resultMesh = mesher.mesh();
 
     // Output
-    std::string basename = std::filesystem::path(inputFilename).stem();
-    std::string outputFilename = basename + ".out.vtp";
+    std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
+    std::filesystem::path basename = std::filesystem::path(inputFilename).stem();
+    std::filesystem::path outputFilename = outputFolder / basename.append(".out.vtp");
     meshlib::vtkIO::exportMeshToVTP(outputFilename, resultMesh);
 
     return EXIT_SUCCESS;

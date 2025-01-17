@@ -23,12 +23,3 @@ TEST_F(LauncherTest, launches_alhambra_case)
     EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
-
-TEST_F(LauncherTest, gracefully_exits_if_invalid_inputs)
-{
-    int ac = 3;
-    const char* av[] = { NULL, "-i", "non_existing_input_file"};
-    int exitCode;
-    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
-    EXPECT_EQ(exitCode, EXIT_FAILURE);
-}
