@@ -2,18 +2,18 @@
 
 #include "cgal/filler/Filler.h"
 #include "types/Mesh.h"
-#include "DriverBase.h"
-#include "OffgridDriverOptions.h"
+#include "MesherBase.h"
+#include "OffgridMesherOptions.h"
 
 namespace meshlib {
-namespace drivers {
+namespace meshers {
 
 using namespace cgal;
 
-class OffgridDriver : public DriverBase {
+class OffgridMesher : public MesherBase {
 public:
-    OffgridDriver(const Mesh& in, const OffgridDriverOptions& opts = OffgridDriverOptions());
-    virtual ~OffgridDriver() = default;
+    OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts = OffgridMesherOptions());
+    virtual ~OffgridMesher() = default;
     Mesh mesh() const;
 
     filler::Filler fill(
@@ -22,7 +22,7 @@ public:
         const std::vector<Priority>& groupPriorities = std::vector<Priority>()) const;
 
 private:
-    OffgridDriverOptions opts_;
+    OffgridMesherOptions opts_;
 
     Mesh volumeMesh_;
     Mesh surfaceMesh_;

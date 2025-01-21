@@ -1,9 +1,11 @@
-#include "types/Mesh.h"
+#include "vtkIO.h"
 
 #include <vtksys/SystemTools.hxx>
 #include <vtkCellData.h>
+#include <vtkCellType.h>
 #include <vtkTriangle.h>
 #include <vtkQuad.h>
+#include <vtkLine.h>
 
 #include <vtkPolyDataReader.h>
 #include <vtkSTLReader.h>
@@ -15,35 +17,49 @@ const char* GROUPS_TAG_NAME = "group";
 namespace meshlib::vtkIO
 {
 
-vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::string &fileName)
+vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::filesystem::path& filename)
 {
+    std::string fn = filename.string();
+    // Check if file can be accessed.
+    {
+        std::ifstream inputStream;
+        inputStream.open(fn.c_str(), ios::in);
+        if(!inputStream) {
+            auto msg = "File could not be opened: " + fn;
+            throw std::runtime_error(msg);
+        }
+    } 
+
     vtkSmartPointer<vtkPolyData> polyData;
-    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fileName);
+    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
 
     // Drop the case of the extension
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);
 
+
+    
     if (extension == ".vtp")
     {
         vtkNew<vtkXMLPolyDataReader> reader;
-        reader->SetFileName(fileName.c_str());
+        reader->SetFileName(fn.c_str());
         reader->Update();
         polyData = reader->GetOutput();
     }
     else if (extension == ".stl")
     {
         vtkNew<vtkSTLReader> reader;
-        reader->SetFileName(fileName.c_str());
+        reader->SetFileName(fn.c_str());
         reader->Update();
         polyData = reader->GetOutput();
     }
     else if (extension == ".vtk")
     {
         vtkNew<vtkPolyDataReader> reader;
-        reader->SetFileName(fileName.c_str());
+        reader->SetFileName(fn.c_str());
         reader->Update();
         polyData = reader->GetOutput();
+
     }
     return polyData;
 }
@@ -122,12 +138,25 @@ vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
     vtkCells->Allocate(mesh.countElems());
     for (const auto& group : mesh.groups) {
         for (const auto& elem : group.elements) {
-            vtkNew<vtkTriangle> triangle;
+            vtkSmartPointer<vtkCell> cell;
+            if (elem.isTriangle()) {
+                cell = vtkSmartPointer<vtkTriangle>::New();
+            } else if (elem.isQuad()) {
+                cell = vtkSmartPointer<vtkQuad>::New();
+            } else if (elem.isLine()) {
+                // cell = vtkSmartPointer<vtkLine>::New();
+                continue;
+            } else if (elem.isNode()) {
+                // cell = vtkSmartPointer<vtkVertex>::New();
+                continue;
+            } else {
+                throw std::runtime_error("Unsupported element type");
+            }
             vtkIdType id = 0;
             for (const auto& vId : elem.vertices) {
-                triangle->GetPointIds()->SetId(id++, vId);
+                cell->GetPointIds()->SetId(id++, vId);
             }
-            vtkCells->InsertNextCell(triangle);
+            vtkCells->InsertNextCell(cell);
         }
     }
     polyData->SetPolys(vtkCells);
@@ -176,14 +205,15 @@ vtkSmartPointer<vtkPolyData> gridToVTKPolydata(const Grid& grid)
     return polyData;
 }
 
-Mesh readMesh(const std::string &fileName)
+Mesh readMeshGroups(const std::filesystem::path& filename)
 {
-    vtkSmartPointer<vtkPolyData> polyData = readVTKPolyData(fileName);
+    vtkSmartPointer<vtkPolyData> polyData = readVTKPolyData(filename);
     return vtkPolydataToMesh(polyData);
 }
 
-void exportVTKPolyDataToVTP(const std::string& fn, const vtkSmartPointer<vtkPolyData>& polyData)
+void exportVTKPolyDataToVTP(const std::filesystem::path& filename, const vtkSmartPointer<vtkPolyData>& polyData)
 {
+    std::string fn = filename.string();
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
     if (extension != ".vtp") {
         throw std::runtime_error("Only vtp files are supported for writing");
@@ -195,12 +225,12 @@ void exportVTKPolyDataToVTP(const std::string& fn, const vtkSmartPointer<vtkPoly
     writer->Write();
 }
 
-void exportMeshToVTP(const std::string& fn, const Mesh& mesh)
+void exportMeshToVTP(const std::filesystem::path& fn, const Mesh& mesh)
 {
     exportVTKPolyDataToVTP(fn, meshElementsToVTKPolydata(mesh));
 }
 
-void exportGridToVTP(const std::string& fn, const Grid& grid)
+void exportGridToVTP(const std::filesystem::path& fn, const Grid& grid)
 {
     exportVTKPolyDataToVTP(fn, gridToVTKPolydata(grid));
 }

@@ -1,6 +1,6 @@
-#include "OffgridDriver.h"
+#include "OffgridMesher.h"
 
-#include "DriverBase.h"
+#include "MesherBase.h"
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 #include "core/Smoother.h"
@@ -13,7 +13,7 @@
 #include "utils/Cleaner.h"
 #include "utils/MeshTools.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
 using namespace utils;
 using namespace meshTools;
@@ -40,8 +40,8 @@ Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroup
     return resultMesh;
 }
 
-OffgridDriver::OffgridDriver(const Mesh& in, const OffgridDriverOptions& opts) :
-    DriverBase::DriverBase(in),
+OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
+    MesherBase::MesherBase(in),
     opts_{ opts }
 {        
     log("Preparing volumes.");
@@ -59,16 +59,16 @@ OffgridDriver::OffgridDriver(const Mesh& in, const OffgridDriverOptions& opts) :
     log("Initial hull mesh built succesfully.");
 }
 
-Mesh OffgridDriver::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
+Mesh OffgridMesher::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
-    auto resultMesh = DriverBase::buildSurfaceMesh(inputMesh);
+    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
     for (const auto& gId : volumeGroups) {
         resultMesh.groups[gId].elements.clear();
     }
     return resultMesh;
 }
 
-void OffgridDriver::process(Mesh& mesh) const
+void OffgridMesher::process(Mesh& mesh) const
 {
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     
@@ -113,7 +113,7 @@ void OffgridDriver::process(Mesh& mesh) const
     }
 }
 
-Mesh OffgridDriver::mesh() const 
+Mesh OffgridMesher::mesh() const 
 {
     log("Building primal mesh.");
     Mesh res{ volumeMesh_ };
@@ -127,7 +127,7 @@ Mesh OffgridDriver::mesh() const
     return res;
 }
 
-Filler OffgridDriver::fill(const std::vector<Priority>& groupPriorities) const
+Filler OffgridMesher::fill(const std::vector<Priority>& groupPriorities) const
 {
     log("Building primal filler.", 1);
     
@@ -138,7 +138,7 @@ Filler OffgridDriver::fill(const std::vector<Priority>& groupPriorities) const
     };
 }
 
-Filler OffgridDriver::dualFill(const std::vector<Priority>& groupPriorities) const
+Filler OffgridMesher::dualFill(const std::vector<Priority>& groupPriorities) const
 {
     log("Building dual filler.", 1);
     const auto dGrid{ GridTools{ originalGrid_ }.getExtendedDualGrid() };

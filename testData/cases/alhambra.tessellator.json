@@ -1,0 +1,10 @@
+{
+    "grid": {
+        "numberOfCells": [60, 60, 10],
+        "boundingBox": [
+            [-60.0, -60.0, -10.0],
+            [ 60.0,  60.0,  10.0]
+        ]
+    },
+    "object": {"filename": "alhambra.vtk"}
+}

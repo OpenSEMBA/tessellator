@@ -1,19 +1,19 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
-#include "drivers/StructuredDriver.h"
+#include "meshers/StructuredMesher.h"
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
 using namespace meshFixtures;
 using namespace utils;
 using namespace meshTools;
 
 
-class StructuredDriverTest : public ::testing::Test {
+class StructuredMesherTest : public ::testing::Test {
 public:
     static std::size_t countRepeatedElements(const Mesh& m)
     {
@@ -74,7 +74,7 @@ public:
     }
 };
 
-TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
+TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -123,7 +123,7 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
@@ -131,7 +131,7 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
 }
 
 
-TEST_F(StructuredDriverTest, testStructuredLinesWithRectilinearGrid)
+TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
 {
     float lowerCoordinateValue = -0.5;
     float upperCoordinateValue = 0.5;
@@ -181,17 +181,17 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithRectilinearGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
-TEST_F(StructuredDriverTest, testTriNonUniformGridStructured)
+TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
 {
     Mesh out;
-    ASSERT_NO_THROW(out = StructuredDriver(buildTriNonUniformGridMesh(), 4).mesh());
+    ASSERT_NO_THROW(out = StructuredMesher(buildTriNonUniformGridMesh(), 4).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
     EXPECT_EQ(35, out.groups[0].elements.size());
@@ -202,7 +202,7 @@ TEST_F(StructuredDriverTest, testTriNonUniformGridStructured)
 
 
 
-TEST_F(StructuredDriverTest, DISABLED_testStructuredTriangleWithUniformGrid)
+TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -224,7 +224,7 @@ TEST_F(StructuredDriverTest, DISABLED_testStructuredTriangleWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(48, resultMesh.groups[0].elements.size());
