@@ -2,11 +2,13 @@
 
 #include "types/Mesh.h"
 
+#include <filesystem>
+
 namespace meshlib::vtkIO
 {
-    Mesh readMeshGroups(const std::string &fileName);
+    Mesh readMeshGroups(const std::filesystem::path& fileName);
 
-    void exportMeshToVTP(const std::string& fn, const Mesh& mesh);
-    void exportGridToVTP(const std::string& fn, const Grid& grid);
+    void exportMeshToVTP(const std::filesystem::path& fn, const Mesh& mesh);
+    void exportGridToVTP(const std::filesystem::path& fn, const Grid& grid);
     
 }

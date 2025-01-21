@@ -96,7 +96,7 @@ int launcher(int argc, const char* argv[])
     resultMesh.coordinates = gT.relativeToAbsolute(resultMesh.coordinates);
 
     std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
-    std::string basename = std::filesystem::path(inputFilename).stem().stem();
+    auto basename = std::filesystem::path(inputFilename).stem().stem().string();
     meshlib::vtkIO::exportMeshToVTP(outputFolder / (basename + ".tessellator.out.vtp"), resultMesh);
     meshlib::vtkIO::exportGridToVTP(outputFolder / (basename + ".tessellator.grid.vtp"), resultMesh.grid);
 
