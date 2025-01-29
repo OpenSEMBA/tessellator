@@ -18,12 +18,7 @@ using namespace core;
 using namespace meshTools;
 
 
-Mesh StructuredMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
-{
-    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
-    mergeMesh(resultMesh, volumeSurface);
-    return resultMesh;
-}
+
 
 StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
     MesherBase(inputMesh),
@@ -34,8 +29,15 @@ StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCol
 
     log("Processing surface mesh.");
     process(surfaceMesh_);
+    
+    log("Surface mesh built succesfully.", 1);
+}
 
-    log("Initial hull mesh built succesfully.");
+Mesh StructuredMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
+{
+    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
+    mergeMesh(resultMesh, volumeSurface);
+    return resultMesh;
 }
 
 void StructuredMesher::process(Mesh& mesh) const
@@ -65,28 +67,24 @@ void StructuredMesher::process(Mesh& mesh) const
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
-
+    log("Removing repeated elements.", 1);   
     Cleaner::removeRepeatedElements(mesh);
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    log("Recovering original grid size.", 1);
+    reduceGrid(mesh, originalGrid_);
+    
+    logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
+    logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
 }
 
 
 Mesh StructuredMesher::mesh() const
 {
-    log("Building primal mesh.");
-    Mesh resultMesh{ surfaceMesh_ };
-
-    logNumberOfQuads(countMeshElementsIf(resultMesh, isQuad));
-    logNumberOfLines(countMeshElementsIf(resultMesh, isLine));
-    logNumberOfNodes(countMeshElementsIf(resultMesh, isNode));
-
-    reduceGrid(resultMesh, originalGrid_);
-    Cleaner::cleanCoords(resultMesh);
-
-    log("Primal mesh built succesfully.", 1);
-    return resultMesh;
+    return surfaceMesh_;
 }
 
 }

@@ -60,12 +60,15 @@ void MesherBase::logGridSize(const Grid& g)
     log(msg.str(), 2);
 }
 
-MesherBase::MesherBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}{
-
+MesherBase::MesherBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}
+{
+    log("Input mesh information.", 1);
     logGridSize(inputMesh.grid);
     logNumberOfTriangles(countMeshElementsIf(inputMesh, isTriangle));
 
+    log("Building enlarged grid.", 1);
     enlargedGrid_ = getEnlargedGridIncludingAllElements(inputMesh);
+    logGridSize(inputMesh.grid);
 }
 
 Mesh MesherBase::buildSurfaceMesh(const Mesh& inputMesh) {

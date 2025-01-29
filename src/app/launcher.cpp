@@ -48,19 +48,14 @@ Mesh readMesh(const std::string &fn)
     std::filesystem::path objPathFromInput = j["object"]["filename"];
     std::filesystem::path meshObjectPath = caseFolder / objPathFromInput;
 
-    std::cout << "Reading mesh groups from: " << meshObjectPath;
+    std::cout << "-- Reading mesh groups from: " << meshObjectPath;
     Mesh res = vtkIO::readMeshGroups(meshObjectPath);
     std::cout << "....... [OK]" << std::endl;
     
-    std::cout << "Reading grid from input file";
+    std::cout << "-- Reading grid from input file";
     res.grid = parseGridFromJSON(j["grid"]);
     std::cout << "....... [OK]" << std::endl;
 
-    std::cout << "Grid has " 
-        << res.grid[0].size()-1 << "x"
-        << res.grid[1].size()-1 << "x"
-        << res.grid[2].size()-1 << " cells" << std::endl;
-    
     return res;
 }
 
@@ -83,7 +78,7 @@ int launcher(int argc, const char* argv[])
 
     // Input
     std::string inputFilename = vm["input"].as<std::string>();
-    std::cout << "Input file is: " << inputFilename << std::endl;
+    std::cout << "-- Input file is: " << inputFilename << std::endl;
 
     Mesh mesh = readMesh(inputFilename);
     
@@ -97,7 +92,7 @@ int launcher(int argc, const char* argv[])
 
     std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
     auto basename = std::filesystem::path(inputFilename).stem().stem().string();
-    meshlib::vtkIO::exportMeshToVTP(outputFolder / (basename + ".tessellator.out.vtp"), resultMesh);
+    meshlib::vtkIO::exportMeshToVTP(outputFolder / (basename + ".tessellator.str.vtp"), resultMesh);
     meshlib::vtkIO::exportGridToVTP(outputFolder / (basename + ".tessellator.grid.vtp"), resultMesh.grid);
 
     return EXIT_SUCCESS;
