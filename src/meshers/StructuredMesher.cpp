@@ -60,7 +60,7 @@ void StructuredMesher::process(Mesh& mesh) const
     mesh = Collapser(mesh, decimalPlacesInCollapser_).getMesh();
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
-
+    
     log("Structuring.", 1);
     mesh = Structurer(mesh).getMesh();
 
@@ -72,7 +72,7 @@ void StructuredMesher::process(Mesh& mesh) const
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
-
+    
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);
 

@@ -64,8 +64,6 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     Cleaner::fuseCoords(auxiliarMesh);
     Cleaner::cleanCoords(auxiliarMesh);
 
-    CoordinateId newCoordinateId = this->mesh_.coordinates.size();
-
     std::map<Surfel, IdSet> idSetByCellSurface;
     std::map<Surfel, CoordinateIds> coordinateIdsByCellSurface;
 
@@ -78,6 +76,34 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
         idSetByCellSurface,
         auxiliarMesh.coordinates,
         coordinateIdsByCellSurface);
+
+    if(auxiliarMesh.coordinates.size() == 6 && processedEdges.elements.size() == 6 && coordinateIdsByCellSurface.size() == 0){
+        processedEdges.elements.clear();
+        coordinateIdsByCellSurface.clear();
+        idSetByCellSurface.clear();
+
+        for (std::size_t index = 0; index < edges.elements.size(); ++index) {
+            auto& edge = edges.elements[index];
+            if (index != pureDiagonalIndex) {
+                this->processLineAndAddToGroup(edge, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges, true);
+            }
+        }
+
+        Cleaner::fuseCoords(auxiliarMesh);
+        Cleaner::cleanCoords(auxiliarMesh);
+        
+        calculateCoordinateIdSetByCellSurface(auxiliarMesh.coordinates, idSetByCellSurface);
+
+        filterSurfacesFromCoordinateIds(
+            triangle.vertices,
+            pureDiagonalIndex,
+            originalRelativeCoordinates,
+            idSetByCellSurface,
+            auxiliarMesh.coordinates,
+            coordinateIdsByCellSurface);
+        }
+
+    CoordinateId newCoordinateId = this->mesh_.coordinates.size();
 
     mesh_.coordinates.insert(mesh_.coordinates.end(), auxiliarMesh.coordinates.begin(), auxiliarMesh.coordinates.end());
 
@@ -259,13 +285,13 @@ void Structurer::filterSurfacesFromCoordinateIds(
     }
 }
 
-void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates& originalRelativeCoordinates, Coordinates& resultCoordinates, Group& group) {
+void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates& originalRelativeCoordinates, Coordinates& resultCoordinates, Group& group, bool invertPriority) {
     auto startRelative = originalRelativeCoordinates[line.vertices[0]];
     auto endRelative = originalRelativeCoordinates[line.vertices[1]];
 
     CoordinateId startIndex = resultCoordinates.size();
 
-    std::vector<Cell> cells = calculateMiddleCellsBetweenTwoCoordinates(startRelative, endRelative);
+    std::vector<Cell> cells = calculateMiddleCellsBetweenTwoCoordinates(startRelative, endRelative, invertPriority);
 
     auto startRelativePosition = this->toRelative(cells.front());
     resultCoordinates.push_back(startRelativePosition);
@@ -287,7 +313,14 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     }
 }
 
-std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme) {
+bool compare(float first, float second, bool useLessThan){
+    if(useLessThan){
+        return first < second;
+    }
+    return first > second;
+}
+
+std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme, bool invertPriority) {
     // TODO: Compare with integers as substitute for floating point numbers with three decimals.
 
     auto startCell = this->calculateStructuredCell(startExtreme);
@@ -337,14 +370,14 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordin
                 Axis firstAxis = currentAxis;
                 Axis secondAxis = (firstAxis + 1) % 3;
 
-                if (!approxDir(centerVector[firstAxis], 0.0) && !approxDir(centerVector[firstAxis], 1.0)
-                    && !approxDir(centerVector[secondAxis], 0.0) && !approxDir(centerVector[secondAxis], 1.0)
+                if (!approxDir(centerVector[firstAxis], startStructured[firstAxis]) && !approxDir(centerVector[firstAxis], endStructured[firstAxis])
+                    && !approxDir(centerVector[secondAxis], startStructured[secondAxis]) && !approxDir(centerVector[secondAxis], endStructured[secondAxis])
                     && approxDir(centerVector[firstAxis], point[firstAxis]) && approxDir(centerVector[secondAxis], point[secondAxis])) {
 
-                    if (endExtreme[firstAxis] < startExtreme[firstAxis]) {
+                    if (compare(endExtreme[firstAxis], startExtreme[firstAxis], !invertPriority)) {
                         firstAxis = 5 - firstAxis;
                     }
-                    if (endExtreme[secondAxis] < startExtreme[secondAxis]) {
+                    if (compare(endExtreme[secondAxis], startExtreme[secondAxis], !invertPriority)) {
                         secondAxis = 5 - secondAxis;
                     }
 
@@ -510,7 +543,12 @@ bool Structurer::isPureDiagonal(const Element& edge, const Coordinates & coordin
     Coordinate scaleVector;
     
     for (Axis axis = X; axis <= Z; ++axis) {
-        scaleVector[axis] = distanceVector[axis] / (centerVector[axis] - startPoint[axis]);
+        if(approxDir(centerVector[axis], startPoint[axis])){
+            scaleVector[axis] = 0.0;
+        }
+        else{
+            scaleVector[axis] = distanceVector[axis] / (centerVector[axis] - startPoint[axis]);
+        }
     }
 
     if (!approxDir(scaleVector[X], scaleVector[Y]) || !approxDir(scaleVector[Y], scaleVector[Z])) {

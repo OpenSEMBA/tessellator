@@ -1848,3 +1848,113 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
 }
 
 }
+
+TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
+{
+    //                                              
+    // T0   *-{2}---------*               {2->4}========={0.33->1} 
+    //     /|  |\        /|               / ⫽\\\\\\\\\\\\\⫽/║      
+    //    / |  ⎹ \      / |              ⩗ ⫽\\\\\\\\\\\\\⫽//║      
+    //  z/  |  ⎹  \    /  |              z⫽\\\\\\\\\\\\\⫽///║⎹     
+    //  *---┼---┼{0}--*   |     ->   {2.5->5}=========={0}//║ v     
+    //  |   |y  ⎹/    |   |              ⎸   ║//////////|///║       
+    //  |   *--{1}----┼---*              {1->3}=========╪=={0.66->2}
+    //  |  /          |  /               ⎸  /      <-   |  /        
+    //  | /           | /                ⎸ /            | /         
+    //  |/            |/                 ⎸/             |/          
+    //  *-------------* x                *--------------* x         
+    //                                                              
+    //                                            <-                
+    // T1   *--------{1}--*               {2->4}=========={1->3}    
+    //     /|     ⟋  /   /|               / ⫽\\\\\\\\\\\\\⫽║       
+    //    / |  ⟋    /   / |              ⩗ ⫽\\\\\\\\\\\\\⫽\║       
+    //  z/  ⟋      /   /  |              z⫽\\\\\\\\\\\\\⫽\\║ ^     
+    //  *{2}┼-----⌿--*   |     ->   {2.5->5}=========={6}\\║ |     
+    //  | | |y   /    |   |              ║\\\\\\\\\\\\\\║\\\║       
+    //  | ⎹ *---⌿----┼---*              ║\\\\\\\\\\\\\\║\{0.66->2}       
+    //  |  |   /      |  /             | ║\\\\\\\\\\\\\\║\\⫽ ⩘      
+    //  | / ⎸ /       | /              v ║\\\\\\\\\\\\\\║\⫽ /        
+    //  |/  |/        |/                 ║\\\\\\\\\\\\\\║⫽          
+    //  *--{0}--------* x               {0}========={0.33->1} x     
+    //                                          ->                  
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Coordinate({ 0.7321, 0.0, 1.0 }),    // 0 First Triangle, First Point
+        Coordinate({ 0.2887, 1.0, 0.0 }),    // 1 First Triangle, Second Point
+        Coordinate({ 0.1547, 1.0, 1.0 }),    // 2 First Triangle, Third Point
+        Coordinate({ 0.2887, 0.0, 0.0 }),    // 3 Second Triangle, First Point
+        Coordinate({ 0.7321, 1.0, 1.0 }),    // 4 Second Triangle, Second Point
+        Coordinate({ 0.1547, 0.0, 1.0 }),    // 5 Second Triangle, Third Point
+    };
+    mesh.groups.resize(2);
+    mesh.groups[0].elements = { Element({0, 1, 2}, Element::Type::Surface) };
+    mesh.groups[1].elements = { Element({3, 4, 5}, Element::Type::Surface) };
+
+    Coordinates expectedCoordinates = {
+        Coordinate({ 1.0, 0.0, 1.0 }),    // 0 First and Fourth Quads, First Point, Third Quad, Third Point, Fifth Quad, Fourth Point
+        Coordinate({ 1.0, 1.0, 1.0 }),    // 1 First and Fourth Quads, Second Point, Second Quad, First Point, Fifth Quad, Third Point
+        Coordinate({ 1.0, 1.0, 0.0 }),    // 2 Second and Fifth Quads, Second Point, 
+        Coordinate({ 0.0, 1.0, 0.0 }),    // 3 Second Quad, Third Point
+        Coordinate({ 0.0, 1.0, 1.0 }),    // 4 First and Fourth Quads, Third Point, Second Quad, Fourth Point
+        Coordinate({ 0.0, 0.0, 1.0 }),    // 5 First, Third and Fourth Quads, Fourth Point
+        Coordinate({ 0.0, 0.0, 0.0 }),    // 6 Third Quad, First Point
+        Coordinate({ 1.0, 0.0, 0.0 }),    // 7 Third Quad, Second Point, Fifth Quad, First Point
+    };
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1, 4, 5}, Element::Type::Surface),
+            Element({1, 2, 3, 4}, Element::Type::Surface),
+        },
+        {
+            Element({6, 7, 2, 5}, Element::Type::Surface),  // (0, 1, 6, 5)
+            Element({7, 2, 1, 0}, Element::Type::Surface),  // (1, 2, 3, 6)
+            Element({1, 4, 5, 2}, Element::Type::Surface),  // (3, 4, 5, 6)
+        },
+    };
+
+    auto resultMesh = Structurer{ mesh }.getMesh();
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+    for (std::size_t i = 0; i < expectedCoordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedCoordinates[i][axis]);
+        }
+    }
+
+    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+        
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size());
+
+        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            EXPECT_EQ(resultElement.isLine(), expectedElement.isLine());
+            EXPECT_EQ(resultElement.isNode(), expectedElement.isNode());
+            EXPECT_EQ(resultElement.isNone(), expectedElement.isNone());
+            EXPECT_EQ(resultElement.isTriangle(), expectedElement.isTriangle());
+            EXPECT_EQ(resultElement.isTetrahedron(), expectedElement.isTetrahedron());
+            EXPECT_EQ(resultElement.isQuad(), expectedElement.isQuad());
+
+            ASSERT_EQ(resultElement.vertices.size(), resultElement.vertices.size());
+
+            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            }
+        }
+    }
+}
