@@ -107,85 +107,81 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
 
     mesh_.coordinates.insert(mesh_.coordinates.end(), auxiliarMesh.coordinates.begin(), auxiliarMesh.coordinates.end());
 
+    std::vector<bool> surfacePresenceList = {false, false};
+    std::vector<Surfel> cellSurfacePlanes;
+    std::vector<CoordinateIds*> cellSurfaceIdsList;
 
-    bool hasFirstSurface = false;
-    bool hasSecondSurface = false;
-    CoordinateIds* firstCellSurfaceIds;
-    CoordinateIds* secondCellSurfaceIds;
-    Surfel firstCellSurfacePlane;
-    Surfel secondCellSurfacePlane;
+    if (coordinateIdsByCellSurface.size() >= 2) {
+        surfacePresenceList.clear();
+        surfacePresenceList.reserve(3);
+        cellSurfacePlanes.reserve(3);
+        cellSurfaceIdsList.reserve(3);
 
-    if (coordinateIdsByCellSurface.size() == 2) {
-        hasFirstSurface = true;
-        hasSecondSurface = true;
-        firstCellSurfacePlane = coordinateIdsByCellSurface.begin()->first;
-        firstCellSurfaceIds = &coordinateIdsByCellSurface.begin()->second;
+        for(auto it = coordinateIdsByCellSurface.begin(); it != coordinateIdsByCellSurface.end(); ++it){
+            surfacePresenceList.push_back(true);
+            cellSurfacePlanes.push_back(it->first);
+            cellSurfaceIdsList.push_back(&it->second);
+        }
 
-        secondCellSurfacePlane = coordinateIdsByCellSurface.rbegin()->first;
-        secondCellSurfaceIds = &coordinateIdsByCellSurface.rbegin()->second;
-        
-        for (std::size_t index = 0; index != firstCellSurfaceIds->size(); ++index) {
-            if (firstCellSurfaceIds[index] < secondCellSurfaceIds[index]) {
-                break;
-            }
-            if (secondCellSurfaceIds[index] < firstCellSurfaceIds[index]) {
-                std::swap(firstCellSurfaceIds, secondCellSurfaceIds);
-                std::swap(firstCellSurfacePlane, secondCellSurfacePlane);
-                break;
+        for(std::size_t planeIndex = 0; planeIndex < (cellSurfacePlanes.size() - 1); ++planeIndex){
+            auto& firstCellSurfacePlane = cellSurfacePlanes[planeIndex];
+            auto& secondCellSurfacePlane = cellSurfacePlanes[planeIndex+1];
+            auto& firstCellSurfaceIds = cellSurfaceIdsList[planeIndex];
+            auto& secondCellSurfaceIds = cellSurfaceIdsList[planeIndex + 1];
+
+            for (std::size_t index = 0; index != firstCellSurfaceIds->size(); ++index) {
+                if (firstCellSurfaceIds[index] < secondCellSurfaceIds[index]) {
+                    break;
+                }
+                if (secondCellSurfaceIds[index] < firstCellSurfaceIds[index]) {
+                    std::swap(firstCellSurfaceIds, secondCellSurfaceIds);
+                    std::swap(firstCellSurfacePlane, secondCellSurfacePlane);
+                    break;
+                }
             }
         }
+        
+        
     }
     else if (coordinateIdsByCellSurface.size() == 1) {
         auto surfaceCoordinateIt = coordinateIdsByCellSurface.begin();
+        cellSurfacePlanes.resize(2);
+        cellSurfaceIdsList.resize(2);
+
         if (surfaceCoordinateIt->second[0] == 0 || pureDiagonalIndex == 0) {
-            hasFirstSurface = true;
-            firstCellSurfacePlane = surfaceCoordinateIt->first;
-            firstCellSurfaceIds = &surfaceCoordinateIt->second;
+            surfacePresenceList[0] = true;
+            cellSurfacePlanes[0] = surfaceCoordinateIt->first;
+            cellSurfaceIdsList[0] = &surfaceCoordinateIt->second;
         }
         else {
-            hasSecondSurface = true;
-            secondCellSurfacePlane = surfaceCoordinateIt->first;
-            secondCellSurfaceIds = &surfaceCoordinateIt->second;
+            surfacePresenceList[1] = true;
+            cellSurfacePlanes[1] = surfaceCoordinateIt->first;
+            cellSurfaceIdsList[1] = &surfaceCoordinateIt->second;
         }
     }
 
     auto newElementsStartingPosition = group.elements.size();
-
-    if (hasFirstSurface) {
-        Element surface({}, Element::Type::Surface);
-        surface.vertices.insert(surface.vertices.begin(), firstCellSurfaceIds->begin(), firstCellSurfaceIds->end());
-        group.elements.push_back(surface);
-    }
-
+    
     std::size_t e = 0;
-    if (coordinateIdsByCellSurface.size() != 2) {
-        while (hasFirstSurface && e < processedEdges.elements.size() && isEdgePartOfCellSurface(processedEdges.elements[e], *firstCellSurfaceIds)) {
-            ++e;
-        }
-
-        while (e < processedEdges.elements.size() 
-            && (!hasFirstSurface || !isEdgePartOfCellSurface(processedEdges.elements[e], *firstCellSurfaceIds))
-            && (!hasSecondSurface || !isEdgePartOfCellSurface(processedEdges.elements[e], *secondCellSurfaceIds))) {
-            group.elements.push_back(processedEdges.elements[e]);
-            ++e;
+    
+    for(std::size_t surfaceIndex = 0; surfaceIndex < cellSurfacePlanes.size(); ++surfaceIndex){
+        if (surfacePresenceList[surfaceIndex]) {
+            Element surface({}, Element::Type::Surface);
+            surface.vertices.insert(surface.vertices.begin(), cellSurfaceIdsList[surfaceIndex]->begin(), cellSurfaceIdsList[surfaceIndex]->end());
+            group.elements.push_back(surface);
         }
     }
-
-    if (hasSecondSurface) {
-        Element surface({}, Element::Type::Surface);
-        surface.vertices.insert(surface.vertices.begin(), secondCellSurfaceIds->begin(), secondCellSurfaceIds->end());
-        group.elements.push_back(surface);
-    }
-
-    if (coordinateIdsByCellSurface.size() != 2) {
-        while (hasSecondSurface && e < processedEdges.elements.size() && isEdgePartOfCellSurface(processedEdges.elements[e], *secondCellSurfaceIds)) {
-            ++e;
-        }
-
-        while (e < processedEdges.elements.size()
-            && (!hasFirstSurface || !isEdgePartOfCellSurface(processedEdges.elements[e], *firstCellSurfaceIds))) {
-            group.elements.push_back(processedEdges.elements[e]);
-            ++e;
+    if(coordinateIdsByCellSurface.size() < 2){
+        for(std::size_t e = 0; e < processedEdges.elements.size(); ++e){
+            bool isInSurface = false;
+            for (std::size_t surfaceIndex = 0; surfaceIndex < cellSurfacePlanes.size(); ++surfaceIndex){
+                isInSurface = isInSurface
+                    || surfacePresenceList[surfaceIndex]
+                    && isEdgePartOfCellSurface(processedEdges.elements[e], *cellSurfaceIdsList[surfaceIndex]);
+            }
+            if (!isInSurface){
+                group.elements.push_back(processedEdges.elements[e]);
+            }
         }
     }
 
