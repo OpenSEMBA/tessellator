@@ -20,8 +20,7 @@ private:
         const Element& line,
         const Coordinates& originalRelativeCoordinates,
         Coordinates& resultCoordinates,
-        Group& group,
-        bool invertPriority = false
+        Group& group
     );
     bool isEdgePartOfCellSurface(const Element& edge, const CoordinateIds &surfaceCoordinateIds) const;
     bool isPureDiagonal(const Element& edge, const Coordinates& coordinates);
@@ -34,10 +33,15 @@ private:
         Coordinates& structuredCoordinates,
         std::map<Surfel, CoordinateIds>& coordinateIdsByCellSurface
     );
+    void addNewCoordinateToGroupUsingBarycentre(
+        const CoordinateIds& triangleVertices,
+        const Coordinates& originalRelativeCoordinates,
+        Coordinates& structuredCoordinates,
+        Group& group);
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
-    std::vector<Cell> calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme, bool invertPriority = false);
+    std::vector<Cell> calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme);
     void calculateCoordinateIdSetByCellSurface(const Coordinates& coordinates, std::map<Surfel, IdSet>& coordinatesByCellSurface);
 };
 

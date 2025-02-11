@@ -78,19 +78,10 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
         coordinateIdsByCellSurface);
 
     if(auxiliarMesh.coordinates.size() == 6 && processedEdges.elements.size() == 6 && coordinateIdsByCellSurface.size() == 0){
-        processedEdges.elements.clear();
         coordinateIdsByCellSurface.clear();
         idSetByCellSurface.clear();
 
-        for (std::size_t index = 0; index < edges.elements.size(); ++index) {
-            auto& edge = edges.elements[index];
-            if (index != pureDiagonalIndex) {
-                this->processLineAndAddToGroup(edge, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges, true);
-            }
-        }
-
-        Cleaner::fuseCoords(auxiliarMesh);
-        Cleaner::cleanCoords(auxiliarMesh);
+        this->addNewCoordinateToGroupUsingBarycentre(triangle.vertices, originalRelativeCoordinates, auxiliarMesh.coordinates, processedEdges);
         
         calculateCoordinateIdSetByCellSurface(auxiliarMesh.coordinates, idSetByCellSurface);
 
@@ -123,25 +114,25 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
             cellSurfaceIdsList.push_back(&it->second);
         }
 
-        for(std::size_t planeIndex = 0; planeIndex < (cellSurfacePlanes.size() - 1); ++planeIndex){
-            auto& firstCellSurfacePlane = cellSurfacePlanes[planeIndex];
-            auto& secondCellSurfacePlane = cellSurfacePlanes[planeIndex+1];
-            auto& firstCellSurfaceIds = cellSurfaceIdsList[planeIndex];
-            auto& secondCellSurfaceIds = cellSurfaceIdsList[planeIndex + 1];
+        for(std::size_t ceiling = cellSurfacePlanes.size() - 1; ceiling > 0; --ceiling){
+            for(std::size_t planeIndex = 0; planeIndex < ceiling; ++planeIndex){
+                auto& firstCellSurfacePlane = cellSurfacePlanes[planeIndex];
+                auto& secondCellSurfacePlane = cellSurfacePlanes[planeIndex+1];
+                auto& firstCellSurfaceIds = cellSurfaceIdsList[planeIndex];
+                auto& secondCellSurfaceIds = cellSurfaceIdsList[planeIndex + 1];
 
-            for (std::size_t index = 0; index != firstCellSurfaceIds->size(); ++index) {
-                if (firstCellSurfaceIds[index] < secondCellSurfaceIds[index]) {
-                    break;
-                }
-                if (secondCellSurfaceIds[index] < firstCellSurfaceIds[index]) {
-                    std::swap(firstCellSurfaceIds, secondCellSurfaceIds);
-                    std::swap(firstCellSurfacePlane, secondCellSurfacePlane);
-                    break;
+                for (std::size_t index = 0; index != firstCellSurfaceIds->size(); ++index) {
+                    if (firstCellSurfaceIds[index] < secondCellSurfaceIds[index]) {
+                        break;
+                    }
+                    if (secondCellSurfaceIds[index] < firstCellSurfaceIds[index]) {
+                        std::swap(firstCellSurfaceIds, secondCellSurfaceIds);
+                        std::swap(firstCellSurfacePlane, secondCellSurfacePlane);
+                        break;
+                    }
                 }
             }
         }
-        
-        
     }
     else if (coordinateIdsByCellSurface.size() == 1) {
         auto surfaceCoordinateIt = coordinateIdsByCellSurface.begin();
@@ -161,13 +152,21 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     }
 
     auto newElementsStartingPosition = group.elements.size();
-    
+
     std::size_t e = 0;
-    
+
     for(std::size_t surfaceIndex = 0; surfaceIndex < cellSurfacePlanes.size(); ++surfaceIndex){
         if (surfacePresenceList[surfaceIndex]) {
             Element surface({}, Element::Type::Surface);
             surface.vertices.insert(surface.vertices.begin(), cellSurfaceIdsList[surfaceIndex]->begin(), cellSurfaceIdsList[surfaceIndex]->end());
+
+            auto secondCell = toCell(auxiliarMesh.coordinates[surface.vertices[1]]);
+            auto thirdCell = toCell(auxiliarMesh.coordinates[surface.vertices[2]]);
+
+            if(calculateDifferenceBetweenCells(secondCell, thirdCell) != 1){
+                std::swap(surface.vertices[2], surface.vertices[3]);
+            }
+
             group.elements.push_back(surface);
         }
     }
@@ -193,7 +192,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
     }
 }
 
-bool Structurer::isRelativeInCellsVector(const Relative& relative, const std::vector<Cell> & cells) const {
+bool Structurer::isRelativeInCellsVector(const Coordinate& relative, const std::vector<Cell> & cells) const {
     Cell convertedCell = toCell(relative);
 
     for (auto& listCell : cells) {
@@ -281,13 +280,72 @@ void Structurer::filterSurfacesFromCoordinateIds(
     }
 }
 
-void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates& originalRelativeCoordinates, Coordinates& resultCoordinates, Group& group, bool invertPriority) {
+void Structurer::addNewCoordinateToGroupUsingBarycentre(const CoordinateIds &triangleVertices, const Coordinates &originalRelativeCoordinates, Coordinates &structuredCoordinates, Group &group)
+{
+    auto & firstTriangleVertex = originalRelativeCoordinates[triangleVertices[0]];
+    auto & secondTriangleVertex = originalRelativeCoordinates[triangleVertices[1]];
+    auto & thirdTriangleVertex = originalRelativeCoordinates[triangleVertices[2]];
+
+    Coordinate barycentre = (firstTriangleVertex + secondTriangleVertex + thirdTriangleVertex) / 3.0;
+
+    Coordinates missingPoints;
+    missingPoints.reserve(2);
+
+    std::set<Cell> cellSet;
+
+    Cell minCell({
+        std::numeric_limits<CellDir>::max(),
+        std::numeric_limits<CellDir>::max(),
+        std::numeric_limits<CellDir>::max()
+        });
+
+    for(auto& structuredCoordinate: structuredCoordinates){
+        auto cell = toCell(structuredCoordinate);
+
+        for(Axis axis = X; axis <= Z; ++axis){
+            minCell[axis] = std::min(minCell[axis], cell[axis]);
+        }
+
+        cellSet.insert(cell);
+
+    }
+    Cell cellCandidate;
+    for(cellCandidate[X] = minCell[X]; cellCandidate[X] <= minCell[X] + 1 && missingPoints.size() != 2; ++cellCandidate[X]){
+        for(cellCandidate[Y] = minCell[Y]; cellCandidate[Y] <= minCell[Y] + 1 && missingPoints.size() != 2; ++cellCandidate[Y]){
+            for(cellCandidate[Z] = minCell[Z]; cellCandidate[Z] <= minCell[Z] + 1 && missingPoints.size() != 2; ++cellCandidate[Z]){
+                if(cellSet.count(cellCandidate) != 1){
+                    missingPoints.push_back(toRelative(cellCandidate));
+                }
+            }
+        }
+    }
+
+    auto& firstPoint = missingPoints[0];
+    auto& secondPoint = missingPoints[1];
+
+    auto firstDistance = (barycentre - firstPoint).norm();
+    auto secondDistance = (barycentre - secondPoint).norm();
+
+    Coordinate newPoint;
+
+    if(firstDistance <= secondDistance){
+        newPoint = firstPoint;
+    }
+    else{
+        newPoint = secondPoint;
+    }
+
+    CoordinateId newId = structuredCoordinates.size();
+    structuredCoordinates.push_back(newPoint);
+}
+
+void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates& originalRelativeCoordinates, Coordinates& resultCoordinates, Group& group) {
     auto startRelative = originalRelativeCoordinates[line.vertices[0]];
     auto endRelative = originalRelativeCoordinates[line.vertices[1]];
 
     CoordinateId startIndex = resultCoordinates.size();
 
-    std::vector<Cell> cells = calculateMiddleCellsBetweenTwoCoordinates(startRelative, endRelative, invertPriority);
+    std::vector<Cell> cells = calculateMiddleCellsBetweenTwoCoordinates(startRelative, endRelative);
 
     auto startRelativePosition = this->toRelative(cells.front());
     resultCoordinates.push_back(startRelativePosition);
@@ -309,14 +367,7 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Coordinates
     }
 }
 
-bool compare(float first, float second, bool useLessThan){
-    if(useLessThan){
-        return first < second;
-    }
-    return first > second;
-}
-
-std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme, bool invertPriority) {
+std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme) {
     // TODO: Compare with integers as substitute for floating point numbers with three decimals.
 
     auto startCell = this->calculateStructuredCell(startExtreme);
@@ -370,10 +421,10 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoCoordinates(Coordin
                     && !approxDir(centerVector[secondAxis], startStructured[secondAxis]) && !approxDir(centerVector[secondAxis], endStructured[secondAxis])
                     && approxDir(centerVector[firstAxis], point[firstAxis]) && approxDir(centerVector[secondAxis], point[secondAxis])) {
 
-                    if (compare(endExtreme[firstAxis], startExtreme[firstAxis], !invertPriority)) {
+                    if (endExtreme[firstAxis] < startExtreme[firstAxis]) {
                         firstAxis = 5 - firstAxis;
                     }
-                    if (compare(endExtreme[secondAxis], startExtreme[secondAxis], !invertPriority)) {
+                    if (endExtreme[secondAxis] < startExtreme[secondAxis]) {
                         secondAxis = 5 - secondAxis;
                     }
 

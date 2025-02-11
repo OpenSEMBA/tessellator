@@ -1915,9 +1915,9 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
             Element({1, 2, 3, 4}, Element::Type::Surface),
         },
         {
-            Element({6, 7, 2, 5}, Element::Type::Surface),  // (0, 1, 6, 5)
+            Element({6, 7, 0, 5}, Element::Type::Surface),  // (0, 1, 6, 5)
             Element({7, 2, 1, 0}, Element::Type::Surface),  // (1, 2, 3, 6)
-            Element({1, 4, 5, 2}, Element::Type::Surface),  // (3, 4, 5, 6)
+            Element({1, 4, 5, 0}, Element::Type::Surface),  // (3, 4, 5, 6)
         },
     };
 
