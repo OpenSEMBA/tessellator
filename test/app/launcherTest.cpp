@@ -18,7 +18,17 @@ TEST_F(LauncherTest, prints_help)
 TEST_F(LauncherTest, launches_alhambra_case)
 {
     int ac = 3;
-    const char* av[] = { NULL, "-i", "testData/cases/alhambra.tessellator.json"};
+    const char* av[] = { NULL, "-i", "testData/cases/alhambra/alhambra.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+
+TEST_F(LauncherTest, launches_sphere_case)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/sphere/sphere.tessellator.json"};
     int exitCode;
     EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
