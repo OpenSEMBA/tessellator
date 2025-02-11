@@ -159,12 +159,25 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
         if (surfacePresenceList[surfaceIndex]) {
             Element surface({}, Element::Type::Surface);
             surface.vertices.insert(surface.vertices.begin(), cellSurfaceIdsList[surfaceIndex]->begin(), cellSurfaceIdsList[surfaceIndex]->end());
+            std::size_t firstCorrectOrientationIndex = 0;
+            std::size_t differentAxes = 0;
+            Cell firstCell;
+            Cell secondCell;
+            Cell thirdCell;
 
-            auto secondCell = toCell(auxiliarMesh.coordinates[surface.vertices[1]]);
-            auto thirdCell = toCell(auxiliarMesh.coordinates[surface.vertices[2]]);
+            do{
+                ++firstCorrectOrientationIndex;
+                firstCell = toCell(auxiliarMesh.coordinates[surface.vertices[firstCorrectOrientationIndex - 1]]);
+                secondCell = toCell(auxiliarMesh.coordinates[surface.vertices[firstCorrectOrientationIndex]]);
+
+                differentAxes = calculateDifferenceBetweenCells(firstCell, secondCell);
+
+            } while(firstCorrectOrientationIndex < 4 && differentAxes != 1);
+
+            thirdCell = toCell(auxiliarMesh.coordinates[surface.vertices[(firstCorrectOrientationIndex + 1) % 4]]);
 
             if(calculateDifferenceBetweenCells(secondCell, thirdCell) != 1){
-                std::swap(surface.vertices[2], surface.vertices[3]);
+                std::swap(surface.vertices[(firstCorrectOrientationIndex + 1) % 4], surface.vertices[(firstCorrectOrientationIndex + 2) % 4]);
             }
 
             group.elements.push_back(surface);
