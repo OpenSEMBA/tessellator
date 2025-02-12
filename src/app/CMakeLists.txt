@@ -9,7 +9,7 @@ find_package(VTK COMPONENTS
   CommonCore
   IOGeometry
   IOLegacy
-  IOXML
+  FiltersCore
 )
 
 find_package(Boost COMPONENTS program_options)

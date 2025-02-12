@@ -88,8 +88,8 @@ int launcher(int argc, const char* argv[])
 
     std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
     auto basename = std::filesystem::path(inputFilename).stem().stem().string();
-    meshlib::vtkIO::exportMeshToVTP(outputFolder / (basename + ".tessellator.str.vtp"), resultMesh);
-    meshlib::vtkIO::exportGridToVTP(outputFolder / (basename + ".tessellator.grid.vtp"), resultMesh.grid);
+    meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtu"), resultMesh);
+    meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtu"), resultMesh.grid);
 
     return EXIT_SUCCESS;
 }
