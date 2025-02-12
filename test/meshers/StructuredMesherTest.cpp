@@ -1,19 +1,19 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
-#include "drivers/StructuredDriver.h"
+#include "meshers/StructuredMesher.h"
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
 using namespace meshFixtures;
 using namespace utils;
 using namespace meshTools;
 
 
-class StructuredDriverTest : public ::testing::Test {
+class StructuredMesherTest : public ::testing::Test {
 public:
     static std::size_t countRepeatedElements(const Mesh& m)
     {
@@ -74,13 +74,14 @@ public:
     }
 };
 
-TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
+TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
 {
 
-    float lowerCoordinateValue = -0.5;
-    float upperCoordinateValue = 0.5;
-    int numberOfCells = 4;
-    float step = 0.25;
+    const int numberOfCells = 4;
+    const float step = 0.25;
+    const float offset = 0.5;
+    const float lowerCoordinateValue = -0.5;
+    const float upperCoordinateValue =  0.5;
     assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells) == step);
 
     Mesh inputMesh;
@@ -107,6 +108,10 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
         Coordinate({3.00, 2.00, 1.00}),     // 7
         Coordinate({4.00, 2.00, 1.00}),     // 8
     };
+    for (auto& c: expectedMesh.coordinates) {
+        c *= step;
+        c -= offset;
+    }
     expectedMesh.groups.resize(1);
     expectedMesh.groups[0].elements = {
         Element({0}, Element::Type::Node),
@@ -123,7 +128,7 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
@@ -131,14 +136,8 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithUniformGrid)
 }
 
 
-TEST_F(StructuredDriverTest, testStructuredLinesWithRectilinearGrid)
+TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
 {
-    float lowerCoordinateValue = -0.5;
-    float upperCoordinateValue = 0.5;
-    int numberOfCells = 4;
-    float step = 0.25;
-    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells) == step);
-
     Mesh inputMesh;
     inputMesh.grid = Grid(
         {
@@ -170,6 +169,8 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithRectilinearGrid)
         Coordinate({1.00, 1.00, 2.00}),     // 4
         Coordinate({1.00, 2.00, 2.00}),     // 5
     };
+    expectedMesh.coordinates = utils::GridTools{
+        expectedMesh.grid}.relativeToAbsolute(expectedMesh.coordinates);
     expectedMesh.groups.resize(1);
     expectedMesh.groups[0].elements = {
         Element({0, 1}, Element::Type::Line),
@@ -181,17 +182,17 @@ TEST_F(StructuredDriverTest, testStructuredLinesWithRectilinearGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
-TEST_F(StructuredDriverTest, testTriNonUniformGridStructured)
+TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
 {
     Mesh out;
-    ASSERT_NO_THROW(out = StructuredDriver(buildTriNonUniformGridMesh(), 4).mesh());
+    ASSERT_NO_THROW(out = StructuredMesher(buildTriNonUniformGridMesh(), 4).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
     EXPECT_EQ(35, out.groups[0].elements.size());
@@ -202,7 +203,7 @@ TEST_F(StructuredDriverTest, testTriNonUniformGridStructured)
 
 
 
-TEST_F(StructuredDriverTest, DISABLED_testStructuredTriangleWithUniformGrid)
+TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -224,7 +225,7 @@ TEST_F(StructuredDriverTest, DISABLED_testStructuredTriangleWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredDriver(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(48, resultMesh.groups[0].elements.size());

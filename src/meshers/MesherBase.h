@@ -1,15 +1,14 @@
 #pragma once
 
 #include "types/Mesh.h"
-#include "DriverInterface.h"
 
 namespace meshlib {
-namespace drivers {
+namespace meshers {
 
-class DriverBase : public DriverInterface {
+class MesherBase {
 public:
-    DriverBase(const Mesh& in);
-    virtual ~DriverBase() = default;
+    MesherBase(const Mesh& in);
+    virtual ~MesherBase() = default;
     virtual Mesh mesh() const = 0;
 
 protected:

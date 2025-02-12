@@ -2,9 +2,9 @@
 
 #include "core/SnapperOptions.h"
 
-namespace meshlib::drivers {
+namespace meshlib::meshers {
 
-class OffgridDriverOptions {
+class OffgridMesherOptions {
 public:
 
     bool forceSlicing = true;

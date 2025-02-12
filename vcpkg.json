@@ -8,7 +8,7 @@
   ],
   "features": {
     "cgal": {
-      "description": "Enables CGAL features: Offgrid Driver, manifolding, repairer, etc.",
+      "description": "Enables CGAL features: Offgrid mesher, manifolding, repairer, etc.",
       "dependencies": ["cgal", "eigen3"]
     }
   }

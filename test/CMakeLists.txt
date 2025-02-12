@@ -7,15 +7,15 @@ include_directories(
 	${PROJECT_SOURCE_DIR}/src/
 	${PROJECT_SOURCE_DIR}/src/app/
 	${PROJECT_SOURCE_DIR}/src/core/
-	${PROJECT_SOURCE_DIR}/src/drivers/
+	${PROJECT_SOURCE_DIR}/src/meshers/
 	${PROJECT_SOURCE_DIR}/src/utils/
 	${PROJECT_SOURCE_DIR}/src/types/
 	${PROJECT_SOURCE_DIR}/test/
 )
 
 add_executable(tessellator_tests 
-	"app/LauncherTest.cpp"
-	"app/VTKParserTest.cpp"
+	"app/launcherTest.cpp"
+	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
@@ -28,12 +28,12 @@ add_executable(tessellator_tests
 	"utils/GeometryTest.cpp"
 	"utils/GridToolsTest.cpp"
 	"utils/MeshToolsTest.cpp"
-    "drivers/StructuredDriverTest.cpp"
+    "meshers/StructuredMesherTest.cpp"
 )
 
 
 target_link_libraries(tessellator_tests	
-	tessellator-drivers
+	tessellator-meshers
 	tessellator-app
     GTest::gtest 
 	GTest::gtest_main
@@ -56,7 +56,7 @@ if (TESSELLATOR_ENABLE_CGAL)
 		"cgal/filler/FillerToolsTest.cpp"
 		"core/SmootherTest.cpp"
 		"core/SmootherToolsTest.cpp"
-		"drivers/OffgridDriverTest.cpp"
+		"meshers/OffgridMesherTest.cpp"
 	)	
 endif()
 

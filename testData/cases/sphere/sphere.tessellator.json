@@ -1,0 +1,10 @@
+{
+    "grid": {
+        "numberOfCells": [100, 100, 100],
+        "boundingBox": [
+            [-100.0, -100.0, -100.0],
+            [ 100.0,  100.0,  100.0]
+        ]
+    },
+    "object": {"filename": "sphere.stl"}
+}
