@@ -12,6 +12,7 @@
 #include <vtkAppendFilter.h>
 #include <vtkSTLReader.h>
 #include <vtkUnstructuredGridReader.h>
+#include <vtkPolyDataReader.h>
 
 #include <vtkUnstructuredGridWriter.h>
 
@@ -19,6 +20,14 @@ const char* GROUPS_TAG_NAME = "group";
 
 namespace meshlib::vtkIO
 {
+
+vtkSmartPointer<vtkUnstructuredGrid> vtkPolyDataToVTU(vtkPolyData* polyData)
+{
+    vtkNew<vtkAppendFilter> appendFilter;
+    appendFilter->AddInputData(polyData);
+    appendFilter->Update();
+    return appendFilter->GetOutput();
+}
 
 vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& filename)
 {
@@ -43,14 +52,12 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
         vtkNew<vtkSTLReader> reader;
         reader->SetFileName(fn.c_str());
         reader->Update();
-        vtkSmartPointer<vtkPolyData> stl = reader->GetOutput();
-
-        // Convert polydata to unstructured grid
-        vtkNew<vtkAppendFilter> appendFilter;
-        appendFilter->AddInputData(stl);
-        appendFilter->Update();
-        vtu = appendFilter->GetOutput();
-
+        vtu = vtkPolyDataToVTU(reader->GetOutput());
+    } else if (extension == ".vtk") {
+        vtkNew<vtkPolyDataReader> reader;
+        reader->SetFileName(fn.c_str());
+        reader->Update();
+        vtu = vtkPolyDataToVTU(reader->GetOutput());
     } else if (extension == ".vtu") {
         vtkNew<vtkUnstructuredGridReader> reader;
         reader->SetFileName(fn.c_str());
