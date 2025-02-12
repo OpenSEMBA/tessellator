@@ -28,6 +28,8 @@ using Relatives = std::vector<Relative>;
 
 using CellDir = Cell::Type;
 using RelativeDir = Relative::Type;
+using RelativeId = CoordinateId;
+using RelativeIds = std::vector<RelativeId>;
 
 using Plane = std::pair<CellDir, Axis>;
 
