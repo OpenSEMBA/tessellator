@@ -7,7 +7,7 @@
 #include "core/Collapser.h"
 #include "core/Structurer.h"
 
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
 
@@ -68,7 +68,7 @@ void StructuredMesher::process(Mesh& mesh) const
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     log("Removing repeated elements.", 1);   
-    Cleaner::removeRepeatedElements(mesh);
+    RedundancyCleaner::removeRepeatedElements(mesh);
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

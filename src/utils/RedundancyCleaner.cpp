@@ -1,4 +1,4 @@
-#include "Cleaner.h"
+#include "RedundancyCleaner.h"
 
 #include "Geometry.h"
 #include "GridTools.h"
@@ -13,7 +13,7 @@
 namespace meshlib {
 namespace utils {
 
-void Cleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
+void RedundancyCleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (const auto& g : m.groups) {
@@ -34,7 +34,7 @@ void Cleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void Cleaner::removeRepeatedElements(Mesh& m)
+void RedundancyCleaner::removeRepeatedElements(Mesh& m)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (const auto& g : m.groups) {
@@ -58,7 +58,7 @@ void Cleaner::removeRepeatedElements(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void Cleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
+void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (auto const& g : m.groups) {
@@ -73,7 +73,7 @@ void Cleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Elem
     removeElements(m, toRemove);
 }
 
-Elements Cleaner::findDegenerateElements_(
+Elements RedundancyCleaner::findDegenerateElements_(
     const Group& g,
     const Coordinates& coords)
 {
@@ -89,7 +89,7 @@ Elements Cleaner::findDegenerateElements_(
     return res;
 }
 
-void Cleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const double& areaThreshold) 
+void RedundancyCleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const double& areaThreshold) 
 {
     const std::size_t MAX_NUMBER_OF_ITERATION = 1000;
     bool degeneratedTrianglesFound = true;
@@ -159,7 +159,7 @@ void Cleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const double& are
     }
 }
 
-void Cleaner::fuseCoords(Mesh& mesh) 
+void RedundancyCleaner::fuseCoords(Mesh& mesh) 
 {
     fuseCoords_(mesh);
     removeElementsWithCondition(mesh, [&](const Element& e) {
@@ -167,7 +167,7 @@ void Cleaner::fuseCoords(Mesh& mesh)
     });
 }
 
-void Cleaner::cleanCoords(Mesh& output) 
+void RedundancyCleaner::cleanCoords(Mesh& output) 
 {
     const std::size_t& numStrCoords = output.coordinates.size();
 
@@ -201,7 +201,7 @@ void Cleaner::cleanCoords(Mesh& output)
     
 }
 
-void Cleaner::fuseCoords_(Mesh& msh) 
+void RedundancyCleaner::fuseCoords_(Mesh& msh) 
 {
     std::map<Coordinate, IdSet> posIds;
     for (GroupId g = 0; g < msh.groups.size(); g++) {
@@ -227,7 +227,7 @@ void Cleaner::fuseCoords_(Mesh& msh)
     }
 }
 
-void Cleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 
+void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 
 {
     for (GroupId gId = 0; gId < mesh.groups.size(); gId++) {
         Elements& elems = mesh.groups[gId].elements;

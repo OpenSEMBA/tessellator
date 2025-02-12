@@ -8,7 +8,7 @@
 namespace meshlib {
 namespace utils {
 
-class Cleaner {
+class RedundancyCleaner {
 public:
     static void cleanCoords(Mesh&);
     static void fuseCoords(Mesh&);

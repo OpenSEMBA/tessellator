@@ -1,13 +1,13 @@
 message(STATUS "Creating build system for tessellator-utils")
 
 add_library(tessellator-utils
-    "Cleaner.cpp"
     "ConvexHull.cpp"
     "CoordGraph.cpp"
     "ElemGraph.cpp"
     "Geometry.cpp"
     "GridTools.cpp"
     "MeshTools.cpp"
+    "RedundancyCleaner.cpp"
     "Tools.cpp"
 )
 

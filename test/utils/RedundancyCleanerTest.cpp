@@ -2,14 +2,14 @@
 #include "gtest/gtest.h"
 #include <cmath>
 
-#include "Cleaner.h"
+#include "RedundancyCleaner.h"
 #include "MeshFixtures.h"
 
 namespace meshlib::utils {
 
 using namespace meshFixtures;
 
-class CleanerTest : public ::testing::Test {
+class RedundancyCleanerTest : public ::testing::Test {
 public:
 	static std::size_t countDifferent(const Coordinates& cs)
 	{
@@ -17,19 +17,19 @@ public:
 	}
 };
 
-TEST_F(CleanerTest, removeRepeatedElements)
+TEST_F(RedundancyCleanerTest, removeRepeatedElements)
 {
 	auto m{ buildCubeSurfaceMesh(1.0) };
 	
 	auto r{ m };
 	r.groups[0].elements.push_back(m.groups[0].elements.back());
 
-	Cleaner::removeRepeatedElements(r);
+	RedundancyCleaner::removeRepeatedElements(r);
 
 	EXPECT_EQ(m, r);
 }
 
-TEST_F(CleanerTest, removeRepeatedElements_with_indices_rotated)
+TEST_F(RedundancyCleanerTest, removeRepeatedElements_with_indices_rotated)
 {
 	auto m{ buildCubeSurfaceMesh(1.0) };
 
@@ -38,12 +38,12 @@ TEST_F(CleanerTest, removeRepeatedElements_with_indices_rotated)
 	auto& e = r.groups[0].elements.back();
 	std::rotate(e.vertices.begin(), e.vertices.begin() + 1, e.vertices.end());
 
-	Cleaner::removeRepeatedElements(r);
+	RedundancyCleaner::removeRepeatedElements(r);
 
 	EXPECT_EQ(m, r);
 }
 
-TEST_F(CleanerTest, testRemoveRepeatedLinesFromSameGroup)
+TEST_F(RedundancyCleanerTest, testRemoveRepeatedLinesFromSameGroup)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);
@@ -60,7 +60,7 @@ TEST_F(CleanerTest, testRemoveRepeatedLinesFromSameGroup)
 		Element({0, 1}, Element::Type::Line),
 	};
 
-	Cleaner::removeRepeatedElements(m);
+	RedundancyCleaner::removeRepeatedElements(m);
 
 	EXPECT_EQ(m.coordinates.size(), 2);
 	EXPECT_EQ(m.groups.size(), 2);
@@ -68,7 +68,7 @@ TEST_F(CleanerTest, testRemoveRepeatedLinesFromSameGroup)
 	EXPECT_EQ(m.groups[1].elements.size(), 1);
 }
 
-TEST_F(CleanerTest, testDoNotRemoveOppositeLines)
+TEST_F(RedundancyCleanerTest, testDoNotRemoveOppositeLines)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);
@@ -84,12 +84,12 @@ TEST_F(CleanerTest, testDoNotRemoveOppositeLines)
 
 	auto resultMesh{ m };
 
-	Cleaner::removeRepeatedElements(resultMesh);
+	RedundancyCleaner::removeRepeatedElements(resultMesh);
 
 	EXPECT_EQ(resultMesh, m);
 }
 
-TEST_F(CleanerTest, removeElementsWithCondition)
+TEST_F(RedundancyCleanerTest, removeElementsWithCondition)
 {
 	Mesh m;
 	m.coordinates = {
@@ -109,7 +109,7 @@ TEST_F(CleanerTest, removeElementsWithCondition)
 	
 	{
 		Mesh r = m;
-		Cleaner::removeElementsWithCondition(r, [](auto e) {return e.isNone(); });
+		RedundancyCleaner::removeElementsWithCondition(r, [](auto e) {return e.isNone(); });
 
 		EXPECT_EQ(3, m.groups[0].elements.size());
 		EXPECT_EQ(2, r.groups[0].elements.size());
@@ -118,7 +118,7 @@ TEST_F(CleanerTest, removeElementsWithCondition)
 
 	{
 		Mesh r = m;
-		Cleaner::removeElementsWithCondition(
+		RedundancyCleaner::removeElementsWithCondition(
 			r, [](auto e) {return e.isLine() || e.isNone(); });
 
 		EXPECT_EQ(3, m.groups[0].elements.size());
