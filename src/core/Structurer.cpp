@@ -77,7 +77,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Coo
         auxiliarMesh.coordinates,
         coordinateIdsByCellSurface);
 
-    if(auxiliarMesh.coordinates.size() == 6 && processedEdges.elements.size() == 6 && coordinateIdsByCellSurface.size() == 0){
+    if(auxiliarMesh.coordinates.size() == 6 && coordinateIdsByCellSurface.size() == 0){
         coordinateIdsByCellSurface.clear();
         idSetByCellSurface.clear();
 

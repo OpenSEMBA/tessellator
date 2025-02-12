@@ -1884,14 +1884,44 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
     //    / ⎹| \          /  |          / ⫽//║|           /  |   
     //  z/  ⎹|  \        /   |          z⫽///║V <-       /   |   
     //  *---⎹┼---⍀-----*    |  ->  {0.66->2}======={0.33->1}|    
-    //  |   {2}y  \     ⎸    |          ║\\\\\\\\\\\\\\\║    |   
+    //  |   {2}y  \     |    |          ║\\\\\\\\\\\\\\\║    |   
     //  |    *-----⍀---┼----*    {2->4}║\\\\\\\\\\\\\\\╟=={2.5->5}     
     //  |   /  ⟍    \   ⎸   /           ║\\\\\\\\\\\\\\\║///⫽    
     //  |  /      ⟍  \  ⎸  /            ║\\\\\\\\\\\\\\\║//⫽ /
     //  | /         ⟍ \ ⎸ /             ║\\\\\\\\\\\\\\\║/⫽ ⩗  
     //  |/            ⟍\⎸/              ║\\\\\\\\\\\\\\\║⫽     
     //  *--------------{0} x           {6}============={0} x   
-    //                                                              
+    //                                                                                                             
+    //                                            <-                
+    // T3    *---------------*           {0.66->2}-----------*    
+    //      /|        /     /|              ⫽║              /⎸    
+    //     / |       /     / |           ⩘ ⫽/║             / ⎸
+    //    /  |      /     /  |          / ⫽//║|           /  ⎸   
+    //  z/   |    {0}----/   |          z⫽///║V <-       /   ⎸   
+    //  *----┼---⌿┼-----*   |  ->  {0.33->1}=========={0}   |    
+    //  |    |y /  ⎸    |    |          ║\\\\\\\\\\\\\\\║    |   
+    //  |    *-{1}┼-----┼----*    {1->3}║\\\\\\\\\\\\\\\╟={1.33->4}     
+    //  |   /   \ ⎸     |   /           ║\\\\\\\\\\\\\\\║///⫽    
+    //  |  /    {2}-----┼--/            ║\\\\\\\\\\\\\\\║//⫽ /
+    //  | /             | /             ║\\\\\\\\\\\\\\\║/⫽ ⩗  
+    //  |/              |/              ║\\\\\\\\\\\\\\\║⫽     
+    //  *-------------- * x           {6}============{1.66->5} x   
+    //                                                                                                             
+    //                                                   <-                
+    // T4    *--{2}----------*                 {1->3}========={0.66->2} 
+    //      /|   ║          /|                   ⫽///////////////⫽|    
+    //     / |  ||         / |                  ⫽///////////////⫽ |
+    //    /  | | |        /  |                 ⫽///////////////⫽ ⩘|   
+    //  z/   |⎹  |       /   |               z⫽///////////////⫽ / |   
+    //  *----{1}-┼------*    |  ->       |  {6}========={0.33->1} ⎹    
+    //  |   y||   ⎸     |    |           V   ║\\\\\\\\\\\\\\\║    ⎹   
+    //  |    *-┼--┼-----┼----*      {1.33->4}║\\\\\\\\\\\\\\\╟----*     
+    //  |   /   | |     |   /           /    ║\\\\\\\\\\\\\\\║^  /    
+    //  |  /     ||     |  /           ⩗     ║\\\\\\\\\\\\\\\║| / /
+    //  | /       ║     | /                  ║\\\\\\\\\\\\\\\║ / ⩗  
+    //  |/       {0}----┼/                   ║\\\\\\\\\\\\\\\║/     
+    //  *-------------- * x            {1.66->5}============={0} x   
+    //                                         ->                     
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1902,31 +1932,38 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
-        Coordinate({ 0.7321, 0.0,    1.0    }),    // 0 First Triangle, First Point
-        Coordinate({ 0.2887, 1.0,    0.0    }),    // 1 First Triangle, Second Point
-        Coordinate({ 0.1547, 1.0,    1.0    }),    // 2 First Triangle, Third Point
-        Coordinate({ 0.2887, 0.0,    0.0    }),    // 3 Second Triangle, First Point
-        Coordinate({ 0.7321, 1.0,    1.0    }),    // 4 Second Triangle, Second Point
-        Coordinate({ 0.1547, 0.0,    1.0    }),    // 5 Second Triangle, Third Point
-        Coordinate({ 1.0,    0.0529, 0.0    }),    // 6 Third Triangle, First Point
-        Coordinate({ 0.0,    0.856,  1.0    }),    // 7 Third Triangle, Second Point
-        Coordinate({ 0.0,    0.9703, 0.1268 }),    // 8 Third Triangle, Third Point
+        Coordinate({ 0.7321, 0.0,    1.0    }),    // 0
+        Coordinate({ 0.2887, 1.0,    0.0    }),    // 1
+        Coordinate({ 0.1547, 1.0,    1.0    }),    // 2
+        Coordinate({ 0.2887, 0.0,    0.0    }),    // 3
+        Coordinate({ 0.7321, 1.0,    1.0    }),    // 4
+        Coordinate({ 0.1547, 0.0,    1.0    }),    // 5
+        Coordinate({ 1.0,    0.0529, 0.0    }),    // 6
+        Coordinate({ 0.0,    0.856,  1.0    }),    // 7
+        Coordinate({ 0.0,    0.9703, 0.1268 }),    // 8
+        Coordinate({ 0.6072, 0.2228, 1.0    }),    // 9
+        Coordinate({ 0.2466, 1.0,    0.0    }),    // 10
+        Coordinate({ 0.4156, 0.722,  0.0    }),    // 11
+        Coordinate({ 0.6072, 0.2228, 0.0    }),    // 12
+        Coordinate({ 0.4156, 0.722,  1.0    }),    // 13
+        Coordinate({ 0.2466, 1.0,    1.0    }),    // 14
     };
-    mesh.groups.resize(3);
-    mesh.groups[0].elements = { Element({0, 1, 2}, Element::Type::Surface) };
-    mesh.groups[1].elements = { Element({3, 4, 5}, Element::Type::Surface) };
-    mesh.groups[2].elements = { Element({6, 7, 8}, Element::Type::Surface) };
+    mesh.groups.resize(5);
+    mesh.groups[0].elements = { Element({0,  1,  2 }, Element::Type::Surface) };
+    mesh.groups[1].elements = { Element({3,  4,  5 }, Element::Type::Surface) };
+    mesh.groups[2].elements = { Element({6,  7,  8 }, Element::Type::Surface) };
+    mesh.groups[3].elements = { Element({9,  10, 11}, Element::Type::Surface) };
+    mesh.groups[4].elements = { Element({12, 13, 14}, Element::Type::Surface) };
 
     Coordinates expectedCoordinates = {
-        Coordinate({ 1.0, 0.0, 1.0 }),    // 0 First and Fourth Quads, First Point, Third Quad, Third Point, 
-                                          //   Fifth Quad, Fourth Point, Sixth Quad, Second Point
-        Coordinate({ 1.0, 1.0, 1.0 }),    // 1 First and Fourth Quads, Second Point, Second Quad, First Point, Fifth Quad, Third Point
-        Coordinate({ 1.0, 1.0, 0.0 }),    // 2 Second and Fifth Quads, Second Point, Seventh Quad, Third Point
-        Coordinate({ 0.0, 1.0, 0.0 }),    // 3 Second and Eigth Quads, Third Point, Seventh Quad, Second Point
-        Coordinate({ 0.0, 1.0, 1.0 }),    // 4 First and Fourth Quads, Third Point, Second Quad, Fourth Point, Eigth Quad, Second Point
-        Coordinate({ 0.0, 0.0, 1.0 }),    // 5 First, Third and Fourth Quads, Fourth Point, Sixth Quad, Third Point, Eigth Quad, First Point
-        Coordinate({ 0.0, 0.0, 0.0 }),    // 6 Third and Seventh Quads, First Point, Sixth and Eigth Quads, Fourth Point
-        Coordinate({ 1.0, 0.0, 0.0 }),    // 7 Third Quad, Second Point, Fifth and Sixth Quads, First Point, Seventh Quad, Fourth Point
+        Coordinate({ 1.0, 0.0, 1.0 }),    // 0
+        Coordinate({ 1.0, 1.0, 1.0 }),    // 1
+        Coordinate({ 1.0, 1.0, 0.0 }),    // 2
+        Coordinate({ 0.0, 1.0, 0.0 }),    // 3
+        Coordinate({ 0.0, 1.0, 1.0 }),    // 4
+        Coordinate({ 0.0, 0.0, 1.0 }),    // 5
+        Coordinate({ 0.0, 0.0, 0.0 }),    // 6
+        Coordinate({ 1.0, 0.0, 0.0 }),    // 7        
     };
 
     std::vector<Elements> expectedElements = {
@@ -1943,6 +1980,16 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
             Element({7, 0, 5, 6}, Element::Type::Surface),  // (0, 1, 2, 6)
             Element({6, 3, 2, 7}, Element::Type::Surface),  // (6, 4, 5, 0)
             Element({5, 4, 3, 6}, Element::Type::Surface),  // (2, 3, 4, 6)
+        },
+        {
+            Element({0, 5, 6, 7}, Element::Type::Surface),  // (0, 1, 6, 5)
+            Element({5, 4, 3, 6}, Element::Type::Surface),  // (1, 2, 3, 6)
+            Element({3, 2, 7, 6}, Element::Type::Surface),  // (3, 4, 5, 6)
+        },
+        {
+            Element({7, 0, 5, 6}, Element::Type::Surface),  // (0, 1, 6, 5)
+            Element({0, 1, 4, 5}, Element::Type::Surface),  // (1, 2, 3, 6)
+            Element({4, 3, 6, 5}, Element::Type::Surface),  // (3, 4, 5, 6)
         },
     };
 

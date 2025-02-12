@@ -18,3 +18,4 @@ testData/*_out.stl
 *_out.stl
 tmp_*.vtp
 CMakeUserPresets.json
+*.Identifier
