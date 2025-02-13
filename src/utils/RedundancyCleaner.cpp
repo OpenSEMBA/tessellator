@@ -58,6 +58,40 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
     removeElements(m, toRemove);
 }
 
+void RedundancyCleaner::removeOverlappedElementsForLineMeshing(Mesh & mesh)
+{
+    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+
+    for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
+        auto & group = mesh.groups[g];
+        std::set<CoordinateId> usedCoordinates;
+        std::vector<ElementId> nodesToCheck;
+
+        for (std::size_t e = 0; e < group.elements.size(); ++e){
+            auto& element = group.elements[e];
+            if(element.isLine()){
+                usedCoordinates.insert(element.vertices[0]);
+                usedCoordinates.insert(element.vertices[1]);
+            }
+            else if (element.isNode()){
+                nodesToCheck.push_back(e);
+            }
+        }
+
+        for(auto e : nodesToCheck){
+            auto & node = group.elements[e];
+            if (usedCoordinates.count(node.vertices[0]) == 0){
+                usedCoordinates.insert(node.vertices[0]);
+            }
+            else{
+                toRemove[g].insert(e);
+            }
+        }
+    }
+
+    removeElements(mesh, toRemove);
+}
+
 void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());

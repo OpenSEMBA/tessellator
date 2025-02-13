@@ -68,6 +68,106 @@ TEST_F(RedundancyCleanerTest, testRemoveRepeatedLinesFromSameGroup)
 	EXPECT_EQ(m.groups[1].elements.size(), 1);
 }
 
+
+TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsContainedWithinLines)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(0.2);
+	m.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}), // 0
+		Coordinate({0.0, 1.0, 0.0}), // 1
+		Coordinate({1.0, 1.0, 0.0}), // 2
+		Coordinate({1.0, 0.0, 0.0}), // 3
+		Coordinate({0.0, 0.0, 1.0}), // 4
+		Coordinate({0.0, 1.0, 1.0}), // 5
+		Coordinate({1.0, 1.0, 1.0}), // 6
+		Coordinate({1.0, 0.0, 1.0}), // 7
+	};
+	m.groups.resize(3);
+	m.groups[0].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({4}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({7, 6}, Element::Type::Line),
+		
+	};
+	m.groups[1].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+	};
+	m.groups[2].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({0}, Element::Type::Node),
+	};
+
+	Coordinates expectedCoordinates{m.coordinates};
+
+	std::vector<Elements> expectedElementsList = {
+		{
+			Element({4}, Element::Type::Node),
+			Element({5}, Element::Type::Node),
+			Element({0, 1}, Element::Type::Line),
+			Element({2, 3}, Element::Type::Line),
+			Element({3, 2}, Element::Type::Line),
+			Element({7, 6}, Element::Type::Line),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2, 3}, Element::Type::Line),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+		}
+	};
+
+	RedundancyCleaner::removeOverlappedElementsForLineMeshing(m);
+
+	EXPECT_EQ(m.coordinates.size(), expectedCoordinates.size());
+	ASSERT_EQ(m.groups.size(), expectedElementsList.size());
+
+	for(std::size_t index = 0; index < m.coordinates.size(); ++index){
+		const auto & resultCoordinate = m.coordinates[index];
+		const auto & expectedCoordinate = expectedCoordinates[index];
+
+		for(Axis axis = X; axis <= Z; ++axis){
+			EXPECT_FLOAT_EQ(resultCoordinate[axis], expectedCoordinate[axis]) << "Current Coordinate: #" << index << std::endl;
+		}
+	}
+
+	for(std::size_t g = 0; g < m.groups.size(); ++g){
+		const auto & resultElements = m.groups[g].elements;
+		const auto & expectedElements = expectedElementsList[g];
+
+		ASSERT_EQ(resultElements.size(), expectedElements.size()) << "Current Group: #" << g << std::endl;
+
+		for(std::size_t e = 0; e < resultElements.size(); ++e){
+			const auto & resultElement = resultElements[e];
+			const auto & expectedElement = expectedElements[e];
+			
+			EXPECT_EQ(resultElement.type, expectedElement.type);
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
+
+			for(std::size_t v = 0; v < resultElement.vertices.size(); ++v){
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl
+				<< "Current Vertex: #" << v << std::endl;
+			}
+		}
+	}
+}
+
 TEST_F(RedundancyCleanerTest, testDoNotRemoveOppositeLines)
 {
 	Mesh m;
