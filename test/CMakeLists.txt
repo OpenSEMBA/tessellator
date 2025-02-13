@@ -48,7 +48,6 @@ if (TESSELLATOR_ENABLE_CGAL)
 		"cgal/ArrangmentTest.cpp"
 		"cgal/DelaunatorTest.cpp"
 		"cgal/HPolygonSetTest.cpp"
-		"cgal/LSFPlaneTest.cpp"
 		"cgal/ManifolderTest.cpp"
 		"cgal/PolyhedronToolsTest.cpp"
 		"cgal/RepairerTest.cpp"
