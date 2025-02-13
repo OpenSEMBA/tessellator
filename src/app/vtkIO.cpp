@@ -6,18 +6,30 @@
 #include <vtkTriangle.h>
 #include <vtkQuad.h>
 #include <vtkLine.h>
+#include <vtkVertex.h>
+#include <vtkUnstructuredGrid.h>
 
-#include <vtkPolyDataReader.h>
+#include <vtkAppendFilter.h>
 #include <vtkSTLReader.h>
-#include <vtkXMLPolyDataReader.h>
-#include <vtkXMLPolyDataWriter.h>
+#include <vtkUnstructuredGridReader.h>
+#include <vtkPolyDataReader.h>
+
+#include <vtkUnstructuredGridWriter.h>
 
 const char* GROUPS_TAG_NAME = "group";
 
 namespace meshlib::vtkIO
 {
 
-vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::filesystem::path& filename)
+vtkSmartPointer<vtkUnstructuredGrid> vtkPolyDataToVTU(vtkPolyData* polyData)
+{
+    vtkNew<vtkAppendFilter> appendFilter;
+    appendFilter->AddInputData(polyData);
+    appendFilter->Update();
+    return appendFilter->GetOutput();
+}
+
+vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& filename)
 {
     std::string fn = filename.string();
     // Check if file can be accessed.
@@ -30,38 +42,32 @@ vtkSmartPointer<vtkPolyData> readVTKPolyData(const std::filesystem::path& filena
         }
     } 
 
-    vtkSmartPointer<vtkPolyData> polyData;
+    vtkSmartPointer<vtkUnstructuredGrid> vtu;
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
 
-    // Drop the case of the extension
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);
 
-
-    
-    if (extension == ".vtp")
-    {
-        vtkNew<vtkXMLPolyDataReader> reader;
-        reader->SetFileName(fn.c_str());
-        reader->Update();
-        polyData = reader->GetOutput();
-    }
-    else if (extension == ".stl")
-    {
+    if (extension == ".stl") {
         vtkNew<vtkSTLReader> reader;
         reader->SetFileName(fn.c_str());
         reader->Update();
-        polyData = reader->GetOutput();
-    }
-    else if (extension == ".vtk")
-    {
+        vtu = vtkPolyDataToVTU(reader->GetOutput());
+    } else if (extension == ".vtk") {
         vtkNew<vtkPolyDataReader> reader;
         reader->SetFileName(fn.c_str());
         reader->Update();
-        polyData = reader->GetOutput();
+        vtu = vtkPolyDataToVTU(reader->GetOutput());
+    } else if (extension == ".vtu") {
+        vtkNew<vtkUnstructuredGridReader> reader;
+        reader->SetFileName(fn.c_str());
+        reader->Update();
+        vtu = reader->GetOutput();
 
+    } else {
+        throw std::runtime_error("Unsupported file format");
     }
-    return polyData;
+    return vtu;
 }
 
 Element vtkCellToElement(vtkCell* cell)
@@ -79,52 +85,52 @@ Element vtkCellToElement(vtkCell* cell)
     return elem;
 }
 
-Mesh vtkPolydataToMesh(vtkPolyData* polyData)
+Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
 {
     Mesh mesh;
     
-    mesh.coordinates.reserve(polyData->GetNumberOfPoints());
-    for (vtkIdType i = 0; i < polyData->GetNumberOfPoints(); i++)
+    mesh.coordinates.reserve(vtu->GetNumberOfPoints());
+    for (vtkIdType i = 0; i < vtu->GetNumberOfPoints(); i++)
     {
         double p[3];
-        polyData->GetPoint(i, p);
+        vtu->GetPoint(i, p);
         Coordinate coord({p[0], p[1], p[2]});
         mesh.coordinates.push_back(coord);
     }
 
-    if (polyData->GetCellData()->HasArray(GROUPS_TAG_NAME)) {
+    if (vtu->GetCellData()->HasArray(GROUPS_TAG_NAME)) {
         vtkIntArray* groupsDataArray = 
-            vtkIntArray::SafeDownCast(polyData->GetCellData()->GetArray(GROUPS_TAG_NAME));
+            vtkIntArray::SafeDownCast(vtu->GetCellData()->GetArray(GROUPS_TAG_NAME));
         mesh.groups.resize(groupsDataArray->GetRange()[1] + 1);
-        for (vtkIdType i = 0; i < polyData->GetNumberOfCells(); i++) {
+        for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             auto g = groupsDataArray->GetValue(i);
             mesh.groups[g].elements.push_back(
-                vtkCellToElement(polyData->GetCell(i)));
+                vtkCellToElement(vtu->GetCell(i)));
         }
     } else {
         mesh.groups.resize(1);
-        mesh.groups[0].elements.reserve(polyData->GetNumberOfCells());
-        for (vtkIdType i = 0; i < polyData->GetNumberOfCells(); i++) {
+        mesh.groups[0].elements.reserve(vtu->GetNumberOfCells());
+        for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             mesh.groups[0].elements.push_back(
-                vtkCellToElement(polyData->GetCell(i)));
+                vtkCellToElement(vtu->GetCell(i)));
         }
     }
 
     return mesh;
 }
 
-// Assumes coordinates are absolute (not relative to the grid).
-vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
+vtkSmartPointer<vtkPoints> toVTKPoints(const std::vector<Coordinate>& coordinates)
 {
-    vtkNew<vtkPolyData> polyData;
-
     vtkNew<vtkPoints> points;
-    points->Allocate(mesh.coordinates.size());
-    for (const auto& coord : mesh.coordinates) {
+    points->Allocate(coordinates.size());
+    for (const auto& coord : coordinates) {
         points->InsertNextPoint(coord[0], coord[1], coord[2]);
     }
-    polyData->SetPoints(points);
+    return points;
+}   
 
+vtkSmartPointer<vtkIntArray> toVTKGroupsArray(const Mesh& mesh)
+{
     vtkNew<vtkIntArray> groupsDataArray;
     for (auto g = 0; g < mesh.groups.size(); g++) {
         for (auto e = 0; e < mesh.groups[g].elements.size(); e++) {
@@ -132,23 +138,35 @@ vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
         }
     }
     groupsDataArray->SetName(GROUPS_TAG_NAME);
-    polyData->GetCellData()->AddArray(groupsDataArray);
+    return groupsDataArray;
+}
 
+vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
+{
+    vtkNew<vtkUnstructuredGrid> vtu;
+
+    vtu->SetPoints(toVTKPoints(mesh.coordinates));
+    vtu->GetCellData()->AddArray(toVTKGroupsArray(mesh));
+
+    std::vector<int> cellTypes;
+    cellTypes.reserve(mesh.countElems());
     vtkNew<vtkCellArray> vtkCells;
     vtkCells->Allocate(mesh.countElems());
     for (const auto& group : mesh.groups) {
         for (const auto& elem : group.elements) {
             vtkSmartPointer<vtkCell> cell;
             if (elem.isTriangle()) {
+                cellTypes.push_back(VTK_TRIANGLE);
                 cell = vtkSmartPointer<vtkTriangle>::New();
             } else if (elem.isQuad()) {
+                cellTypes.push_back(VTK_QUAD);
                 cell = vtkSmartPointer<vtkQuad>::New();
             } else if (elem.isLine()) {
-                // cell = vtkSmartPointer<vtkLine>::New();
-                continue;
+                cellTypes.push_back(VTK_LINE);
+                cell = vtkSmartPointer<vtkLine>::New();
             } else if (elem.isNode()) {
-                // cell = vtkSmartPointer<vtkVertex>::New();
-                continue;
+                cellTypes.push_back(VTK_VERTEX);
+                cell = vtkSmartPointer<vtkVertex>::New();
             } else {
                 throw std::runtime_error("Unsupported element type");
             }
@@ -159,14 +177,15 @@ vtkSmartPointer<vtkPolyData> meshElementsToVTKPolydata(const Mesh& mesh)
             vtkCells->InsertNextCell(cell);
         }
     }
-    polyData->SetPolys(vtkCells);
 
-    return polyData;
+    vtu->SetCells(cellTypes.data(), vtkCells);
+
+    return vtu;
 }
 
-vtkSmartPointer<vtkPolyData> gridToVTKPolydata(const Grid& grid)
+vtkSmartPointer<vtkUnstructuredGrid> gridToVTKUnstructured(const Grid& grid)
 {
-    vtkNew<vtkPolyData> polyData;
+    vtkNew<vtkUnstructuredGrid> vtu;
 
     using bound = std::array<double,2>;
     std::array<bound,3> bbox = {
@@ -199,40 +218,39 @@ vtkSmartPointer<vtkPolyData> gridToVTKPolydata(const Grid& grid)
             vtkCells->InsertNextCell(quad);
         }
     }
-    polyData->SetPoints(points);
-    polyData->SetPolys(vtkCells);
+    vtu->SetPoints(points);
+    vtu->SetCells(VTK_QUAD, vtkCells);
 
-    return polyData;
+    return vtu;
 }
 
 Mesh readMeshGroups(const std::filesystem::path& filename)
 {
-    vtkSmartPointer<vtkPolyData> polyData = readVTKPolyData(filename);
-    return vtkPolydataToMesh(polyData);
+    vtkSmartPointer<vtkUnstructuredGrid> vtu = readAsVTU(filename);
+    return vtuToMesh(vtu);
 }
 
-void exportVTKPolyDataToVTP(const std::filesystem::path& filename, const vtkSmartPointer<vtkPolyData>& polyData)
+void exportToVTU(const std::filesystem::path& filename, const vtkSmartPointer<vtkUnstructuredGrid>& vtu)
 {
     std::string fn = filename.string();
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
-    if (extension != ".vtp") {
-        throw std::runtime_error("Only vtp files are supported for writing");
+    if (extension != ".vtu") {
+        throw std::runtime_error("Extension must be .vtu");
     }
-    vtkNew<vtkXMLPolyDataWriter> writer;
-    writer->SetDataModeToAscii();
+    vtkNew<vtkUnstructuredGridWriter> writer;
     writer->SetFileName(fn.c_str());
-    writer->SetInputData(polyData);
+    writer->SetInputData(vtu);
     writer->Write();
 }
 
-void exportMeshToVTP(const std::filesystem::path& fn, const Mesh& mesh)
+void exportMeshToVTU(const std::filesystem::path& fn, const Mesh& mesh)
 {
-    exportVTKPolyDataToVTP(fn, meshElementsToVTKPolydata(mesh));
+    exportToVTU(fn, elementsToVTU(mesh));
 }
 
-void exportGridToVTP(const std::filesystem::path& fn, const Grid& grid)
+void exportGridToVTU(const std::filesystem::path& fn, const Grid& grid)
 {
-    exportVTKPolyDataToVTP(fn, gridToVTKPolydata(grid));
+    exportToVTU(fn, gridToVTKUnstructured(grid));
 }
 
 

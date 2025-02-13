@@ -9,17 +9,6 @@ class VTKIOTest : public ::testing::Test
 {
 };
 
-TEST_F(VTKIOTest, readsMeshFromVTK)
-{
-    std::string fn{"testData/alhambra.vtk"};
-    
-    auto m{ readMeshGroups(fn) };
-
-    EXPECT_EQ(m.coordinates.size(), 584);
-    EXPECT_EQ(m.groups.size(), 1);
-    EXPECT_EQ(m.countElems(), 1284);
-}
-
 TEST_F(VTKIOTest, readMeshFromSTL)
 {
     std::string fn{"testData/alhambra.stl"};
@@ -31,27 +20,37 @@ TEST_F(VTKIOTest, readMeshFromSTL)
     EXPECT_EQ(m.countElems(), 1284);
 }
 
-TEST_F(VTKIOTest, exportMeshToVTP)
+TEST_F(VTKIOTest, readMeshFromVTK)
 {
-    auto mesh{ readMeshGroups("testData/alhambra.vtk") };
+    std::string fn{"testData/alhambra.vtk"};
     
-    std::string fn{"tmp_exported_alhambra.vtp"};
-    exportMeshToVTP(fn, mesh);
+    auto m{ readMeshGroups(fn) };
 
-    auto exported{ readMeshGroups(fn) };
-
-    EXPECT_EQ(exported, mesh);
+    EXPECT_EQ(m.coordinates.size(), 584);
+    EXPECT_EQ(m.groups.size(), 1);  
+    EXPECT_EQ(m.countElems(), 1284);
 }
 
-TEST_F(VTKIOTest, exportGridToVTP)
+TEST_F(VTKIOTest, exportAndReadMeshFromVTU)
+{
+    auto mSTL{ readMeshGroups("testData/alhambra.stl") };
+    exportMeshToVTU("tmp_exported_alhambra.vtu", mSTL);
+    auto mVTU{ readMeshGroups("tmp_exported_alhambra.vtu") };
+
+    EXPECT_EQ(mSTL.coordinates.size(), mVTU.coordinates.size());
+    EXPECT_EQ(mSTL.groups.size(), mVTU.groups.size());  
+    EXPECT_EQ(mSTL.countElems(), mVTU.countElems());
+}
+
+TEST_F(VTKIOTest, exportGridToVTU)
 {
     meshlib::Grid grid;
     grid[0] = meshlib::utils::GridTools::linspace(-60, 60, 121);
     grid[1] = meshlib::utils::GridTools::linspace(-60, 60, 121);
     grid[2] = meshlib::utils::GridTools::linspace(-10, 10, 21);
 
-    std::string fn{"tmp_exported_grid.vtp"};
-    exportGridToVTP(fn, grid);
+    std::string fn{"tmp_exported_grid.vtu"};
+    exportGridToVTU(fn, grid);
 
     auto exported{ readMeshGroups(fn) };
 
