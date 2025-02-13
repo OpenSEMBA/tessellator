@@ -67,8 +67,8 @@ void StructuredMesher::process(Mesh& mesh) const
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
-    log("Removing repeated elements.", 1);   
-    RedundancyCleaner::removeRepeatedElements(mesh);
+    log("Removing repeated and overlapping elements.", 1);   
+    RedundancyCleaner::removeOverlappedElementsForSurfaceMeshing(mesh);
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

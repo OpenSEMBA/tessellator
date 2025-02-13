@@ -117,10 +117,15 @@ void RedundancyCleaner::removeOverlappedElementsForSurfaceMeshing(Mesh & mesh)
             if(element.isQuad()){
                 if (usedCoordinatesFromSurface.count(vIds) == 0){
                     usedCoordinatesFromSurface.insert(vIds);
-                    for (std::size_t v = 0; v < vIds.size() - 1; ++v){
-                        usedCoordinatePairsFromSurface.insert({vIds[v], vIds[(v + 1)]});
+                    for (std::size_t v = 0; v < vIds.size(); ++v){
+                        auto firstCoordinateId = vIds[v];
+                        auto secondCoordinateId = vIds[(v + 1) % vIds.size()];
+
+                        if (secondCoordinateId < firstCoordinateId){
+                            std::swap(firstCoordinateId, secondCoordinateId);
+                        }
+                        usedCoordinatePairsFromSurface.insert({firstCoordinateId, secondCoordinateId});
                     }
-                    usedCoordinatePairsFromSurface.insert({vIds[0], vIds[3]});
                 }
                 else{
                     toRemove[g].insert(e);

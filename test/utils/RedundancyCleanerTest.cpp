@@ -223,6 +223,7 @@ TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsWhenSurfaceMeshing)
 	};
 	m.groups[5].elements = {
 		Element({3, 0}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
 		Element({5, 6}, Element::Type::Line),
 		Element({4, 7}, Element::Type::Line),
 		Element({0, 1, 2, 3}, Element::Type::Surface),
