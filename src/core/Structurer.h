@@ -10,34 +10,39 @@ public:
     Structurer(const Mesh&);
     Mesh getMesh() const { return mesh_; };
 
-    Cell calculateStructuredCell(const Coordinate& relativeCoordinate) const;
+    Cell calculateStructuredCell(const Relative& relative) const;
 
 private:
     Mesh mesh_;
 
-    void processTriangleAndAddToGroup(const Element& triangle, const Coordinates& originalRelativeCoordinates, Group& group);
+    void processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group);
     void processLineAndAddToGroup(
         const Element& line,
-        const Coordinates& originalRelativeCoordinates,
-        Coordinates& resultCoordinates,
+        const Relatives& originalRelatives,
+        Relatives& resultRelatives,
         Group& group
     );
-    bool isEdgePartOfCellSurface(const Element& edge, const CoordinateIds &surfaceCoordinateIds) const;
-    bool isPureDiagonal(const Element& edge, const Coordinates& coordinates);
+    bool isEdgePartOfCellSurface(const Element& edge, const RelativeIds &surfaceRelativeIds) const;
+    bool isPureDiagonal(const Element& edge, const Relatives& relatives);
     bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;
-    void filterSurfacesFromCoordinateIds(
-        const CoordinateIds& triangleVertices,
+    void filterSurfacesFromRelativeIds(
+        const RelativeIds& triangleVertices,
         int pureDiagonalIndex,
-        const Coordinates& originalRelativeCoordinates,
+        const Relatives& originalRelatives,
         const std::map<Surfel, IdSet>& idSetByCellSurface,
-        Coordinates& structuredCoordinates,
-        std::map<Surfel, CoordinateIds>& coordinateIdsByCellSurface
+        Relatives& structuredRelatives,
+        std::map<Surfel, RelativeIds>& relativeIdsByCellSurface
     );
+    void addNewRelativeToGroupUsingBarycentre(
+        const RelativeIds& triangleVertices,
+        const Relatives& originalRelatives,
+        Relatives& structuredRelatives,
+        Group& group);
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
-    std::vector<Cell> calculateMiddleCellsBetweenTwoCoordinates(Coordinate& startExtreme, Coordinate& endExtreme);
-    void calculateCoordinateIdSetByCellSurface(const Coordinates& coordinates, std::map<Surfel, IdSet>& coordinatesByCellSurface);
+    std::vector<Cell> calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme);
+    void calculateRelativeIdSetByCellSurface(const Relatives& relatives, std::map<Surfel, IdSet>& relativesByCellSurface);
 };
 
 
