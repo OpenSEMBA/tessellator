@@ -17,6 +17,7 @@ public:
     static void removeRepeatedElements(Mesh&);
     static void removeRepeatedElementsIgnoringOrientation(Mesh&);
     static void removeOverlappedElementsForLineMeshing(Mesh&);
+    static void removeOverlappedElementsForSurfaceMeshing(Mesh&);
     static void removeElements(Mesh&, const std::vector<IdSet>&);
 private:
     static void fuseCoords_(Mesh&);

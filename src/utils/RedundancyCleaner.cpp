@@ -92,6 +92,94 @@ void RedundancyCleaner::removeOverlappedElementsForLineMeshing(Mesh & mesh)
     removeElements(mesh, toRemove);
 }
 
+void RedundancyCleaner::removeOverlappedElementsForSurfaceMeshing(Mesh & mesh)
+{
+    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+
+    for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
+        auto & group = mesh.groups[g];
+
+        std::set<CoordinateIds> usedCoordinatesFromSurface;
+        std::set<CoordinateIds> usedCoordinatePairsFromSurface;
+        std::set<CoordinateId> usedCoordinates;
+        std::vector<ElementId> linesToCheck;
+        std::vector<ElementId> nodesToCheck;
+
+        for (std::size_t e = 0; e < group.elements.size(); ++e){
+            auto& element = group.elements[e];
+            CoordinateIds vIds{ element.vertices };
+            if(vIds.size() >= 2){
+                std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
+                for (std::size_t v = 0; v < vIds.size(); ++v){
+                    usedCoordinates.insert(vIds[v]);
+                }
+            }
+            if(element.isQuad()){
+                if (usedCoordinatesFromSurface.count(vIds) == 0){
+                    usedCoordinatesFromSurface.insert(vIds);
+                    for (std::size_t v = 0; v < vIds.size() - 1; ++v){
+                        usedCoordinatePairsFromSurface.insert({vIds[v], vIds[(v + 1)]});
+                    }
+                    usedCoordinatePairsFromSurface.insert({vIds[0], vIds[3]});
+                }
+                else{
+                    toRemove[g].insert(e);
+                }
+            }
+            else if (element.isLine()){
+                linesToCheck.push_back(e);
+            }
+            else if (element.isNode()){
+                nodesToCheck.push_back(e);
+            }
+        }
+        
+        std::map<CoordinateIds, ElementId> usedCoordinatePairsFromLine;
+
+        for (auto e : linesToCheck){
+            auto & line = group.elements[e];
+            CoordinateIds vIds{ line.vertices };
+            std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
+
+            if (usedCoordinatePairsFromSurface.count(vIds)){
+                toRemove[g].insert(e);
+            }
+            else if(usedCoordinatePairsFromLine.count(vIds) == 0){
+                    usedCoordinatePairsFromLine.emplace(vIds, e);
+            }
+            else{
+                auto & originalLine = group.elements[usedCoordinatePairsFromLine[vIds]];
+                RelativeDir direction = 0;
+                RelativeDir originalDirection = 0;
+                for (auto axis = X; axis <= Z; ++axis){
+                    direction += mesh.coordinates[line.vertices[1]][axis] - mesh.coordinates[line.vertices[0]][axis];
+                    originalDirection += mesh.coordinates[originalLine.vertices[1]][axis] - mesh.coordinates[originalLine.vertices[0]][axis];
+                }
+
+                if (direction > originalDirection){
+                    toRemove[g].insert(usedCoordinatePairsFromLine[vIds]);
+                    usedCoordinatePairsFromLine[vIds] = e;
+                }
+                else{
+                    toRemove[g].insert(e);
+                }
+            }
+        }
+
+        for(auto e : nodesToCheck){
+            auto & node = group.elements[e];
+            if (usedCoordinates.count(node.vertices[0]) == 0){
+                usedCoordinates.insert(node.vertices[0]);
+            }
+            else{
+                toRemove[g].insert(e);
+            }
+        }
+    }
+
+    removeElements(mesh, toRemove);
+}
+
 void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
