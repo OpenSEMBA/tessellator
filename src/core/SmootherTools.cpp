@@ -2,7 +2,7 @@
 
 #include "utils/CoordGraph.h"
 #include "utils/ElemGraph.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
 

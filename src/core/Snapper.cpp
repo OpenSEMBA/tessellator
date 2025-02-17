@@ -1,7 +1,7 @@
 #include "Snapper.h"
 
 #include "utils/Geometry.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "Collapser.h"
 

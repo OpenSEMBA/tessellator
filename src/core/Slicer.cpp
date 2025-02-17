@@ -1,7 +1,7 @@
 #include "Slicer.h"
 
 #include "utils/Geometry.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/ConvexHull.h"
 
@@ -85,8 +85,8 @@ Slicer::Slicer(const Mesh& input) :
             }
         );
     }
-    Cleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
-    Cleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
+    RedundancyCleaner::fuseCoords(mesh_);
     meshTools::checkNoCellsAreCrossed(mesh_);
 }
 

@@ -1,7 +1,7 @@
 #include "Collapser.h"
 
 #include "utils/Geometry.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
 #include "Collapser.h"
@@ -20,11 +20,11 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces)
         v = v.round(factor);
     }
     
-    Cleaner::fuseCoords(mesh_);
-    Cleaner::cleanCoords(mesh_);
+    RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::cleanCoords(mesh_);
     
-    Cleaner::collapseCoordsInLineDegenerateTriangles(mesh_, 0.4 / (factor * factor));
-    Cleaner::removeRepeatedElements(mesh_);
+    RedundancyCleaner::collapseCoordsInLineDegenerateTriangles(mesh_, 0.4 / (factor * factor));
+    RedundancyCleaner::removeRepeatedElements(mesh_);
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
 

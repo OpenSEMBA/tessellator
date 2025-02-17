@@ -1,7 +1,7 @@
 #include "MeshTools.h"
 
 #include "Tools.h"
-#include "Cleaner.h"
+#include "RedundancyCleaner.h"
 #include "GridTools.h"
 #include "ElemGraph.h"
 
@@ -114,7 +114,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         
     m.grid = nG;
 
-    Cleaner::removeElementsWithCondition(m, [&](const Element&e) {
+    RedundancyCleaner::removeElementsWithCondition(m, [&](const Element&e) {
         for (auto& vId : e.vertices) {
             Coordinate& c = m.coordinates[vId];
             for (std::size_t d = 0; d < 3; d++) {
@@ -128,7 +128,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         return false;
     });
 
-	Cleaner::cleanCoords(m);
+	RedundancyCleaner::cleanCoords(m);
     for (auto& c : m.coordinates) {
         c -= offset;
     }

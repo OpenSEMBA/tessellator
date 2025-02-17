@@ -1,6 +1,6 @@
 #include "Repairer.h"
 
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
 #include "PolyhedronTools.h"
@@ -72,8 +72,8 @@ Mesh repair(const Mesh& m)
         repairGroup(r.coordinates, r.groups[gId], m.coordinates, g);
     }
 
-    Cleaner::fuseCoords(r);
-    Cleaner::cleanCoords(r);
+    RedundancyCleaner::fuseCoords(r);
+    RedundancyCleaner::cleanCoords(r);
 
     return r;
 }

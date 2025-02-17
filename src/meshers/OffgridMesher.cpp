@@ -10,7 +10,7 @@
 #include "cgal/Repairer.h"
 #include "cgal/Manifolder.h"
 
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
 namespace meshlib::meshers {
@@ -121,7 +121,7 @@ Mesh OffgridMesher::mesh() const
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
     
     reduceGrid(res, originalGrid_);
-    Cleaner::cleanCoords(res);
+    RedundancyCleaner::cleanCoords(res);
 
     log("Primal mesh built succesfully.", 1);
     return res;

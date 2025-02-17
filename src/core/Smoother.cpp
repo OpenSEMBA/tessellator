@@ -1,6 +1,6 @@
 #include "Smoother.h"
 
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
 #include "utils/MeshTools.h"
@@ -80,7 +80,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 
     }
     
-    Cleaner::fuseCoords(res);
+    RedundancyCleaner::fuseCoords(res);
     res = buildMeshFilteringElements(res, isTriangle);
     for (auto& g : res.groups) {
         auto aux{ 
@@ -89,7 +89,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
         g.elements.clear();
         g.elements = cgal::polyhedronTools::buildElementsFromPolyhedron(res.coordinates, aux);
     }
-    Cleaner::cleanCoords(res);
+    RedundancyCleaner::cleanCoords(res);
     mesh_ = res;
 
 
@@ -97,7 +97,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     for (auto const& g : mesh_.groups) {
         cs = sT_.collapsePointsOnContour(g.elements, cs, opts_.contourAlignmentAngle);
     }
-    Cleaner::fuseCoords(mesh_);
+    RedundancyCleaner::fuseCoords(mesh_);
 
     meshTools::checkNoCellsAreCrossed(mesh_);
 }

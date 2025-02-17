@@ -1,6 +1,6 @@
 #include "Structurer.h"
 
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 
 namespace meshlib {
 namespace core {
@@ -30,8 +30,8 @@ Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
         }
     }
 
-    Cleaner::fuseCoords(mesh_);
-    Cleaner::cleanCoords(mesh_);
+    RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::cleanCoords(mesh_);
 }
 
 
@@ -61,8 +61,8 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Rel
         }
     }
 
-    Cleaner::fuseCoords(auxiliarMesh);
-    Cleaner::cleanCoords(auxiliarMesh);
+    RedundancyCleaner::fuseCoords(auxiliarMesh);
+    RedundancyCleaner::cleanCoords(auxiliarMesh);
 
     std::map<Surfel, IdSet> idSetByCellSurface;
     std::map<Surfel, RelativeIds> relativeIdsByCellSurface;

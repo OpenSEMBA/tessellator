@@ -8,7 +8,7 @@
 namespace meshlib {
 namespace utils {
 
-class Cleaner {
+class RedundancyCleaner {
 public:
     static void cleanCoords(Mesh&);
     static void fuseCoords(Mesh&);
@@ -16,6 +16,8 @@ public:
     static void collapseCoordsInLineDegenerateTriangles(Mesh&, const double& areaThreshold);
     static void removeRepeatedElements(Mesh&);
     static void removeRepeatedElementsIgnoringOrientation(Mesh&);
+    static void removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh&);
+    static void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh&);
     static void removeElements(Mesh&, const std::vector<IdSet>&);
 private:
     static void fuseCoords_(Mesh&);

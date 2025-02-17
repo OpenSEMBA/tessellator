@@ -21,13 +21,13 @@ add_executable(tessellator_tests
 	"core/SnapperTest.cpp"
     "core/StructurerTest.cpp"
 	"types/MeshTest.cpp"
-	"utils/CleanerTest.cpp"
 	"utils/ConvexHullTest.cpp"
 	"utils/CoordGraphTest.cpp"
 	"utils/ElemGraphTest.cpp"
 	"utils/GeometryTest.cpp"
 	"utils/GridToolsTest.cpp"
 	"utils/MeshToolsTest.cpp"
+	"utils/RedundancyCleanerTest.cpp"
     "meshers/StructuredMesherTest.cpp"
 )
 

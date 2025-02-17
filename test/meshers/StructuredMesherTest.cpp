@@ -195,10 +195,10 @@ TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
     ASSERT_NO_THROW(out = StructuredMesher(buildTriNonUniformGridMesh(), 4).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
-    EXPECT_EQ(35, out.groups[0].elements.size());
+    EXPECT_EQ(6, out.groups[0].elements.size());
     EXPECT_EQ(4, countMeshElementsIf(out, isQuad));
-    EXPECT_EQ(22, countMeshElementsIf(out, isLine));
-    EXPECT_EQ(9, countMeshElementsIf(out, isNode));
+    EXPECT_EQ(2, countMeshElementsIf(out, isLine));
+    EXPECT_EQ(0, countMeshElementsIf(out, isNode));
 }
 
 
