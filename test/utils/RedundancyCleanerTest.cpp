@@ -129,7 +129,7 @@ TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsContainedWithinLines)
 		}
 	};
 
-	RedundancyCleaner::removeOverlappedElementsForLineMeshing(m);
+	RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(m);
 
 	EXPECT_EQ(m.coordinates.size(), expectedCoordinates.size());
 	ASSERT_EQ(m.groups.size(), expectedElementsList.size());
@@ -299,7 +299,7 @@ TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsWhenSurfaceMeshing)
 		}
 	};
 
-	RedundancyCleaner::removeOverlappedElementsForSurfaceMeshing(m);
+	RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(m);
 
 	EXPECT_EQ(m.coordinates.size(), expectedCoordinates.size());
 	ASSERT_EQ(m.groups.size(), expectedElementsList.size());

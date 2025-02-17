@@ -58,7 +58,7 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void RedundancyCleaner::removeOverlappedElementsForLineMeshing(Mesh & mesh)
+void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh & mesh)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
 
@@ -92,7 +92,7 @@ void RedundancyCleaner::removeOverlappedElementsForLineMeshing(Mesh & mesh)
     removeElements(mesh, toRemove);
 }
 
-void RedundancyCleaner::removeOverlappedElementsForSurfaceMeshing(Mesh & mesh)
+void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh & mesh)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
 
