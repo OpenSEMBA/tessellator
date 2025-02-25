@@ -3,12 +3,22 @@
 #include "cgal/filler/Filler.h"
 #include "types/Mesh.h"
 #include "MesherBase.h"
-#include "OffgridMesherOptions.h"
+#include "core/SnapperOptions.h"
 
-namespace meshlib {
-namespace meshers {
+namespace meshlib::meshers {
 
 using namespace cgal;
+
+class OffgridMesherOptions {
+public:
+    bool forceSlicing = true;
+    bool collapseInternalPoints = true;
+    bool snap = true;
+    core::SnapperOptions snapperOptions;
+    int decimalPlacesInCollapser = 4;
+    std::set<GroupId> volumeGroups{};
+
+};
 
 class OffgridMesher : public MesherBase {
 public:
