@@ -3,15 +3,9 @@ message(STATUS "Creating build system for tessellator-meshers")
 add_library(tessellator-meshers
     "MesherBase.cpp"
     "StructuredMesher.cpp"
+    "OffgridMesher.cpp"
 )
 target_link_libraries(tessellator-meshers tessellator-core tessellator-utils)
-
-if (TESSELLATOR_ENABLE_CGAL)
-    target_sources(tessellator-meshers PRIVATE
-        "OffgridMesher.cpp"
-    )
-    target_link_libraries(tessellator-meshers tessellator-cgal)
-endif()
 
 if(TESSELLATOR_EXECUTION_POLICIES)
     add_definitions(-DTESSELLATOR_EXECUTION_POLICIES)

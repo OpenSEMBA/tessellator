@@ -29,6 +29,7 @@ add_executable(tessellator_tests
 	"utils/MeshToolsTest.cpp"
 	"utils/RedundancyCleanerTest.cpp"
     "meshers/StructuredMesherTest.cpp"
+	"meshers/OffgridMesherTest.cpp"
 )
 
 
@@ -55,7 +56,6 @@ if (TESSELLATOR_ENABLE_CGAL)
 		"cgal/filler/FillerToolsTest.cpp"
 		"core/SmootherTest.cpp"
 		"core/SmootherToolsTest.cpp"
-		"meshers/OffgridMesherTest.cpp"
 	)	
 endif()
 

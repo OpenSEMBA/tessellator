@@ -1,13 +1,10 @@
 #pragma once
 
-#include "cgal/filler/Filler.h"
 #include "types/Mesh.h"
 #include "MesherBase.h"
 #include "core/SnapperOptions.h"
 
 namespace meshlib::meshers {
-
-using namespace cgal;
 
 class OffgridMesherOptions {
 public:
@@ -26,11 +23,6 @@ public:
     virtual ~OffgridMesher() = default;
     Mesh mesh() const;
 
-    filler::Filler fill(
-        const std::vector<Priority>& groupPriorities = std::vector<Priority>()) const;
-    filler::Filler dualFill(
-        const std::vector<Priority>& groupPriorities = std::vector<Priority>()) const;
-
 private:
     OffgridMesherOptions opts_;
 
@@ -42,5 +34,4 @@ private:
 
 };
 
-}
 }

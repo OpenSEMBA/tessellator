@@ -8,7 +8,6 @@
 namespace meshlib::meshers {
 using namespace meshFixtures;
 using namespace utils::meshTools;
-using namespace cgal::filler;
 
 class OffgridMesherTest : public ::testing::Test {
 public:
@@ -178,21 +177,6 @@ TEST_F(OffgridMesherTest, tri_non_uniform_grid_snapped)
     EXPECT_EQ(24, out.groups[0].elements.size());
 }
 
-TEST_F(OffgridMesherTest, tet_size1_grid_raw) 
-{
-    OffgridMesher mesher(buildTetMesh(1.0), buildRawOptions());
-    Mesh out;
-    ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(4, out.groups[0].elements.size());
-}
-TEST_F(OffgridMesherTest, tet_size1_grid_adapted) 
-{
-    OffgridMesher mesher(buildTetMesh(1.0), buildAdaptedOptions());
-    Mesh out;
-    ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(4, out.groups[0].elements.size());
-}
-
 TEST_F(OffgridMesherTest, bowtie_corner_size5_grid_raw)
 {
     OffgridMesher mesher(buildCornerBowtieMesh(5.0), buildRawOptions());
@@ -221,15 +205,6 @@ TEST_F(OffgridMesherTest, plane45_size05_grid_adapted)
     EXPECT_EQ(8, out.groups[0].elements.size());
 }
 
-TEST_F(OffgridMesherTest, tets_sharing_edge_adapted)
-{
-    OffgridMesher mesher(buildTetsSharingEdgeMesh(), buildAdaptedOptions());
-
-    {
-        Mesh out;
-        ASSERT_NO_THROW(out = mesher.mesh());
-    }
-}
 
 TEST_F(OffgridMesherTest, plane45_size05_grid_raw)
 {
@@ -283,82 +258,6 @@ TEST_F(OffgridMesherTest, bowtie_subset_1_adapted)
     ASSERT_NO_THROW(out = mesher.mesh());
 }
 
-TEST_F(OffgridMesherTest, tri) 
-{
-
-    Mesh in;
-    {
-        Grid grid;
-        grid[0] = { 0.0, 1.0, 2.0 };
-        grid[1] = { 0.0, 1.0, 2.0 };
-        grid[2] = { 0.0, 1.0, 2.0 };
-
-        std::vector<Coordinate> coords(3);
-        coords[0] = Coordinate{ {0.1, 0.1, 0.1} };
-        coords[1] = Coordinate{ {0.1, 1.9, 0.1} };
-        coords[2] = Coordinate{ {0.9, 0.1, 0.1} };
-        std::vector<Group> groups(1);
-        groups[0] = { std::vector<Element>(1) };
-        Element tri;
-        tri.type = Element::Type::Surface;
-        tri.vertices = { 0, 1, 2 };
-        groups[0].elements[0] = tri;
-
-        in = Mesh{ grid, coords, groups };
-    }
-    
-    OffgridMesherOptions opts;
-    opts.snap = false;
-
-    OffgridMesher mesher(in, opts);
-
-    Mesh out;
-    ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(3, out.countElems());
-
-    Filler f{ mesher.fill() };
-    EXPECT_EQ(0, f.getFaceFilling(CellIndex{ Cell{{0,0,0}}, Axis{Z} }).tris[0].size());
-    EXPECT_EQ(1, f.getFaceFilling(CellIndex{ Cell{{0,1,0}}, Axis{Y} }).lins[0].size());
-
-
-}
-
-TEST_F(OffgridMesherTest, tri_dual)
-{
-
-    Mesh in;
-    {
-        Grid grid;
-        grid[0] = { 0.0, 1.0 };
-        grid[1] = { 0.0, 1.0 };
-        grid[2] = { 0.0, 1.0 };
-
-        std::vector<Coordinate> coords(3);
-        coords[0] = Coordinate{ {0.0, 0.5, 0.0} };
-        coords[1] = Coordinate{ {1.0, 0.5, 0.0} };
-        coords[2] = Coordinate{ {0.0, 0.5, 1.0} };
-        std::vector<Group> groups(1);
-        groups[0].elements = {
-            Element({ 0, 1, 2 })
-        };
-        in = Mesh{ grid, coords, groups };
-    }
-
-    OffgridMesherOptions opts;
-    opts.snap = false;
-
-    OffgridMesher mesher(in, opts);
-    EXPECT_EQ(1, mesher.mesh().countElems());
-
-    Filler d{ mesher.dualFill() };    
-    EXPECT_EQ(1, d.getFaceFilling(CellIndex{ Cell{{0,1,0}}, Y }).tris[0].size());
-    EXPECT_EQ(1, d.getFaceFilling(CellIndex{ Cell{{0,1,1}}, Y }).tris[0].size());
-    EXPECT_EQ(1, d.getFaceFilling(CellIndex{ Cell{{1,1,0}}, Y }).tris[0].size());
-
-    EXPECT_EQ(0, d.getEdgeFilling(CellIndex{ Cell{{0,1,0}}, X }).lins[0].size());
-    EXPECT_EQ(1, d.getEdgeFilling(CellIndex{ Cell{{0,1,1}}, X }).lins[0].size());
-    EXPECT_EQ(1, d.getEdgeFilling(CellIndex{ Cell{{1,1,0}}, Z }).lins[0].size());
-}
 
 TEST_F(OffgridMesherTest, smoother_generates_triangles_crossing_grid) 
 {
@@ -487,44 +386,6 @@ TEST_F(OffgridMesherTest, smoother_generates_triangles_crossing_grid_5)
     ASSERT_NO_THROW(OffgridMesher(m, opts).mesh());
 }
 
-TEST_F(OffgridMesherTest, cube_1x1x1_volume_size_0c25_grid_raw)
-{
-    OffgridMesher mesher(buildCubeVolumeMesh(0.25), buildRawOptions());
-
-    Mesh out;
-    ASSERT_NO_THROW(out = mesher.mesh());
-    
-    EXPECT_EQ(192, countMeshElementsIf(out, isTriangle));
-}
-
-TEST_F(OffgridMesherTest, cube_1x1x1_volume_size_0c5_grid_raw)
-{
-
-    OffgridMesher mesher(buildCubeVolumeMesh(0.5), buildRawOptions());
-    Mesh out;
-    ASSERT_NO_THROW(out = mesher.mesh());
-    EXPECT_EQ(48, countMeshElementsIf(out, isTriangle));
-
-}
-
-TEST_F(OffgridMesherTest, cube_1x1x1_volume_size_1c0_grid_raw)
-{
-    Mesh out;
-    ASSERT_NO_THROW(out = OffgridMesher(buildCubeVolumeMesh(1.0), buildRawOptions()).mesh());
-    
-    EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
-}
-
-TEST_F(OffgridMesherTest, cube_1x1x1_volume_size_1c0_grid_snapped)
-{
-    Mesh p;
-
-    OffgridMesher mesher(buildCubeVolumeMesh(1.0), buildSnappedOptions());
-    ASSERT_NO_THROW(p = mesher.mesh());
-
-    EXPECT_EQ(12, countMeshElementsIf(p, isTriangle));
-}
-
 TEST_F(OffgridMesherTest, cube_1x1x1_surface_treat_as_volume)
 {
     Mesh p;
@@ -559,83 +420,6 @@ TEST_F(OffgridMesherTest, plane45_size1_grid)
 
     Mesh vMsh;
     ASSERT_NO_THROW(vMsh = OffgridMesher(buildPlane45Mesh(1.0), vOpts).mesh());
-}
-
-TEST_F(OffgridMesherTest, tet_size1_grid)
-{
-    OffgridMesher mesher(buildTetMesh(1.0), OffgridMesherOptions ());
-
-    Mesh msh;
-    ASSERT_NO_THROW(msh = mesher.mesh());
-
-    EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
-}
-
-TEST_F(OffgridMesherTest, tet_with_inner_point_size1_grid)
-{
-    OffgridMesher mesher(buildTetMeshWithInnerPoint(1.0), OffgridMesherOptions());
-
-    Mesh msh;
-    ASSERT_NO_THROW(msh = mesher.mesh());
-
-    EXPECT_EQ(4, countMeshElementsIf(msh, isTriangle));
-}
-
-TEST_F(OffgridMesherTest, elementsPartiallyOutOfGrid_bare)
-{
-    OffgridMesher h{ buildTriPartiallyOutOfGridMesh(0.5), buildBareOptions() };
-     
-    EXPECT_EQ(2, countMeshElementsIf(h.mesh(), isTriangle));
-
-    auto f{ h.fill() };
-    EXPECT_EQ(2, countMeshElementsIf(f.getMeshFilling(), isTriangle));
-    EXPECT_TRUE(f.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 1, 1, 1 }), Z }).full());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 2, 2, 1 }), Z }).full());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 3, 3, 1 }), Z }).partial());
-}
-
-TEST_F(OffgridMesherTest, elementsPartiallyOutOfGrid_raw)
-{
-    OffgridMesher h{ buildTriPartiallyOutOfGridMesh(0.5), buildRawOptions() };
-
-    EXPECT_EQ(32, countMeshElementsIf(h.mesh(), isTriangle));
-
-    auto f{ h.fill() };
-    EXPECT_TRUE(f.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 1, 1, 1 }), Z }).full());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 2, 2, 1 }), Z }).full());
-    EXPECT_TRUE(f.getFillingState({ Cell({ 3, 3, 1 }), Z }).partial());
-}
-
-TEST_F(OffgridMesherTest, elementsPartiallyOutOfGrid_dual_bare)
-{
-    OffgridMesher h{ buildTriPartiallyOutOfGridMesh(1.0), buildBareOptions() };
-
-    EXPECT_EQ(2, countMeshElementsIf(h.mesh(), isTriangle));
-
-    auto df{ h.dualFill() };
-    EXPECT_TRUE(df.getFillingState({ Cell({ 0, 0, 1 }), Z }).partial());
-    EXPECT_TRUE(df.getFillingState({ Cell({ 1, 0, 1 }), Z }).partial());
-    EXPECT_TRUE(df.getFillingState({ Cell({ 1, 1, 1 }), Z }).full());
-    EXPECT_TRUE(df.getFillingState({ Cell({ 0, 1, 1 }), Z }).full());
-}
-
-TEST_F(OffgridMesherTest, elementsTotallyOutOfGrid)
-{
-    Mesh m = buildTriPartiallyOutOfGridMesh(1.0);
-    m.coordinates = {
-        Coordinate({100.0, 100.0,  100.0}),
-        Coordinate({ 90.0,  90.0,   90.0}),
-        Coordinate({ 70.0,  70.0,   70.0}),
-    };
-
-    OffgridMesher h{ m };
-
-    EXPECT_EQ(0, countMeshElementsIf(h.mesh(), isTriangle));
-
-    EXPECT_EQ(0, h.fill().getMeshFilling().countElems());
-    EXPECT_EQ(0, h.dualFill().getMeshFilling().countElems());
 }
 
 TEST_F(OffgridMesherTest, snapping_issue)

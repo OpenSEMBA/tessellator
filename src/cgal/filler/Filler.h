@@ -1,7 +1,6 @@
 #pragma once
 
 #include "types/Mesh.h"
-
 #include "utils/GridTools.h"
 #include "utils/Types.h"
 
@@ -44,5 +43,7 @@ private:
 	void mergeGroupsWithSamePriority(Groups& vGroups, Groups& sGroups);
 
 };
+
+
 
 }

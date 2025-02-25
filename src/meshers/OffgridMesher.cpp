@@ -6,10 +6,6 @@
 #include "core/Smoother.h"
 #include "core/Snapper.h"
 
-#include "cgal/filler/Filler.h"
-#include "cgal/Repairer.h"
-#include "cgal/Manifolder.h"
-
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
@@ -18,26 +14,15 @@ namespace meshlib::meshers {
 using namespace utils;
 using namespace meshTools;
 using namespace core;
-using namespace cgal::filler;
-
-Mesh extractSurfaceFromVolumeMeshes(const Mesh& inputMesh)
-{
-    return cgal::Manifolder{ buildMeshFilteringElements(inputMesh, isTetrahedron) }.getClosedSurfacesMesh();
-}
 
 Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
-    Mesh resultMesh{ inputMesh.grid, inputMesh.coordinates };
-    resultMesh.groups.resize(inputMesh.groups.size());
+    Mesh volumeMesh{ inputMesh.grid, inputMesh.coordinates };
+    volumeMesh.groups.resize(inputMesh.groups.size());
     for (const auto& gId : volumeGroups) {
-        mergeGroup(resultMesh.groups[gId], inputMesh.groups[gId]);
+        mergeGroup(volumeMesh.groups[gId], inputMesh.groups[gId]);
     }
-    resultMesh = cgal::repair(resultMesh);
-    mergeMesh(
-        resultMesh,
-        extractSurfaceFromVolumeMeshes(inputMesh)
-    );
-    return resultMesh;
+    return volumeMesh;
 }
 
 OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
@@ -125,29 +110,6 @@ Mesh OffgridMesher::mesh() const
 
     log("Primal mesh built succesfully.", 1);
     return res;
-}
-
-Filler OffgridMesher::fill(const std::vector<Priority>& groupPriorities) const
-{
-    log("Building primal filler.", 1);
-    
-    return Filler{ 
-        reduceGrid(volumeMesh_, originalGrid_), 
-        reduceGrid(surfaceMesh_, originalGrid_),
-        groupPriorities 
-    };
-}
-
-Filler OffgridMesher::dualFill(const std::vector<Priority>& groupPriorities) const
-{
-    log("Building dual filler.", 1);
-    const auto dGrid{ GridTools{ originalGrid_ }.getExtendedDualGrid() };
-
-    return Filler{ 
-        setGrid(volumeMesh_, dGrid),
-        setGrid(surfaceMesh_, dGrid),
-        groupPriorities 
-    };
 }
 
 }
