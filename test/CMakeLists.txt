@@ -23,7 +23,6 @@ add_executable(tessellator_tests
     "core/StructurerTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
-	"core/CDTOgreTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/ConvexHullTest.cpp"
 	"utils/CoordGraphTest.cpp"
@@ -35,9 +34,6 @@ add_executable(tessellator_tests
     "meshers/StructuredMesherTest.cpp"
 	"meshers/OffgridMesherTest.cpp"
 )
-
-find_package(CDT CONFIG REQUIRED)
-
 
 target_link_libraries(tessellator_tests	
 	tessellator-meshers
