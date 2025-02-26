@@ -6,8 +6,6 @@
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
 
-#include "cgal/Delaunator.h"
-
 #include <algorithm>
 #include <stdexcept>
 #include <assert.h>
@@ -331,6 +329,8 @@ void SmootherTools::remeshWithNoInteriorPoints(
         return;
     }
     CoordinateIds cPolygon = g.getBoundaryGraph().findCycles().front();
+
+    
     Elements remeshedEls = cgal::Delaunator(&cs).mesh({}, { cPolygon });
 
     if (hasWrongOrientation(*patch[0], remeshedEls[0], cs)) {

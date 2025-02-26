@@ -4,7 +4,8 @@
     "boost-program-options", 
     { "name": "vtk", "default-features": false, "platform": "windows"},
     "nlohmann-json",
-    "gtest"
+    "gtest",
+    "cdt"
   ],
   "features": {
     "cgal": {

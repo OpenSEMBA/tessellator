@@ -20,7 +20,6 @@ Delaunator::Delaunator(const Coordinates* global, const ElementsView& elements)
     }
 }
 
-
 std::vector<Element> Delaunator::mesh(
     const IdSet& inIds,
     const std::vector<Polygon>& constrainingPolygons) const
