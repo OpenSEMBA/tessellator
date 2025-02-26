@@ -4,6 +4,7 @@
 #include "RedundancyCleaner.h"
 #include "GridTools.h"
 #include "ElemGraph.h"
+#include "CoordGraph.h"
 
 #include <sstream>
 
@@ -53,6 +54,47 @@ Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
             }
         }
     }
+    return res;
+}
+
+Mesh duplicateCoordinatesSharedBySingleTriangleVertices(const Mesh& mesh)
+{
+    Mesh res = mesh;
+
+    for (auto& g : res.groups) {
+        IdSet sharedCoordIds;
+        std::vector<IdSet> idSets;
+        for (const auto& disjoint : CoordGraph(g.elements).split()) {
+            idSets.push_back(disjoint.getVertices());
+        }
+
+        for (auto i = 0; i < idSets.size(); i++) {
+            for (auto j = i+1; j < idSets.size(); j++) {
+                IdSet shared = intersectWithIdSet(idSets[i], idSets[j]);
+                sharedCoordIds.insert(shared.begin(), shared.end());
+            }
+        }
+
+        std::map<CoordinateId, CoordinateId> remapedCoord;
+        for (auto& e : g.elements) {
+            for (auto& vId : e.vertices) {
+                if (sharedCoordIds.count(vId) == 0) {
+                    continue;
+                }
+                if (remapedCoord.count(vId) == 0) {
+                    Coordinate newCoord = res.coordinates[vId];
+                    CoordinateId newVId = res.coordinates.size();
+                    res.coordinates.push_back(newCoord);
+                    remapedCoord.emplace(vId, newVId);
+                    vId = newVId;
+                }
+                else {
+                    vId = remapedCoord[vId];
+                }
+            }
+        }
+    }
+        
     return res;
 }
 

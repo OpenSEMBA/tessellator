@@ -415,6 +415,39 @@ TEST_F(MeshToolsTest, duplicateCoordinatesUsedByDifferentGroups_sameGroup)
 	EXPECT_EQ(res, m);
 }
 
+TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTriangleVertices)
+{
+	Mesh m;
+	{
+		// Corner.
+		//      4
+		//     /| 
+		//    3-0
+		//     /| 
+		//    1-2
+		m.grid = meshFixtures::buildUnitLengthGrid(1.0);
+		m.coordinates = {
+			Coordinate({0.50, 0.50, 0.00}),
+			Coordinate({0.00, 0.00, 0.00}),
+			Coordinate({0.50, 0.00, 0.00}),
+			Coordinate({0.00, 0.50, 0.00}),
+			Coordinate({0.50, 1.00, 0.00}),
+		};
+		m.groups = { Group() };
+		m.groups[0].elements = {
+			Element({0, 1, 2}),
+			Element({0, 4, 3})
+		};
+	}
+
+	Mesh r = duplicateCoordinatesSharedBySingleTriangleVertices(m);
+
+	EXPECT_EQ(6, r.coordinates.size());
+	EXPECT_EQ(2, r.groups[0].elements.size());
+	EXPECT_EQ({0, 1, 2}, r.groups[0].elements[0].vertices);
+	EXPECT_EQ({5, 4, 3}, r.groups[0].elements[1].vertices);
+}
+
 TEST_F(MeshToolsTest, getBoundingBox)
 {
 	Mesh m = buildTriOutOfGridMesh();
