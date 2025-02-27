@@ -7,7 +7,7 @@ namespace utils {
 namespace meshTools {
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh);
-Mesh duplicateCoordinatesSharedBySingleTriangleVertices(const Mesh& mesh)
+Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh);
 static bool isNode(const Element& e) { return e.isNode(); }
 static bool isNotNode(const Element& e) { return !e.isNode(); }
 static bool isLine(const Element& e) { return e.isLine(); }

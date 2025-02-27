@@ -82,7 +82,7 @@ TEST_F(SmootherTest, touching_by_single_point)
 
 	auto r{ Smoother{m}.getMesh() };
 
-	EXPECT_EQ(2, countMeshElementsIf(r, isTriangle));
+	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
 }
 
 }

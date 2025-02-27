@@ -415,7 +415,7 @@ TEST_F(MeshToolsTest, duplicateCoordinatesUsedByDifferentGroups_sameGroup)
 	EXPECT_EQ(res, m);
 }
 
-TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTriangleVertices)
+TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTrianglesVertex)
 {
 	Mesh m;
 	{
@@ -440,12 +440,88 @@ TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTriangleVertices)
 		};
 	}
 
-	Mesh r = duplicateCoordinatesSharedBySingleTriangleVertices(m);
+	Mesh r = duplicateCoordinatesSharedBySingleTrianglesVertex(m);
 
 	EXPECT_EQ(6, r.coordinates.size());
 	EXPECT_EQ(2, r.groups[0].elements.size());
-	EXPECT_EQ({0, 1, 2}, r.groups[0].elements[0].vertices);
-	EXPECT_EQ({5, 4, 3}, r.groups[0].elements[1].vertices);
+	EXPECT_EQ(CoordinateIds({0, 1, 2}), r.groups[0].elements[0].vertices);
+	EXPECT_EQ(CoordinateIds({5, 4, 3}), r.groups[0].elements[1].vertices);
+}
+
+TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTrianglesVertex_2)
+{
+	Mesh m;
+	{
+		// Corner.
+		//      4 6
+		//     /|/|
+		//    3-0-5
+		//     /| 
+		//    1-2
+		m.grid = meshFixtures::buildUnitLengthGrid(1.0);
+		m.coordinates = {
+			Coordinate({0.50, 0.50, 0.00}),
+			Coordinate({0.00, 0.00, 0.00}),
+			Coordinate({0.50, 0.00, 0.00}),
+			Coordinate({0.00, 0.50, 0.00}),
+			Coordinate({0.50, 1.00, 0.00}),
+			Coordinate({1.00, 0.50, 0.00}),
+			Coordinate({1.00, 1.00, 0.00}),
+		};
+		m.groups = { Group() };
+		m.groups[0].elements = {
+			Element({0, 1, 2}),
+			Element({0, 4, 3}),
+			Element({5, 6, 0})
+		};
+	}
+
+	Mesh r = duplicateCoordinatesSharedBySingleTrianglesVertex(m);
+
+	EXPECT_EQ(9, r.coordinates.size());
+	EXPECT_EQ(3, r.groups[0].elements.size());
+	EXPECT_EQ(CoordinateIds({0, 1, 2}), r.groups[0].elements[0].vertices);
+	EXPECT_EQ(CoordinateIds({7, 4, 3}), r.groups[0].elements[1].vertices);
+	EXPECT_EQ(CoordinateIds({5, 6, 8}), r.groups[0].elements[2].vertices);
+}
+
+TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTrianglesVertex_3)
+{
+	Mesh m;
+	{
+		// Corner.
+		//      4-6
+		//     /|/|
+		//    3-0-5
+		//     /| 
+		//    1-2
+		m.grid = meshFixtures::buildUnitLengthGrid(1.0);
+		m.coordinates = {
+			Coordinate({0.50, 0.50, 0.00}),
+			Coordinate({0.00, 0.00, 0.00}),
+			Coordinate({0.50, 0.00, 0.00}),
+			Coordinate({0.00, 0.50, 0.00}),
+			Coordinate({0.50, 1.00, 0.00}),
+			Coordinate({1.00, 0.50, 0.00}),
+			Coordinate({1.00, 1.00, 0.00}),
+		};
+		m.groups = { Group() };
+		m.groups[0].elements = {
+			Element({0, 1, 2}),
+			Element({0, 4, 3}),
+			Element({5, 6, 0}),
+			Element({6, 4, 0}),
+		};
+	}
+
+	Mesh r = duplicateCoordinatesSharedBySingleTrianglesVertex(m);
+
+	EXPECT_EQ(8, r.coordinates.size());
+	EXPECT_EQ(4, r.groups[0].elements.size());
+	EXPECT_EQ(CoordinateIds({0, 1, 2}), r.groups[0].elements[0].vertices);
+	EXPECT_EQ(CoordinateIds({7, 4, 3}), r.groups[0].elements[1].vertices);
+	EXPECT_EQ(CoordinateIds({5, 6, 7}), r.groups[0].elements[2].vertices);
+	EXPECT_EQ(CoordinateIds({6, 4, 7}), r.groups[0].elements[3].vertices);
 }
 
 TEST_F(MeshToolsTest, getBoundingBox)

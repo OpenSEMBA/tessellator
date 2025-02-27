@@ -28,7 +28,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 
     mesh_ = mesh;
     mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
-    mesh_ = meshTools::duplicateCoordinatesSharedBySingleTriangleVertices(mesh_);
+    mesh_ = meshTools::duplicateCoordinatesSharedBySingleTrianglesVertex(mesh_);
     
     Mesh res = mesh_;
     for (auto& g : res.groups) {

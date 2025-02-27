@@ -56,7 +56,9 @@ if (TESSELLATOR_ENABLE_CGAL)
 		"cgal/RepairerTest.cpp"
 		"cgal/filler/FillerTest.cpp"
 		"cgal/filler/FillerToolsTest.cpp"
-	)	
+	)
+
+	target_link_libraries(tessellator_tests tessellator-cgal)
 endif()
 
 add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)
