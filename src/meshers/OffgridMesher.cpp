@@ -25,25 +25,6 @@ Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroup
     return volumeMesh;
 }
 
-OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
-    MesherBase::MesherBase(in),
-    opts_{ opts }
-{        
-    log("Preparing volumes.");
-    volumeMesh_ = buildVolumeMesh(in, opts_.volumeGroups);
-        
-    log("Preparing surfaces.");
-    surfaceMesh_ = buildSurfaceMesh(in, opts_.volumeGroups);
-
-    log("Processing volume mesh.");
-    process(volumeMesh_);
-
-    log("Processing surface mesh.");
-    process(surfaceMesh_);
-
-    log("Initial hull mesh built succesfully.");
-}
-
 Mesh OffgridMesher::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
 {
     auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
@@ -51,6 +32,21 @@ Mesh OffgridMesher::buildSurfaceMesh(const Mesh& inputMesh, const std::set<Group
         resultMesh.groups[gId].elements.clear();
     }
     return resultMesh;
+}
+
+OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
+    MesherBase::MesherBase(in),
+    opts_{ opts }
+{        
+    log("Retrieving groups to be meshed as volumes.");
+    volumeMesh_ = buildVolumeMesh(in, opts_.volumeGroups);
+    process(volumeMesh_);
+        
+    log("Retrieving groups to be meshed as volumes.");
+    surfaceMesh_ = buildSurfaceMesh(in, opts_.volumeGroups);  
+    process(surfaceMesh_);
+
+    log("Initial hull mesh built succesfully.");
 }
 
 void OffgridMesher::process(Mesh& mesh) const
@@ -63,29 +59,16 @@ void OffgridMesher::process(Mesh& mesh) const
     }
     
     log("Slicing.", 1);
-    bool fullSlicing{ 
-        opts_.forceSlicing 
-        || opts_.collapseInternalPoints 
-        || opts_.snap 
-    };
-    if (fullSlicing) {
-        mesh.grid = slicingGrid;
-    }
-    else {
-        mesh.grid = buildNonSlicingGrid(originalGrid_, enlargedGrid_);
-    }
+    mesh.grid = slicingGrid;
     mesh = Slicer{ mesh }.getMesh();
-    if (!fullSlicing) {
-        mesh = setGrid(mesh, slicingGrid);
-    }
-    
+        
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
     mesh = Collapser(mesh, opts_.decimalPlacesInCollapser).getMesh();
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
         
-    if (opts_.collapseInternalPoints || opts_.snap) {
+    if (opts_.smooth || opts_.snap) {
         log("Smoothing.", 1);
         mesh = Smoother(mesh).getMesh();
         logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));

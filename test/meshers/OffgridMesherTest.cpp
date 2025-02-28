@@ -13,14 +13,14 @@ class OffgridMesherTest : public ::testing::Test {
 public:
     static OffgridMesherOptions buildSnappedOptions() {
         OffgridMesherOptions opts;
-        opts.collapseInternalPoints = true;
+        opts.smooth = true;
         opts.snap = true;
         return opts;
     }
 
     static OffgridMesherOptions buildAdaptedOptions() {
         OffgridMesherOptions opts;
-        opts.collapseInternalPoints = true;
+        opts.smooth = true;
         opts.snap = false;
         return opts;
     }
@@ -28,7 +28,7 @@ public:
     static OffgridMesherOptions buildRawOptions() {
         OffgridMesherOptions opts;
         opts.forceSlicing = true;
-        opts.collapseInternalPoints = false;
+        opts.smooth = false;
         opts.snap = false;
         return opts;
     }
@@ -36,7 +36,7 @@ public:
     static OffgridMesherOptions buildBareOptions() {
         OffgridMesherOptions opts;
         opts.forceSlicing = false;
-        opts.collapseInternalPoints = false;
+        opts.smooth = false;
         opts.snap = false;
         return opts;
     }
@@ -415,7 +415,7 @@ TEST_F(OffgridMesherTest, slab_surface_treat_as_volume)
 TEST_F(OffgridMesherTest, plane45_size1_grid)
 {
     OffgridMesherOptions vOpts;
-    vOpts.collapseInternalPoints = false;
+    vOpts.smooth = false;
     vOpts.snap = false;
 
     Mesh vMsh;

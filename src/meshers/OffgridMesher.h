@@ -2,20 +2,10 @@
 
 #include "types/Mesh.h"
 #include "MesherBase.h"
-#include "core/SnapperOptions.h"
+#include "OffgridMesherOptions.h"
 
 namespace meshlib::meshers {
 
-class OffgridMesherOptions {
-public:
-    bool forceSlicing = true;
-    bool collapseInternalPoints = true;
-    bool snap = true;
-    core::SnapperOptions snapperOptions;
-    int decimalPlacesInCollapser = 4;
-    std::set<GroupId> volumeGroups{};
-
-};
 
 class OffgridMesher : public MesherBase {
 public:
