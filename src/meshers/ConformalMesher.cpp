@@ -3,21 +3,60 @@
 #include "MesherBase.h"
 #include "OffgridMesher.h"
 
+#include "utils/GridTools.h"
+#include "utils/CoordGraph.h"
+
 namespace meshlib::meshers {
 
-std::set<Cell> cellsWithMoreThanAVertexPerEdge(const Mesh& mesh)
+using namespace utils;
+std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexPerEdge(const Mesh& mesh)
 {
-    // Cell edges can contain at most one vertex.
     std::set<Cell> res;
-    // TODO
+    
+    const GridTools gT(mesh.grid);
+    std::set<std::pair<Cell, Axis>> ocuppiedEdges;
+    for (const auto& v: mesh.coordinates) {
+        if (gT.isRelativeOnCellEdge(v)) {
+            auto edge = std::make_pair(
+                gT.toCell(v), 
+                gT.getCellEdgeAxis(v).second);
+            if (ocuppiedEdges.count(edge)) {
+                auto touchingCells = gT.getTouchingCells(v);
+                res.insert(touchingCells.begin(), touchingCells.end());
+            } else {
+                ocuppiedEdges.insert(edge);
+            }
+        }
+    }
+
     return res;
 }
 
-std::set<Cell> cellsWithMoreThanALinePerFace(const Mesh& mesh)
+std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
 {
-    // Cell faces must always be crossed by a single line.
     std::set<Cell> res;
-    // TODO
+    
+    auto gT = GridTools(mesh.grid);
+    
+    Elements allElements;
+    for (auto const& g: mesh.groups) {
+        allElements.insert(allElements.end(), g.elements.begin(), g.elements.end());
+    }
+    auto cellMap = gT.buildCellElemMap(allElements, mesh.coordinates);
+    
+    for (auto const& c: cellMap) {
+        auto cG = CoordGraph(c.second);
+        IdSet vIdsInCornerOrEdges;
+        for (const auto& vId: cG.getVertices()) {
+            const Relative& v = mesh.coordinates[vId];
+            if (gT.isRelativeOnCellCorner(v) || gT.isRelativeOnCellEdge(v)) {
+                vIdsInCornerOrEdges.insert(vId);
+            }
+        }
+
+        // WIP
+    }
+ 
     return res;
 }
 
@@ -46,12 +85,17 @@ std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
     return res;
 }   
 
-std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh) const
+std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 {
+    // The five rules:
+    // Rule #1: Cell edges must contain at most one vertex (ignoring cell corners).
+    // Rule #2: Cell faces must always be crossed by a single path.
+
     std::set<Cell> res;
 
     res = mergeCellSets(res, cellsWithMoreThanAVertexPerEdge(mesh));
-    // res = mergeCellSets(res, cellsWithMoreThanALinePerFace(mesh));
+    res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
+
     // res = mergeCellSets(res, cellsWithInteriorDisconnectedTriangles(mesh));
     // res = mergeCellSets(res, cellsWithVertexInForbiddenEdgeRegion(mesh));
     // res = mergeCellSets(res, cellsContainingLineElements(mesh));
@@ -71,6 +115,7 @@ Mesh ConformalMesher::mesh() const
     auto nonConformalCells = findNonConformalCells(res);
 
     // Calls structurer to mesh only those cells.
+    
 
     return res;
 }

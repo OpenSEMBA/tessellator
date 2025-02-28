@@ -505,6 +505,7 @@ std::size_t GridTools::countIntersectingPlanes(const Relative& v) {
 
 bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2) 
 {
+    // This assumes that both relatives belong to the same cell.
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
@@ -525,6 +526,7 @@ bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2)
 }
 bool GridTools::areCoordOnSameEdge(const Relative& r1, const Relative& r2) 
 {
+    // This assumes that both relatives belong to the same cell.
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }

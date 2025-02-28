@@ -15,8 +15,10 @@ public:
     virtual ~ConformalMesher() = default;
     
     Mesh mesh() const;
-    std::set<Cell> findNonConformalCells(const Mesh& mesh) const;
-
+    
+    static std::set<Cell> findNonConformalCells(const Mesh& mesh);
+    static std::set<Cell> cellsWithMoreThanAVertexPerEdge(const Mesh& mesh);
+    static std::set<Cell> cellsWithMoreThanAPathPerFace(const Mesh& mesh);
 private:
     Mesh inputMesh_;
     ConformalMesherOptions opts_;
