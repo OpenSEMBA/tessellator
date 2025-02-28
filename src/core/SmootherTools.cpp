@@ -331,7 +331,7 @@ void SmootherTools::remeshWithNoInteriorPoints(
 
     auto cPolygons = g.getBoundaryGraph().findCycles();
     Elements remeshedEls;
-    for (const auto& cPolygon : cPolygons) {
+    for (auto& cPolygon : cPolygons) {
         for (std::size_t i = 0; i < cPolygon.size() - 2; i++) {
             remeshedEls.push_back( Element({ 
                 cPolygon[0], 

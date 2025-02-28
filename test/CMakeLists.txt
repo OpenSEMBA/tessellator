@@ -33,6 +33,7 @@ add_executable(tessellator_tests
 	"utils/RedundancyCleanerTest.cpp"
     "meshers/StructuredMesherTest.cpp"
 	"meshers/OffgridMesherTest.cpp"
+	"meshers/ConformalMesherTest.cpp"
 )
 
 target_link_libraries(tessellator_tests	

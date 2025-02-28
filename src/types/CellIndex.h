@@ -9,10 +9,6 @@ namespace meshlib {
 using SliceNumber = CellDir;
 using GridPlane = std::pair<Axis, SliceNumber>;
 
-//struct ArrayIndex : public boost::array<CellDir, 2> {
-//	CellDir& i() { return(*this)[0]; }
-//	CellDir& j() { return(*this)[1]; }
-//};
 using ArrayIndex = boost::array<CellDir, 2>;
 
 struct CellIndex {

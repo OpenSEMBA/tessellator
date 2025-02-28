@@ -71,10 +71,6 @@ MesherBase::MesherBase(const Mesh& inputMesh) : originalGrid_{inputMesh.grid}
     logGridSize(inputMesh.grid);
 }
 
-Mesh MesherBase::buildSurfaceMesh(const Mesh& inputMesh) {
-    return buildMeshFilteringElements(inputMesh, isNotTetrahedron);
-}
-
 Grid MesherBase::buildNonSlicingGrid(const Grid& primal, const Grid& enlarged)
 {
     assert(primal.size() >= 2);
@@ -105,6 +101,25 @@ Grid MesherBase::buildSlicingGrid(const Grid& primal, const Grid& enlarged)
         r[x].insert(r[x].end(), gP.begin(), gP.end());
     }
     return r;
+}
+
+Mesh MesherBase::buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
+{
+    Mesh volumeMesh{ inputMesh.grid, inputMesh.coordinates };
+    volumeMesh.groups.resize(inputMesh.groups.size());
+    for (const auto& gId : volumeGroups) {
+        mergeGroup(volumeMesh.groups[gId], inputMesh.groups[gId]);
+    }
+    return volumeMesh;
+}
+
+Mesh MesherBase::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
+{
+    auto resultMesh = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
+    for (const auto& gId : volumeGroups) {
+        resultMesh.groups[gId].elements.clear();
+    }
+    return resultMesh;
 }
 
 }

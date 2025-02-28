@@ -19,7 +19,6 @@ private:
     Mesh volumeMesh_;
     Mesh surfaceMesh_;
 
-    Mesh buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
     void process(Mesh&) const;
 
 };

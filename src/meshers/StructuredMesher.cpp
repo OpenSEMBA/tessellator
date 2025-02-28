@@ -17,9 +17,6 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-
-
-
 StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
     MesherBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser)
@@ -35,7 +32,7 @@ StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCol
 
 Mesh StructuredMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
-    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
+    auto resultMesh = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
     mergeMesh(resultMesh, volumeSurface);
     return resultMesh;
 }
