@@ -69,10 +69,11 @@ public:
                           const Coordinate&,
                           const CoordinateDir& = 1e-9);
 
-    static bool isRelativeOnCellCorner(const Relative&);
-    static bool isRelativeOnCellEdge(const Relative&);
-    static bool isRelativeOnCellFace(const Relative&);
+    static bool isRelativeInCellCorner(const Relative&);
+    static bool isRelativeInCellEdge(const Relative&);
+    static bool isRelativeInCellFace(const Relative&);
     static bool isRelativeInterior(const Relative&);
+    static bool isRelativeAtCellBound(const Relative&, const Cell&, const std::pair<Axis, Side>&);
 
     std::set<Cell> getTouchingCells(const Relative&) const;
     static std::size_t countIntersectingPlanes(const Relative&);

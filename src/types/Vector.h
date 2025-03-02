@@ -32,6 +32,11 @@ public:
         val_{rhs}
     {}
 
+    Vector(const std::initializer_list<T>& rhs)
+    {
+        std::copy(rhs.begin(), rhs.end(), val_.begin());
+    }
+
     Vector& operator=(const std::array<T, 3>& rhs) {
         for (Axis d = 0; d < 3; d++) {
             val_[d] = rhs[d];

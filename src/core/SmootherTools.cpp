@@ -98,15 +98,15 @@ void SmootherTools::collapsePointsOnFeatureEdges(
 
     std::map<CoordinateId, Coordinate> toMove;
     for (auto const& i : validInterior) {
-        if (isRelativeOnCellCorner(coords[i])) {
+        if (isRelativeInCellCorner(coords[i])) {
             continue;
         }
 
         Coordinate closest = closestByDistance(coords, i, Point.getClosestVerticesInSet(i, validExterior));
-        if (isRelativeOnCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
+        if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
             continue;
         }
-        if (isRelativeOnCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
+        if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
             continue;
         }
         toMove[i] = closest;
@@ -178,9 +178,9 @@ void SmootherTools::collapsePointsOnCellEdges(
             vertices.begin(), vertices.end(),
             [&](const CoordinateId& cId) {
                 return
-                    isRelativeOnCellFace(coords[cId]) ||
-                    isRelativeOnCellEdge(coords[cId]) ||
-                    isRelativeOnCellCorner(coords[cId]);
+                    isRelativeInCellFace(coords[cId]) ||
+                    isRelativeInCellEdge(coords[cId]) ||
+                    isRelativeInCellCorner(coords[cId]);
             }
         )) {
             return;
@@ -204,14 +204,14 @@ void SmootherTools::collapsePointsOnCellEdges(
         
         std::map<CoordinateId, Coordinate> toMove;
         for (auto const& i : movable) {
-            if (isRelativeOnCellCorner(coords[i])) {
+            if (isRelativeInCellCorner(coords[i])) {
                 continue;
             }
             Coordinate closest = closestByDistance(coords, i, cG.getClosestVerticesInSet(i, validIds));
-            if (isRelativeOnCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
+            if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
                 continue;
             }
-            if (isRelativeOnCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
+            if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
                 continue;
             }
             toMove[i] = closest;
@@ -250,7 +250,7 @@ void SmootherTools::collapsePointsOnCellFaces(
             cycle,
             classifyIds(IdSet(cycle.begin(), cycle.end()),
                 [&](const CoordinateId& id) {
-                    return !isRelativeOnCellFace(coords[id]) || sIds.edgeIds().count(id) != 0;
+                    return !isRelativeInCellFace(coords[id]) || sIds.edgeIds().count(id) != 0;
                 })
         );
     }
@@ -527,8 +527,8 @@ Elements SmootherTools::buildBoundaryContourAsLines(
     IdSet vertices = g.getVertices();
 
     IdSet contour = classifyIds(vertices, [&](auto i) {
-        return isRelativeOnCellCorner(coords[i])
-            || isRelativeOnCellEdge(coords[i]);
+        return isRelativeInCellCorner(coords[i])
+            || isRelativeInCellEdge(coords[i]);
         }).first;
 
     Elements lines;

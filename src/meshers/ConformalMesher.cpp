@@ -9,14 +9,14 @@
 namespace meshlib::meshers {
 
 using namespace utils;
-std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexPerEdge(const Mesh& mesh)
+std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh)
 {
     std::set<Cell> res;
     
     const GridTools gT(mesh.grid);
     std::set<std::pair<Cell, Axis>> ocuppiedEdges;
     for (const auto& v: mesh.coordinates) {
-        if (gT.isRelativeOnCellEdge(v)) {
+        if (gT.isRelativeInCellEdge(v)) {
             auto edge = std::make_pair(
                 gT.toCell(v), 
                 gT.getCellEdgeAxis(v).second);
@@ -32,11 +32,12 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexPerEdge(const Mesh& mesh
     return res;
 }
 
+
 std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
 {
     std::set<Cell> res;
     
-    auto gT = GridTools(mesh.grid);
+    const auto gT = GridTools(mesh.grid);
     
     Elements allElements;
     for (auto const& g: mesh.groups) {
@@ -46,15 +47,51 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
     
     for (auto const& c: cellMap) {
         auto cG = CoordGraph(c.second);
-        IdSet vIdsInCornerOrEdges;
-        for (const auto& vId: cG.getVertices()) {
-            const Relative& v = mesh.coordinates[vId];
-            if (gT.isRelativeOnCellCorner(v) || gT.isRelativeOnCellEdge(v)) {
-                vIdsInCornerOrEdges.insert(vId);
+        auto vIds = cG.getVertices();
+        for (Axis x: {X, Y, Z}) {
+            for (Side s: {L, U}) {
+                // Get vertices in the cell bound.
+                IdSet vIdsInBound;
+                for (auto const& vId: vIds) {
+                    if (gT.isRelativeAtCellBound(
+                        mesh.coordinates[vId], c.first, {x,s})) {
+                        vIdsInBound.insert(vId);
+                    }
+                }
+                if (vIdsInBound.size() == 0) {
+                    continue;
+                }
+
+                // Keep only edges if both vertices are in the cell bound.
+                // Isolated vertices are not included.
+                CoordGraph faceGraph;
+                for (auto const& line: cG.getEdgesAsLines()) {
+                    const auto& v1 = line.vertices[0];
+                    const auto& v2 = line.vertices[1];
+                    if (vIdsInBound.count(v1) && vIdsInBound.count(v2)) {
+                        faceGraph.addEdge(v1, v2);
+                    }
+                }
+
+                
+                std::size_t numberOfVerticesAtEdges = 0;
+                for (auto const& vId: vIdsInBound) {
+                    if (gT.isRelativeInCellEdge(mesh.coordinates[vId]) ||
+                        gT.isRelativeInCellCorner(mesh.coordinates[vId])) {
+                        numberOfVerticesAtEdges++;
+                    }
+                }
+                
+                // Zero means there is something inside the face, not OK.
+                // One is not OK. It means there is a flap, which is not allowed as doesn't define a region.
+                // Two is OK, rule #1 ensures they are not in same edge.
+                // Three or more is not OK. There is more than one path crossing.
+                if (numberOfVerticesAtEdges != 2) {
+                    res.insert(c.first);
+                    break;
+                }
             }
         }
-
-        // WIP
     }
  
     return res;
@@ -87,13 +124,13 @@ std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
 
 std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 {
-    // The five rules:
-    // Rule #1: Cell edges must contain at most one vertex (ignoring cell corners).
-    // Rule #2: Cell faces must always be crossed by a single path.
-
+    // The five rules.
     std::set<Cell> res;
-
-    res = mergeCellSets(res, cellsWithMoreThanAVertexPerEdge(mesh));
+    
+    // Rule #1: Cell edges must contain at most one vertex (ignoring cell corners).
+    res = mergeCellSets(res, cellsWithMoreThanAVertexInsideEdge(mesh));
+    
+    // Rule #2: Cell faces must always be crossed by a single path.
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
 
     // res = mergeCellSets(res, cellsWithInteriorDisconnectedTriangles(mesh));
@@ -111,11 +148,12 @@ Mesh ConformalMesher::mesh() const
 
     Mesh res = OffgridMesher(inputMesh_, offgridMesherOpts).mesh();
 
-    // Find cells which break conformal rules.
+    // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
 
     // Calls structurer to mesh only those cells.
     
+    // Merges triangles which are on same cell face.
 
     return res;
 }
