@@ -99,6 +99,34 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
     EXPECT_EQ(0, res.size());
 }
 
+TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches)
+{
+    // Triangle in a cell face with vertices on edges.
+    // Is non-conformal.
+    //  2-- 
+    //   \ -- 1 
+    //    \ / 
+    //     0  
+    
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1);
+        m.coordinates = {
+            Relative({1.25, 1.00, 1.50}),
+            Relative({2.00, 1.50, 1.50}),
+            Relative({1.00, 2.00, 1.50})
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2})
+        };
+    }
+    auto res = ConformalMesher::cellsWithInteriorDisconnectedPatches(m);
+
+    EXPECT_EQ(1, res.size());
+}
+
+
 // TEST_F(ConformalMesherTest, plane45_size05_grid_adapted) 
 // {
 //     ConformalMesher mesher(buildPlane45Mesh(0.5));

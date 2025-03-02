@@ -32,65 +32,87 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& m
     return res;
 }
 
+std::map<Cell, std::vector<const Element*>> buildCellMapForAllElements(const Mesh& mesh)
+{
+    const auto gT = GridTools(mesh.grid);
+    std::map<Cell, std::vector<const Element*>> res;
+    for (auto const& g: mesh.groups) {
+        auto groupElemMap = gT.buildCellElemMap(g.elements, mesh.coordinates);
+        for (auto const& cellElemPair: groupElemMap) {
+            res[cellElemPair.first].insert(
+                res[cellElemPair.first].end(),
+                cellElemPair.second.begin(),
+                cellElemPair.second.end());
+        }
+    }
+    return res;
+}
+
+std::size_t countPathsInCellBound(
+    const GridTools& gT,
+    const Mesh& mesh,
+    const Cell& cell,
+    const ElementsView& elementsInCell,
+    const std::pair<Axis, Side>& bound)
+{
+    auto cG = CoordGraph(elementsInCell);
+    auto vIds = cG.getVertices();
+        
+    std::size_t pathsInCellBound = 0;
+
+    // Get vertices in the cell bound.
+    IdSet vIdsInBound;
+    for (auto const& vId: vIds) {
+        if (gT.isRelativeAtCellBound(
+            mesh.coordinates[vId], cell, bound)) {
+            vIdsInBound.insert(vId);
+        }
+    }
+    if (vIdsInBound.size() == 0) {
+        return pathsInCellBound;
+    }
+
+    // Keep only edges if both vertices are in the cell bound.
+    // Isolated vertices are not included.
+    CoordGraph faceGraph;
+    for (auto const& line: cG.getEdgesAsLines()) {
+        const auto& v1 = line.vertices[0];
+        const auto& v2 = line.vertices[1];
+        if (vIdsInBound.count(v1) && vIdsInBound.count(v2)) {
+            faceGraph.addEdge(v1, v2);
+        }
+    }
+   
+    // Count non-edge-aligned lines pointing outwards 
+    // from each vertex in the edge.
+    auto lines = faceGraph.getEdgesAsLines();
+    for (auto const& vId: vIdsInBound) {
+        if (!gT.isRelativeInCellEdge(mesh.coordinates[vId])) {
+            continue;
+        }
+        for (const auto& line: lines) {
+            if (line.vertices[0] == vId &&
+                !GridTools::areCoordOnSameEdge(
+                    mesh.coordinates[line.vertices[0]],
+                    mesh.coordinates[line.vertices[1]])) {
+                pathsInCellBound++;
+            }
+        }
+    }
+    return pathsInCellBound;
+}
+
 std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
 {
     std::set<Cell> res;
     
     const auto gT = GridTools(mesh.grid);
     
-    Elements allElements; 
-    for (auto const& g: mesh.groups) {
-        allElements.insert(allElements.end(), g.elements.begin(), g.elements.end());
-    }
-    auto cellMap = gT.buildCellElemMap(allElements, mesh.coordinates);
-    
-    for (auto const& c: cellMap) {
-        auto cG = CoordGraph(c.second);
-        auto vIds = cG.getVertices();
+    for (auto const& c: buildCellMapForAllElements(mesh)) {
         for (Axis x: {X, Y, Z}) {
             for (Side s: {L, U}) {
-                // Get vertices in the cell bound.
-                IdSet vIdsInBound;
-                for (auto const& vId: vIds) {
-                    if (gT.isRelativeAtCellBound(
-                        mesh.coordinates[vId], c.first, {x,s})) {
-                        vIdsInBound.insert(vId);
-                    }
-                }
-                if (vIdsInBound.size() == 0) {
-                    continue;
-                }
-
-                // Keep only edges if both vertices are in the cell bound.
-                // Isolated vertices are not included.
-                CoordGraph faceGraph;
-                for (auto const& line: cG.getEdgesAsLines()) {
-                    const auto& v1 = line.vertices[0];
-                    const auto& v2 = line.vertices[1];
-                    if (vIdsInBound.count(v1) && vIdsInBound.count(v2)) {
-                        faceGraph.addEdge(v1, v2);
-                    }
-                }
-               
-                // Count non-edge-aligned lines pointing outwards 
-                // from each vertex in the edge.
-                auto lines = faceGraph.getEdgesAsLines();
-                std::size_t pathsInFace = 0;
-                for (auto const& vId: vIdsInBound) {
-                    if (!gT.isRelativeInCellEdge(mesh.coordinates[vId])) {
-                        continue;
-                    }
-                    for (const auto& line: lines) {
-                        if (line.vertices[0] == vId &&
-                            !GridTools::areCoordOnSameEdge(
-                                mesh.coordinates[line.vertices[0]],
-                                mesh.coordinates[line.vertices[1]])) {
-                            pathsInFace++;
-                        }
-                    }
-                }
-
-                if (pathsInFace > 1) {
+                auto pathsInCellBound = countPathsInCellBound(gT, mesh, c.first, c.second, {x,s});
+                if (pathsInCellBound > 1) {
                     res.insert(c.first);
                 }
             }
@@ -100,18 +122,29 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
     return res;
 }
 
-std::set<Cell> cellsWithInteriorDisconnectedTriangles(const Mesh& mesh)
+std::set<Cell> ConformalMesher::cellsWithInteriorDisconnectedPatches(const Mesh& mesh)
 {
-    // Triangles inside cells must be part of a patch with at least one valid line
-    // on a cell face.
+    GridTools gT(mesh.grid);
     std::set<Cell> res;
-    // TODO
+    for (auto const& c: buildCellMapForAllElements(mesh)) {
+        for (auto const& p: CoordGraph(c.second).getBoundaryGraph().split()) {
+            std::size_t pathsOnCellBounds = 0;
+            for (auto x: {X, Y, Z}) {
+                for (auto s: {L, U}) {
+                    pathsOnCellBounds += countPathsInCellBound(gT, mesh, c.first, c.second, {x,s});
+                }
+            }
+            if (pathsOnCellBounds == 0) {
+                res.insert(c.first);
+            }
+        }
+
+    }
     return res;
 }
 
-std::set<Cell> cellsWithVertexInForbiddenEdgeRegion(const Mesh& mesh)
+std::set<Cell> ConformalMesher::cellsWithAVertexInAnEdgeForbiddenRegion(const Mesh& mesh)
 {
-    // All vertices must be out of the edge`s forbidden regions.
     std::set<Cell> res;
     // TODO
     return res;
@@ -127,17 +160,23 @@ std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
 
 std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 {
-    // The five rules.
+    // Find cells not respecting **The Five Rules**.
     std::set<Cell> res;
     
-    // Rule #1: Cell edges must contain at most one vertex (ignoring cell corners).
+    // Rule #1: Cell edges must contain at most one vertex in each edge.
     res = mergeCellSets(res, cellsWithMoreThanAVertexInsideEdge(mesh));
     
     // Rule #2: Cell faces must always be crossed by a single path.
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
 
-    // res = mergeCellSets(res, cellsWithInteriorDisconnectedTriangles(mesh));
-    // res = mergeCellSets(res, cellsWithVertexInForbiddenEdgeRegion(mesh));
+    // Rule #3: Triangles inside cells must be part of a patch with at 
+    // least one valid line on a cell face.
+    res = mergeCellSets(res, cellsWithInteriorDisconnectedPatches(mesh));
+    
+    // Rule #4: All vertices in edges must be out of their forbidden regions.
+    res = mergeCellSets(res, cellsWithAVertexInAnEdgeForbiddenRegion(mesh));
+
+    // Rule #5: Conformal cells can't contain line elements.
     // res = mergeCellSets(res, cellsContainingLineElements(mesh));
 
     return res;
