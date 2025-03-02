@@ -186,7 +186,7 @@ TEST_F(SlicerTest, cube1x1x1_size3_grid)
 TEST_F(SlicerTest, tri_less45_size025_grid)
 {
     Mesh in = buildTri45Mesh(0.25);
-    in.coordinates[0] = { 1.45000000e+00, 1.00000000e+00, 1.4500000e+00 };
+    in.coordinates[0] = Coordinate({ 1.45000000e+00, 1.00000000e+00, 1.4500000e+00 });
 
     
     Mesh out;

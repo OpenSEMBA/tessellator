@@ -32,14 +32,13 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& m
     return res;
 }
 
-
 std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
 {
     std::set<Cell> res;
     
     const auto gT = GridTools(mesh.grid);
     
-    Elements allElements;
+    Elements allElements; 
     for (auto const& g: mesh.groups) {
         allElements.insert(allElements.end(), g.elements.begin(), g.elements.end());
     }
@@ -72,23 +71,27 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
                         faceGraph.addEdge(v1, v2);
                     }
                 }
-
-                
-                std::size_t numberOfVerticesAtEdges = 0;
+               
+                // Count non-edge-aligned lines pointing outwards 
+                // from each vertex in the edge.
+                auto lines = faceGraph.getEdgesAsLines();
+                std::size_t pathsInFace = 0;
                 for (auto const& vId: vIdsInBound) {
-                    if (gT.isRelativeInCellEdge(mesh.coordinates[vId]) ||
-                        gT.isRelativeInCellCorner(mesh.coordinates[vId])) {
-                        numberOfVerticesAtEdges++;
+                    if (!gT.isRelativeInCellEdge(mesh.coordinates[vId])) {
+                        continue;
+                    }
+                    for (const auto& line: lines) {
+                        if (line.vertices[0] == vId &&
+                            !GridTools::areCoordOnSameEdge(
+                                mesh.coordinates[line.vertices[0]],
+                                mesh.coordinates[line.vertices[1]])) {
+                            pathsInFace++;
+                        }
                     }
                 }
-                
-                // Zero means there is something inside the face, not OK.
-                // One is not OK. It means there is a flap, which is not allowed as doesn't define a region.
-                // Two is OK, rule #1 ensures they are not in same edge.
-                // Three or more is not OK. There is more than one path crossing.
-                if (numberOfVerticesAtEdges != 2) {
+
+                if (pathsInFace > 1) {
                     res.insert(c.first);
-                    break;
                 }
             }
         }

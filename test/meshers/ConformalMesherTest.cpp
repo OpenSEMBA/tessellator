@@ -84,8 +84,8 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
     {
         m.grid = buildUnitLengthGrid(0.1);
         m.coordinates = {
-            Relative({1.25, 1.00, 1.00}),
-            Relative({2.00, 1.50, 1.00}),
+            Relative({1.00, 1.00, 1.00}),
+            Relative({1.50, 2.00, 1.00}),
             Relative({1.00, 2.00, 1.00})
         };
         m.groups = { Group() };
@@ -96,7 +96,7 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
     
     auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
 
-    EXPECT_EQ(2, res.size());
+    EXPECT_EQ(0, res.size());
 }
 
 // TEST_F(ConformalMesherTest, plane45_size05_grid_adapted) 
