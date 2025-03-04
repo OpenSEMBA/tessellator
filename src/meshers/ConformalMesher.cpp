@@ -228,7 +228,7 @@ Mesh ConformalMesher::mesh() const
     // Calls structurer to mesh only those cells.
     
     // Merges triangles which are on same cell face.
-
+    
     
     reduceGrid(res, originalGrid_);
     

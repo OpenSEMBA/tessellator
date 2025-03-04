@@ -44,7 +44,7 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
-TEST_F(SnapperTest, triangles_can_convert_to_lines)
+TEST_F(SnapperTest, triangles_convert_to_lines)
 {
     SnapperOptions opts;
     opts.edgePoints = 0;
@@ -73,7 +73,7 @@ TEST_F(SnapperTest, triangles_can_convert_to_lines)
     EXPECT_EQ(expectedElement, res.groups[0].elements[0]);
 }
 
-TEST_F(SnapperTest, triangles_can_convert_to_nodes)
+TEST_F(SnapperTest, triangles_convert_to_nodes)
 {
     SnapperOptions opts;
     opts.edgePoints = 0;
@@ -100,4 +100,9 @@ TEST_F(SnapperTest, triangles_can_convert_to_nodes)
     ASSERT_EQ(1, res.groups.size());
     ASSERT_EQ(1, res.groups[0].elements.size());
     EXPECT_EQ(expectedElement, res.groups[0].elements[0]);
+}
+
+TEST_F(SnapperTest, DISABLED_redundant_lines_are_removed)
+{
+    
 }
