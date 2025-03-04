@@ -15,21 +15,31 @@ using namespace meshFixtures;
 class SnapperTest : public ::testing::Test {
 protected:
 };
-//
-//TEST_F(SnapperTest, selfOverlapping_stepSize1)
-//{
-//	ASSERT_NO_THROW(Snapper{ Slicer{ buildSelfOverlappingMesh(1.0) }.getMesh()	});
-//}
-//
-//TEST_F(SnapperTest, selfOverlapping_stepSize0c25)
-//{
-//	ASSERT_NO_THROW(Snapper{ Slicer{ buildSelfOverlappingMesh(0.25) }.getMesh() });
-//}
-//
-//TEST_F(SnapperTest, selfOverlapping_partially_stepSize1)
-//{
-//	auto m{ buildSelfOverlappingMesh(1.0) };
-//	m.coordinates[3] = Coordinate({ 0.9, 0.9, 0.0 });
-//
-//	ASSERT_NO_THROW(Snapper{ Slicer{m}.getMesh() });
-//}
+
+TEST_F(SnapperTest, similar_results_for_each_plane)
+{
+    SnapperOptions opts;
+    opts.edgePoints = 7;
+    opts.forbiddenLength = 0.1;
+
+    for (auto z: {0.0, 1.0}) {
+
+        Mesh m;
+        m.grid = buildUnitLengthGrid(1.0);
+        m.coordinates = {
+            Relative({0.80, 1.00, z}),
+            Relative({1.00, 1.00, z}),
+            Relative({0.80, 0.00, z}),
+            Relative({1.00, 0.00, z})
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 1, 3})
+        };
+                
+        auto res = Snapper(m, opts).getMesh();
+        EXPECT_EQ(res.coordinates, m.coordinates);
+
+    }
+}

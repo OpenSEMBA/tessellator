@@ -14,7 +14,7 @@ Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :
     opts_{ opts }
 {
     if (opts.forbiddenLength > 0.5) {
-        throw std::logic_error("Invalid relaxed length");
+        throw std::logic_error("Invalid forbidden length");
     }
     snap();
     

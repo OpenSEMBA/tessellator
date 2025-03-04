@@ -354,9 +354,6 @@ void SmootherTools::remeshWithNoInteriorPoints(
         throw std::logic_error("Not all elements have been remeshed");
     }
 
-
-
-
     const std::lock_guard<std::mutex> lock(writingElements_);
     for (auto comp = 0; comp < patch.size(); comp++) {
         ElementId eId = patch[comp] - &es.front();

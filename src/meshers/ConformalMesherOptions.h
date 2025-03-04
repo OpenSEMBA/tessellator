@@ -8,7 +8,6 @@ namespace meshlib::meshers {
 class ConformalMesherOptions {
 public:
     core::SnapperOptions snapperOptions;
-    int decimalPlacesInCollapser = 2;
     std::set<GroupId> volumeGroups{};
 };
 

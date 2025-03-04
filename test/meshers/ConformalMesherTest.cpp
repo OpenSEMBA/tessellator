@@ -16,8 +16,8 @@ protected:
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
-        opts.snapperOptions.edgePoints = 8;
-        opts.snapperOptions.forbiddenLength = 0.1;
+        opts.snapperOptions.edgePoints = 3;
+        opts.snapperOptions.forbiddenLength = 0.3;
         
         ConformalMesher mesher{inputMesh, opts};
 
@@ -152,7 +152,7 @@ TEST_F(ConformalMesherTest, sphere)
     auto inputMesh = vtkIO::readInputMesh(inputFilename);
 
     for (auto x: {X,Y,Z}) {
-        inputMesh.grid[x] = utils::GridTools::linspace(-100.0, 100.0, 51); 
+        inputMesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
     }
 
     // Mesh
@@ -167,7 +167,7 @@ TEST_F(ConformalMesherTest, alhambra)
 
     inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    inputMesh.grid[Z] = utils::GridTools::linspace(    0,  9.37,  6);
+    inputMesh.grid[Z] = utils::GridTools::linspace(    0,  9.36367, 6);
     
     // Mesh
     auto mesh = launchConformalMesher(inputFilename, inputMesh);
@@ -185,6 +185,22 @@ TEST_F(ConformalMesherTest, cone)
     
     // Mesh
     auto mesh = launchConformalMesher(inputFilename, inputMesh);
+}
+
+TEST_F(ConformalMesherTest, thinCylinder)
+{
+    // Input
+    const std::string inputFilename = "testData/cases/thinCylinder/thinCylinder.stl";
+    auto inputMesh = vtkIO::readInputMesh(inputFilename);
+
+    inputMesh.grid[X] = utils::GridTools::linspace(-1.0,  1.0, 21); 
+    inputMesh.grid[Y] = utils::GridTools::linspace(-1.0,  1.0, 21); 
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.0,  2.0, 31);
+    
+    // Mesh
+    auto mesh = launchConformalMesher(inputFilename, inputMesh);
+
+    EXPECT_NE(0, mesh.countElems());
 }
 
 // TEST_F(ConformalMesherTest, plane45_size05_grid_adapted) 

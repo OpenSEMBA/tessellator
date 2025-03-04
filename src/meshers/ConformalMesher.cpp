@@ -1,14 +1,21 @@
 #include "ConformalMesher.h"
 
 #include "MesherBase.h"
-#include "OffgridMesher.h"
+#include "core/Slicer.h"
+#include "core/Collapser.h"
+#include "core/Smoother.h" 
+#include "core/Snapper.h"
 
 #include "utils/GridTools.h"
+#include "utils/MeshTools.h"
 #include "utils/CoordGraph.h"
 
 namespace meshlib::meshers {
 
 using namespace utils;
+using namespace core;
+using namespace meshTools;
+
 std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh)
 {
     std::set<Cell> res;
@@ -184,21 +191,51 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 
 Mesh ConformalMesher::mesh() const 
 {
-    OffgridMesherOptions offgridMesherOpts;
-    offgridMesherOpts.snapperOptions = opts_.snapperOptions;
-    offgridMesherOpts.decimalPlacesInCollapser = opts_.decimalPlacesInCollapser;    
+    const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
+    
+    auto res = inputMesh_;
 
-    Mesh res = OffgridMesher(inputMesh_, offgridMesherOpts).mesh();
+    if (res.countElems() == 0) {
+        res.grid = slicingGrid;
+        return res;
+    }
+    
+    log("Slicing.", 1);
+    res.grid = slicingGrid;
+    res = Slicer{ res }.getMesh();
+        
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+
+    log("Collapsing.", 1);
+    res = Collapser(res, 4).getMesh();
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+
+    log("Smoothing.", 1);
+    SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 40;
+    smootherOpts.contourAlignmentAngle = 0;
+    res = Smoother{res, smootherOpts}.getMesh();
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    
+    log("Snapping.", 1);
+    res = Snapper(res, opts_.snapperOptions).getMesh();
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
+    log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
 
     // Calls structurer to mesh only those cells.
     
     // Merges triangles which are on same cell face.
 
+    
+    reduceGrid(res, originalGrid_);
+    
     // Converts relatives to absolutes.
     res.coordinates = utils::GridTools{res.grid}.relativeToAbsolute(res.coordinates);
+
+
 
     return res;
 }

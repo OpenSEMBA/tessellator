@@ -3,14 +3,16 @@
 #include "types/Mesh.h"
 #include "utils/Types.h"
 #include "ConformalMesherOptions.h"
+#include "MesherBase.h"
 
 namespace meshlib::meshers {
 
-class ConformalMesher {
+class ConformalMesher : public MesherBase {
 public:
     ConformalMesher(const Mesh& in, ConformalMesherOptions opts = ConformalMesherOptions()) : 
         inputMesh_{ in }, 
-        opts_{opts} 
+        opts_{opts},
+        MesherBase(in)
     {};
     virtual ~ConformalMesher() = default;
     
@@ -24,6 +26,8 @@ public:
 private:
     Mesh inputMesh_;
     ConformalMesherOptions opts_;
+
+    void process(Mesh& mesh) const {};
 };
 
 }
