@@ -18,10 +18,11 @@ Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :
     }
     snap();
     
-    mesh_ = Collapser{mesh_, 4}.getMesh();
+    // TODO. <<<< ================
+    convertNullAreaTrianglesToLinesOrNodes();
+    RedundancyCleaner::RemoveRepeatedElements(mesh_);
     
     utils::meshTools::checkNoCellsAreCrossed(mesh_);
-    utils::meshTools::checkNoNullAreasExist(mesh_);
 }
 
 std::pair<Coordinates, std::map<Coordinate, std::set<LinV>>> Snapper::buildListOfValidSolverPoints() const

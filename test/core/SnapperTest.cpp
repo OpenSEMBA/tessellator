@@ -43,3 +43,61 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
 
     }
 }
+
+TEST_F(SnapperTest, triangles_can_convert_to_lines)
+{
+    SnapperOptions opts;
+    opts.edgePoints = 0;
+    opts.forbiddenLength = 0.5;
+   
+    Mesh m;
+    m.grid = buildUnitLengthGrid(1.0);
+    m.coordinates = {
+        Relative({0.0, 0.0, 0.0}),
+        Relative({0.5, 0.0, 0.0}),
+        Relative({1.0, 0.0, 0.0})
+    };
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({0, 1, 2}),
+    };
+                
+    auto res = Snapper(m, opts).getMesh();
+    
+    Relatives expectedCoords = {Relative({0.0, 0.0, 0.0}), Relative({1.0, 0.0, 0.0})};
+    Element expectedElement({0, 1}, Element::Type::Line);    
+    
+    EXPECT_EQ(expectedCoords, res.coordinates);
+    ASSERT_EQ(1, res.groups.size());
+    ASSERT_EQ(1, res.groups[0].elements.size());
+    EXPECT_EQ(expectedElement, res.groups[0].elements[0]);
+}
+
+TEST_F(SnapperTest, triangles_can_convert_to_nodes)
+{
+    SnapperOptions opts;
+    opts.edgePoints = 0;
+    opts.forbiddenLength = 0.5;
+   
+    Mesh m;
+    m.grid = buildUnitLengthGrid(1.0);
+    m.coordinates = {
+        Relative({0.0, 0.0, 0.0}),
+        Relative({0.1, 0.0, 0.0}),
+        Relative({0.2, 0.0, 0.0})
+    };
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({0, 1, 2}),
+    };
+                
+    auto res = Snapper(m, opts).getMesh();
+    
+    Relatives expectedCoords = {Relative({0.0, 0.0, 0.0})};
+    Element expectedElement({0}, Element::Type::Node);    
+    
+    EXPECT_EQ(expectedCoords, res.coordinates);
+    ASSERT_EQ(1, res.groups.size());
+    ASSERT_EQ(1, res.groups[0].elements.size());
+    EXPECT_EQ(expectedElement, res.groups[0].elements[0]);
+}
