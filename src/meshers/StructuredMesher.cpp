@@ -73,8 +73,8 @@ void StructuredMesher::process(Mesh& mesh) const
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);
 
-    utils::GridTools gT{mesh.grid};
-    mesh.coordinates = gT.relativeToAbsolute(mesh.coordinates);
+    log("Converting relative to absolute coordinates.", 1);
+    mesh.coordinates = utils::GridTools{mesh.grid}.relativeToAbsolute(mesh.coordinates);
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

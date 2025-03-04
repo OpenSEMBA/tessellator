@@ -13,7 +13,7 @@ TEST_F(VTKIOTest, readMeshFromSTL)
 {
     std::string fn{"testData/alhambra.stl"};
     
-    auto m{ readMeshGroups(fn) };
+    auto m{ readInputMesh(fn) };
 
     EXPECT_EQ(m.coordinates.size(), 584);
     EXPECT_EQ(m.groups.size(), 1);  
@@ -24,7 +24,7 @@ TEST_F(VTKIOTest, readMeshFromVTK)
 {
     std::string fn{"testData/alhambra.vtk"};
     
-    auto m{ readMeshGroups(fn) };
+    auto m{ readInputMesh(fn) };
 
     EXPECT_EQ(m.coordinates.size(), 584);
     EXPECT_EQ(m.groups.size(), 1);  
@@ -33,9 +33,9 @@ TEST_F(VTKIOTest, readMeshFromVTK)
 
 TEST_F(VTKIOTest, exportAndReadMeshFromVTU)
 {
-    auto mSTL{ readMeshGroups("testData/alhambra.stl") };
+    auto mSTL{ readInputMesh("testData/alhambra.stl") };
     exportMeshToVTU("tmp_exported_alhambra.vtu", mSTL);
-    auto mVTU{ readMeshGroups("tmp_exported_alhambra.vtu") };
+    auto mVTU{ readInputMesh("tmp_exported_alhambra.vtu") };
 
     EXPECT_EQ(mSTL.coordinates.size(), mVTU.coordinates.size());
     EXPECT_EQ(mSTL.groups.size(), mVTU.groups.size());  
@@ -52,7 +52,7 @@ TEST_F(VTKIOTest, exportGridToVTU)
     std::string fn{"tmp_exported_grid.vtu"};
     exportGridToVTU(fn, grid);
 
-    auto exported{ readMeshGroups(fn) };
+    auto exported{ readInputMesh(fn) };
 
     EXPECT_EQ(121+121+21, exported.countElems());
 }

@@ -4,13 +4,32 @@
 
 #include "meshers/ConformalMesher.h"
 #include "utils/Geometry.h"
+#include "app/vtkIO.h"
 
 namespace meshlib::meshers {
 using namespace meshFixtures;
 using namespace utils::meshTools;
+using namespace vtkIO;
 
 class ConformalMesherTest : public ::testing::Test {
+protected:
+    Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
+    {
+        ConformalMesherOptions opts;
+        opts.snapperOptions.edgePoints = 8;
+        opts.snapperOptions.forbiddenLength = 0.1;
+        
+        ConformalMesher mesher{inputMesh, opts};
 
+        Mesh res = mesher.mesh();
+    
+        std::filesystem::path outputFolder = getFolder(inputFilename);
+        auto basename = getBasename(inputFilename);
+        exportMeshToVTU(outputFolder / (basename + ".tessellator.cmsh.vtk"), res);
+        exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), res.grid);
+
+        return res;
+    }
 };
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge)
@@ -126,6 +145,47 @@ TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches)
     EXPECT_EQ(1, res.size());
 }
 
+TEST_F(ConformalMesherTest, sphere)
+{
+    // Input
+    const std::string inputFilename = "testData/cases/sphere/sphere.stl";
+    auto inputMesh = vtkIO::readInputMesh(inputFilename);
+
+    for (auto x: {X,Y,Z}) {
+        inputMesh.grid[x] = utils::GridTools::linspace(-100.0, 100.0, 51); 
+    }
+
+    // Mesh
+    auto mesh = launchConformalMesher(inputFilename, inputMesh);
+}
+
+TEST_F(ConformalMesherTest, alhambra)
+{
+    // Input
+    const std::string inputFilename = "testData/cases/alhambra/alhambra.vtk";
+    auto inputMesh = vtkIO::readInputMesh(inputFilename);
+
+    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    inputMesh.grid[Z] = utils::GridTools::linspace(    0,  9.37,  6);
+    
+    // Mesh
+    auto mesh = launchConformalMesher(inputFilename, inputMesh);
+}
+
+TEST_F(ConformalMesherTest, cone)
+{
+    // Input
+    const std::string inputFilename = "testData/cases/cone/cone.stl";
+    auto inputMesh = vtkIO::readInputMesh(inputFilename);
+
+    inputMesh.grid[X] = utils::GridTools::linspace(-2.0,  2.0,  41); 
+    inputMesh.grid[Y] = utils::GridTools::linspace(-2.0,  2.0,  41); 
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.0, 11.0, 121);
+    
+    // Mesh
+    auto mesh = launchConformalMesher(inputFilename, inputMesh);
+}
 
 // TEST_F(ConformalMesherTest, plane45_size05_grid_adapted) 
 // {

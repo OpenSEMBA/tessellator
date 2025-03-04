@@ -197,6 +197,9 @@ Mesh ConformalMesher::mesh() const
     
     // Merges triangles which are on same cell face.
 
+    // Converts relatives to absolutes.
+    res.coordinates = utils::GridTools{res.grid}.relativeToAbsolute(res.coordinates);
+
     return res;
 }
 
