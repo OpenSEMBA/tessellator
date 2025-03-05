@@ -3,9 +3,8 @@
 #include "types/Mesh.h"
 #include "utils/Types.h"
 
-namespace meshlib {
-namespace utils {
-namespace meshTools {
+
+namespace meshlib::utils::meshTools {
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh);
 Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh);
@@ -47,6 +46,6 @@ void mergeGroup(Group& lG, const Group& rG, const CoordinateId& coordCount = 0);
 void mergeMesh(Mesh& lMesh, const Mesh& iMesh);
 void mergeMeshAsNewGroup(Mesh& lMesh, const Mesh& iMesh);
 
-}
-}
+bool isAClosedTopology(const Elements& es);
+
 }

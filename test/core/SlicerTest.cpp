@@ -4,6 +4,7 @@
 #include "Slicer.h"
 #include "Geometry.h"
 #include "MeshTools.h"
+#include "app/vtkIO.h"
 
 namespace meshlib::core {
 
@@ -305,7 +306,7 @@ TEST_F(SlicerTest, cell_faces_are_crossed_3)
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellsFromTheSamePlane)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellsFromTheSamePlane)
 {
 
     // y                                      y
@@ -430,7 +431,7 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellsFromTheSamePlane)
     }
 }
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellThatPassThoroughPoints)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellThatPassThoroughPoints)
 {
 
     // y                                          y
@@ -551,7 +552,7 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellThatPassThoroughPoints)
 
 
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
 {
  
     //              *-------------*-------------*                   *-------------*-------------*
@@ -646,6 +647,34 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
             EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
         }
     }
+}
+
+TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.vtk");
+    m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+
+    auto slicedMesh = Slicer{m}.getMesh();
+
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+}
+
+TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+
+    auto slicedMesh = Slicer{m}.getMesh();
+
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 }
 
 }

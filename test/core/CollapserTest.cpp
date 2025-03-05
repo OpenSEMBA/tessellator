@@ -6,10 +6,14 @@
 #include "utils/Geometry.h"
 #include "utils/CoordGraph.h"
 #include "utils/GridTools.h"
+#include "utils/MeshTools.h"
+#include "app/vtkIO.h"
+
 
 namespace meshlib::core {
 
 using namespace utils;
+using namespace meshTools;
 
 class CollapserTest : public ::testing::Test {
 protected:
@@ -73,14 +77,6 @@ protected:
 		grid[2] = utils::GridTools::linspace(-0.5, 1.5, num);
 		return grid;
 	}
-
-	static bool isClosed(const Mesh& m) 
-	{
-		return CoordGraph(m.groups[0].elements)
-				.getBoundaryGraph()
-				.getVertices()
-				.size() == 0;
-	}
 };
 
 TEST_F(CollapserTest, collapser)
@@ -136,15 +132,35 @@ TEST_F(CollapserTest, collapser_3)
 TEST_F(CollapserTest, preserves_closedness)
 {
 	Mesh m = buildTinyTriClosedMesh();
+	EXPECT_TRUE(isAClosedTopology(m.groups[0].elements));
 
 	Mesh r = Collapser(m, 2).getMesh();
-
+	
 	EXPECT_EQ(8, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(12, r.groups[0].elements.size());
 
-	EXPECT_TRUE(isClosed(m));
-	EXPECT_TRUE(isClosed(r));
+	EXPECT_TRUE(isAClosedTopology(r.groups[0].elements));
+	
+}
+
+TEST_F(CollapserTest, closedness_for_alhambra)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.vtk");
+    m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+
+    auto slicedMesh = Slicer{m}.getMesh();
+
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+
+	auto collapsedMesh = Collapser(slicedMesh, 6).getMesh();
+
+	EXPECT_TRUE(meshTools::isAClosedTopology(collapsedMesh.groups[0].elements));
+	
 }
 
 TEST_F(CollapserTest, areas_are_below_threshold_issue)

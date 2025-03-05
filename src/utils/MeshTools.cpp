@@ -379,4 +379,10 @@ std::string info(const Element& e, const Mesh& m)
     return r.str();
 }
 
+
+bool isAClosedTopology(const Elements& es)
+{
+	return CoordGraph(es).getBoundaryGraph().getVertices().size() == 0;
+}
+
 }

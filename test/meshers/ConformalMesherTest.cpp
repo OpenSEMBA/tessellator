@@ -17,8 +17,8 @@ protected:
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
-        opts.snapperOptions.edgePoints = 3;
-        opts.snapperOptions.forbiddenLength = 0.3;
+        opts.snapperOptions.edgePoints = 0;
+        opts.snapperOptions.forbiddenLength = 0.0;
         
         ConformalMesher mesher{inputMesh, opts};
 
@@ -33,7 +33,7 @@ protected:
     }
 };
 
-TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge)
+TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_1)
 {
     // This is non-conformal.
     //  4  _
@@ -62,6 +62,33 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge)
     auto res = ConformalMesher::cellsWithMoreThanAVertexInsideEdge(m);
 
     EXPECT_EQ(4, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_2)
+{
+    // Triangles forming a patch in a cell face with a single boundary crossing the cell face.
+    // It is conformal.
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.5, 1.0}),
+            Relative({0.0, 1.0, 1.0}),
+            Relative({1.0, 1.0, 1.0}),
+            Relative({1.0, 0.0, 1.0}),
+            Relative({0.5, 0.0, 1.0}),
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 3, 0}),
+            Element({3, 4, 0}),
+        };
+    }
+    
+    auto res = ConformalMesher::cellsWithMoreThanAVertexInsideEdge(m);
+
+    EXPECT_EQ(0, res.size());
 }
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_1)
@@ -94,7 +121,8 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_1)
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
 {
-   
+    // Triangles forming a patch in a cell face with a single boundary crossing the cell face.
+    // It is conformal.
     Mesh m;
     {
         m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
@@ -137,6 +165,70 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_3)
         m.groups = { Group() };
         m.groups[0].elements = {
             Element({0, 1, 2})
+        };
+    }
+    
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
+
+    EXPECT_EQ(0, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_4)
+{
+    // Patch with two triangles on face and two triangles within the cell.
+    // Is conformal.
+    //  1---2 
+    //  |  /   - -  -5
+    //  |/ _ - -4
+    //  0 ----- 3
+    
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({1.0, 1.0, 1.0}),
+            Relative({1.0, 2.0, 1.0}),
+            Relative({1.5, 2.0, 1.0}),
+            Relative({2.0, 1.0, 1.0}),
+            Relative({2.0, 1.5, 1.0}),
+            Relative({1.5, 1.5, 1.5}),
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 5, 0}),
+            Element({0, 5, 4}),
+            Element({4, 3, 0}),
+        };
+    }
+    
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
+
+    EXPECT_EQ(2, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_5)
+{
+    // Patch with one triangles on face and one triangles within the cell.
+    // Is conformal.
+    //  1---2 
+    //  |  /   - -  -5
+    //  |/ _ ---
+    //  0 
+    
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({1.0, 1.0, 1.0}),
+            Relative({1.0, 2.0, 1.0}),
+            Relative({1.5, 2.0, 1.0}),
+            Relative({1.5, 1.5, 1.5}),
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 3, 0}),
         };
     }
     
@@ -237,7 +329,7 @@ TEST_F(ConformalMesherTest, alhambra)
 
     inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    inputMesh.grid[Z] = utils::GridTools::linspace(    0,  9.36367, 6);
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
     
     // Mesh
     auto mesh = launchConformalMesher(inputFilename, inputMesh);

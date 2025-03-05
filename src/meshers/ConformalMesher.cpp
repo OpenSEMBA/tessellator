@@ -62,8 +62,8 @@ std::size_t countPathsInCellBound(
     const ElementsView& elementsInCell,
     const std::pair<Axis, Side>& bound)
 {
-    auto bG = CoordGraph(elementsInCell).getBoundaryGraph();
-    auto vIds = bG.getVertices();
+    auto cG = CoordGraph(elementsInCell);
+    auto vIds = cG.getVertices();
         
     std::size_t pathsInCellBound = 0;
 
@@ -81,27 +81,33 @@ std::size_t countPathsInCellBound(
 
     // Keep only edges if both vertices are in the cell bound.
     // Isolated vertices are not included.
-    CoordGraph faceGraph;
-    for (auto const& line: bG.getEdgesAsLines()) {
-        const auto& v1 = line.vertices[0];
-        const auto& v2 = line.vertices[1];
-        if (vIdsInBound.count(v1) && vIdsInBound.count(v2)) {
-            faceGraph.addEdge(v1, v2);
+    // Edges between two triangles are removed.
+    std::list<std::pair<CoordinateId, CoordinateId>> graphEdges;
+    for (const auto& line: cG.getEdgesAsLines()) {
+        const auto& v0 = line.vertices[0];
+        const auto& v1 = line.vertices[1];
+        if (!vIdsInBound.count(v0) || !vIdsInBound.count(v1)) {
+            continue;
+        }
+        auto it = std::find(graphEdges.begin(), graphEdges.end(), std::make_pair(v1, v0));
+        if (it != graphEdges.end()) {
+            continue;
+        } else {
+            graphEdges.push_back(std::make_pair(v0, v1));
         }
     }
    
     // Count non-edge-aligned lines pointing outwards 
     // from each vertex in the edge.
-    auto lines = faceGraph.getEdgesAsLines();
     for (auto const& vId: vIdsInBound) {
         if (!gT.isRelativeInCellEdge(mesh.coordinates[vId])) {
             continue;
         }
-        for (const auto& line: lines) {
-            if (line.vertices[0] == vId &&
+        for (const auto& line: graphEdges) {
+            if (line.first == vId &&
                 !GridTools::areCoordOnSameEdge(
-                    mesh.coordinates[line.vertices[0]],
-                    mesh.coordinates[line.vertices[1]])) {
+                    mesh.coordinates[line.first],
+                    mesh.coordinates[line.second])) {
                 pathsInCellBound++;
             }
         }
@@ -121,6 +127,9 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
                 auto pathsInCellBound = countPathsInCellBound(gT, mesh, c.first, c.second, {x,s});
                 if (pathsInCellBound > 1) {
                     res.insert(c.first);
+                    Cell adjacentCell = c.first;
+                    adjacentCell[x] = c.first[x] + (s == L ? -1 : 1);
+                    res.insert(adjacentCell);
                 }
             }
         }
@@ -207,19 +216,19 @@ Mesh ConformalMesher::mesh() const
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     log("Collapsing.", 1);
-    res = Collapser(res, 4).getMesh();
+    res = Collapser(res, 8).getMesh();
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    log("Smoothing.", 1);
-    SmootherOptions smootherOpts;
-    smootherOpts.featureDetectionAngle = 40;
-    smootherOpts.contourAlignmentAngle = 0;
-    res = Smoother{res, smootherOpts}.getMesh();
-    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    // log("Smoothing.", 1);
+    // SmootherOptions smootherOpts;
+    // smootherOpts.featureDetectionAngle = 30;
+    // smootherOpts.contourAlignmentAngle = 0;
+    // res = Smoother{res, smootherOpts}.getMesh();
+    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
     
-    log("Snapping.", 1);
-    res = Snapper(res, opts_.snapperOptions).getMesh();
-    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    // log("Snapping.", 1);
+    // res = Snapper(res, opts_.snapperOptions).getMesh();
+    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
