@@ -62,8 +62,8 @@ std::size_t countPathsInCellBound(
     const ElementsView& elementsInCell,
     const std::pair<Axis, Side>& bound)
 {
-    auto cG = CoordGraph(elementsInCell);
-    auto vIds = cG.getVertices();
+    auto bG = CoordGraph(elementsInCell).getBoundaryGraph();
+    auto vIds = bG.getVertices();
         
     std::size_t pathsInCellBound = 0;
 
@@ -82,7 +82,7 @@ std::size_t countPathsInCellBound(
     // Keep only edges if both vertices are in the cell bound.
     // Isolated vertices are not included.
     CoordGraph faceGraph;
-    for (auto const& line: cG.getEdgesAsLines()) {
+    for (auto const& line: bG.getEdgesAsLines()) {
         const auto& v1 = line.vertices[0];
         const auto& v2 = line.vertices[1];
         if (vIdsInBound.count(v1) && vIdsInBound.count(v2)) {
@@ -135,17 +135,17 @@ std::set<Cell> ConformalMesher::cellsWithInteriorDisconnectedPatches(const Mesh&
     std::set<Cell> res;
     for (auto const& c: buildCellMapForAllElements(mesh)) {
         for (auto const& p: CoordGraph(c.second).getBoundaryGraph().split()) {
-            std::size_t pathsOnCellBounds = 0;
-            for (auto x: {X, Y, Z}) {
-                for (auto s: {L, U}) {
-                    pathsOnCellBounds += countPathsInCellBound(gT, mesh, c.first, c.second, {x,s});
+            auto vIds = p.getVertices();
+            bool allInterior = std::all_of(vIds.begin(), vIds.end(),
+                 [&](auto vId) {
+                    return gT.isRelativeInterior(mesh.coordinates[vId]);
                 }
-            }
-            if (pathsOnCellBounds == 0) {
+            );
+            if (allInterior) {
                 res.insert(c.first);
+                break;
             }
         }
-
     }
     return res;
 }
@@ -233,8 +233,7 @@ Mesh ConformalMesher::mesh() const
     reduceGrid(res, originalGrid_);
     
     // Converts relatives to absolutes.
-    res.coordinates = utils::GridTools{res.grid}.relativeToAbsolute(res.coordinates);
-
+    utils::meshTools::convertToAbsoluteCoordinates(res);
 
 
     return res;

@@ -5,6 +5,7 @@
 #include "meshers/ConformalMesher.h"
 #include "utils/Geometry.h"
 #include "app/vtkIO.h"
+#include "utils/MeshTools.h"
 
 namespace meshlib::meshers {
 using namespace meshFixtures;
@@ -93,6 +94,32 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_1)
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
 {
+   
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.5, 1.0}),
+            Relative({0.0, 1.0, 1.0}),
+            Relative({1.0, 1.0, 1.0}),
+            Relative({1.0, 0.0, 1.0}),
+            Relative({0.5, 0.0, 1.0}),
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 3, 0}),
+            Element({3, 4, 0}),
+        };
+    }
+    
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
+
+    EXPECT_EQ(0, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_3)
+{
     // Triangle in a cell face with two vertices in corner and on edge.
     // Is conformal.
     //  2--1 
@@ -118,22 +145,17 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
     EXPECT_EQ(0, res.size());
 }
 
-TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches)
+TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches_1)
 {
-    // Triangle in a cell face with vertices on edges.
+    // Isolated patches in a cell with vertices not touching any edge.
     // Is non-conformal.
-    //  2-- 
-    //   \ -- 1 
-    //    \ / 
-    //     0  
-    
     Mesh m;
     {
         m.grid = buildUnitLengthGrid(0.1);
         m.coordinates = {
-            Relative({1.25, 1.00, 1.50}),
-            Relative({2.00, 1.50, 1.50}),
-            Relative({1.00, 2.00, 1.50})
+            Relative({1.25, 1.20, 1.50}),
+            Relative({1.70, 1.50, 1.50}),
+            Relative({1.20, 1.80, 1.50})
         };
         m.groups = { Group() };
         m.groups[0].elements = {
@@ -143,6 +165,33 @@ TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches)
     auto res = ConformalMesher::cellsWithInteriorDisconnectedPatches(m);
 
     EXPECT_EQ(1, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches_2)
+{
+    // Coplanar triangles are conformal.
+    //  1 -- 2 
+    //  |  / |
+    //  | /  |
+    //  0 -- 3
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1);
+        m.coordinates = {
+            Relative({0.00, 0.00, 1.50}),
+            Relative({0.00, 1.00, 1.50}),
+            Relative({1.00, 1.00, 1.50}),
+            Relative({1.00, 0.00, 1.50})
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({2, 3, 0})
+        };
+    }
+    auto res = ConformalMesher::cellsWithInteriorDisconnectedPatches(m);
+
+    EXPECT_EQ(0, res.size());
 }
 
 TEST_F(ConformalMesherTest, sphere)
@@ -155,9 +204,30 @@ TEST_F(ConformalMesherTest, sphere)
         inputMesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
     }
 
-    // Mesh
-    auto mesh = launchConformalMesher(inputFilename, inputMesh);
-}
+    Mesh mesh;
+    EXPECT_NO_THROW(mesh = launchConformalMesher(inputFilename, inputMesh));
+
+    // For Debugging.
+    mesh.coordinates = utils::GridTools{mesh.grid}.absoluteToRelative(mesh.coordinates);
+    {
+        auto cells = ConformalMesher::cellsWithMoreThanAVertexInsideEdge(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/sphere/sphere.breaksRuleNo1.vtk", dbgMesh);
+    }
+    {
+        auto cells = ConformalMesher::cellsWithMoreThanAPathPerFace(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/sphere/sphere.breaksRuleNo2.vtk", dbgMesh);
+    }
+    {
+        auto cells = ConformalMesher::cellsWithInteriorDisconnectedPatches(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/sphere/sphere.breaksRuleNo3.vtk", dbgMesh);
+    }
+} 
 
 TEST_F(ConformalMesherTest, alhambra)
 {
@@ -171,6 +241,27 @@ TEST_F(ConformalMesherTest, alhambra)
     
     // Mesh
     auto mesh = launchConformalMesher(inputFilename, inputMesh);
+
+    // For Debugging.
+    mesh.coordinates = utils::GridTools{mesh.grid}.absoluteToRelative(mesh.coordinates);
+    {
+        auto cells = ConformalMesher::cellsWithMoreThanAVertexInsideEdge(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo1.vtk", dbgMesh);
+    }
+    {
+        auto cells = ConformalMesher::cellsWithMoreThanAPathPerFace(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo2.vtk", dbgMesh);
+    }
+    {
+        auto cells = ConformalMesher::cellsWithInteriorDisconnectedPatches(mesh);
+        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
+        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo3.vtk", dbgMesh);
+    }
 }
 
 TEST_F(ConformalMesherTest, cone)

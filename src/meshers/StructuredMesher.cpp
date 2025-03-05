@@ -74,7 +74,7 @@ void StructuredMesher::process(Mesh& mesh) const
     reduceGrid(mesh, originalGrid_);
 
     log("Converting relative to absolute coordinates.", 1);
-    mesh.coordinates = utils::GridTools{mesh.grid}.relativeToAbsolute(mesh.coordinates);
+    utils::meshTools::convertToAbsoluteCoordinates(mesh);
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

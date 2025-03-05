@@ -14,5 +14,4 @@ namespace meshlib::vtkIO
     void exportMeshToVTP(const std::filesystem::path& fn, const Mesh& mesh);
     void exportMeshToVTU(const std::filesystem::path& fn, const Mesh& mesh);
     void exportGridToVTU(const std::filesystem::path& fn, const Grid& grid);
-    
 }
