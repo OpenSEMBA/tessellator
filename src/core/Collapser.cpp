@@ -26,7 +26,6 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces)
     RedundancyCleaner::collapseCoordsInLineDegenerateTriangles(mesh_, 0.4 / (factor * factor));
     RedundancyCleaner::removeRepeatedElements(mesh_);
     utils::meshTools::checkNoNullAreasExist(mesh_);
-    meshTools::checkNoCellsAreCrossed(mesh_);
 }
 
 

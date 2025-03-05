@@ -621,7 +621,6 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 		ASSERT_NO_THROW(meshTools::reduceGrid(sliced, originalGrid));
 		EXPECT_EQ(6, sliced.countElems());
 	}
-
 }
 
 }

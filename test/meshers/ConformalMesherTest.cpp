@@ -324,7 +324,7 @@ TEST_F(ConformalMesherTest, sphere)
 TEST_F(ConformalMesherTest, alhambra)
 {
     // Input
-    const std::string inputFilename = "testData/cases/alhambra/alhambra.vtk";
+    const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto inputMesh = vtkIO::readInputMesh(inputFilename);
 
     inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 

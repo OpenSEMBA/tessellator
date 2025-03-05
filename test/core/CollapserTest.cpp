@@ -82,6 +82,7 @@ protected:
 TEST_F(CollapserTest, collapser)
 {
 	Mesh m;
+	m.grid = buildGridSize2();
 	m.coordinates = {
 		Coordinate({0.000, 0.000, 0.000}),
 		Coordinate({1.000, 0.000, 0.000}),
@@ -146,7 +147,7 @@ TEST_F(CollapserTest, preserves_closedness)
 
 TEST_F(CollapserTest, closedness_for_alhambra)
 {
-    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.vtk");
+    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
     m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
@@ -154,12 +155,21 @@ TEST_F(CollapserTest, closedness_for_alhambra)
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 
     auto slicedMesh = Slicer{m}.getMesh();
-
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
-
-	auto collapsedMesh = Collapser(slicedMesh, 6).getMesh();
-
+	
+	auto collapsedMesh = Collapser(slicedMesh, 8).getMesh();
 	EXPECT_TRUE(meshTools::isAClosedTopology(collapsedMesh.groups[0].elements));
+
+	meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
+
+	meshTools::convertToAbsoluteCoordinates(collapsedMesh);
+	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsedMesh);
+
+	auto contourMesh = meshTools::buildMeshFromContours(collapsedMesh);
+	meshTools::convertToAbsoluteCoordinates(contourMesh);
+    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
+
 	
 }
 

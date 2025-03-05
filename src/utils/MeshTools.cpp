@@ -327,6 +327,21 @@ Mesh buildMeshFromSelectedCells(
     return r;
 }
 
+Mesh buildMeshFromContours(const Mesh& in)
+{
+    Mesh m = in;
+    m.grid = in.grid;
+    m.coordinates = in.coordinates;
+    m.groups.resize(in.groups.size());
+
+    for (auto gId{ 0 }; gId < in.groups.size(); gId++) {
+        auto cG = CoordGraph{in.groups[gId].elements}.getBoundaryGraph();
+        m.groups[gId].elements = cG.getEdgesAsLines();
+    }
+
+    return m;
+}
+
 void mergeGroup(Group& lG, const Group& rG, const CoordinateId& coordCount)
 {
     auto& lElems{ lG.elements };

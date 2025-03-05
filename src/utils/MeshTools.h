@@ -25,6 +25,7 @@ std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Eleme
 Mesh buildMeshFilteringElements(
 	const Mesh& in, std::function<bool(const Element&)> filter);
 Mesh buildMeshFromSelectedCells(const Mesh& in, const std::set<Cell>& selectedCells);
+Mesh buildMeshFromContours(const Mesh&);
 
 std::pair<Coordinate, Coordinate> getElementsBoundingBox(const Mesh&);
 

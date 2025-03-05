@@ -5,6 +5,7 @@
 #include "Geometry.h"
 #include "MeshTools.h"
 #include "app/vtkIO.h"
+#include "utils/RedundancyCleaner.h"
 
 namespace meshlib::core {
 
@@ -651,13 +652,12 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
 
 TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
 {
-    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.vtk");
+    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+  
     m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    
-    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
-
     auto slicedMesh = Slicer{m}.getMesh();
 
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));

@@ -6,5 +6,5 @@
             [ 60.0,  60.0,  10.0]
         ]
     },
-    "object": {"filename": "alhambra.vtk"}
+    "object": {"filename": "alhambra.stl"}
 }

@@ -215,20 +215,20 @@ Mesh ConformalMesher::mesh() const
         
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    log("Collapsing.", 1);
-    res = Collapser(res, 8).getMesh();
-    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    // log("Collapsing.", 1);
+    // res = Collapser(res, 8).getMesh();
+    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    // log("Smoothing.", 1);
-    // SmootherOptions smootherOpts;
-    // smootherOpts.featureDetectionAngle = 30;
-    // smootherOpts.contourAlignmentAngle = 0;
-    // res = Smoother{res, smootherOpts}.getMesh();
-    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    log("Smoothing.", 1);
+    SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 30;
+    smootherOpts.contourAlignmentAngle = 0;
+    res = Smoother{res, smootherOpts}.getMesh();
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
     
-    // log("Snapping.", 1);
-    // res = Snapper(res, opts_.snapperOptions).getMesh();
-    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    log("Snapping.", 1);
+    res = Snapper(res, opts_.snapperOptions).getMesh();
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
