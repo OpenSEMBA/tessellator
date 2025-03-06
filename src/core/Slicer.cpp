@@ -4,6 +4,7 @@
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/ConvexHull.h"
+#include "core/Collapser.h"
 
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
@@ -38,38 +39,43 @@ void orient(const Coordinates& coords,
 }
 
 
-Slicer::Slicer(const Mesh& input) : 
-    GridTools(input.grid) 
+Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) : 
+    GridTools(input.grid),
+    opts_(opts)
 {
-    mesh_.grid = input.grid;
+    // Ensures that all coordinates have a fixed number of decimal places.
+    Mesh collapsed = input;
+    collapsed.coordinates = absoluteToRelative(collapsed.coordinates);
+    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces }.getMesh();
+    collapsed.coordinates = relativeToAbsolute(collapsed.coordinates);
 
-    mesh_.coordinates.reserve(mesh_.coordinates.size() * 10);
-
-    mesh_.groups.clear();
-    mesh_.groups.resize(input.groups.size());
+    // Slices the mesh.
+    mesh_.grid = collapsed.grid;
+    mesh_.coordinates.reserve(mesh_.coordinates.size() * 100);
+    mesh_.groups.resize(collapsed.groups.size());
 
     for (auto& g : mesh_.groups) {
-        g.elements.reserve(g.elements.size() * 10);
+        g.elements.reserve(g.elements.size() * 100);
     }
     Coordinates& sCoords = mesh_.coordinates;
 
     std::mutex writingMeshElems;
-    for (std::size_t g = 0; g < input.groups.size(); g++) {
+    for (std::size_t g = 0; g < collapsed.groups.size(); g++) {
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::seq,
 #endif
-            input.groups[g].elements.begin(), input.groups[g].elements.end(),
+            collapsed.groups[g].elements.begin(), collapsed.groups[g].elements.end(),
             [&](auto const& e) {
                 Elements elements;
                 if (e.type == Element::Type::Surface) {
-                    TriV triV{ Geometry::asTriV(e, input.coordinates) };
+                    TriV triV{ Geometry::asTriV(e, collapsed.coordinates) };
 
                     elements = { sliceTriangle(sCoords, triV) };
                     orient(sCoords, elements, triV);
                 }
                 else if (e.isLine()) {
-                    LinV lineV{ Geometry::asLinV(e, input.coordinates) };
+                    LinV lineV{ Geometry::asLinV(e, collapsed.coordinates) };
 
                     elements = { sliceLine(sCoords, lineV) };
                 }
@@ -85,8 +91,11 @@ Slicer::Slicer(const Mesh& input) :
             }
         );
     }
+
     RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
     RedundancyCleaner::fuseCoords(mesh_);
+
+    // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);
 }
 

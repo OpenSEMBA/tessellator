@@ -6,14 +6,13 @@
 
 #include "Collapser.h"
 
-
 namespace meshlib {
 namespace core {
 
 using namespace utils;
 
 Collapser::Collapser(const Mesh& in, int decimalPlaces)
-{
+{    
     mesh_ = in;
     double factor = std::pow(10.0, decimalPlaces);
     for (auto& v : mesh_.coordinates) {

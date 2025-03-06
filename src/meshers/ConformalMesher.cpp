@@ -215,10 +215,6 @@ Mesh ConformalMesher::mesh() const
         
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    // log("Collapsing.", 1);
-    // res = Collapser(res, 8).getMesh();
-    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
-
     log("Smoothing.", 1);
     SmootherOptions smootherOpts;
     smootherOpts.featureDetectionAngle = 30;

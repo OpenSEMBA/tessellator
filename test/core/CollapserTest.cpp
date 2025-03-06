@@ -21,22 +21,23 @@ protected:
 	static Mesh buildTinyTriMesh() 
 	{
 		Mesh m;
+		m.grid = buildGridSize2();
 		m.coordinates = {
-			Coordinate({0.000, 0.000, 0.000}),
-			Coordinate({1.000, 0.000, 0.000}),
-			Coordinate({1.000, 1.000, 0.000}),
-			Coordinate({0.000, 1.000, 0.000}),
-			Coordinate({0.001, 0.998, 0.000}),
-			Coordinate({0.002, 0.999, 0.000}),
+			Relative({0.000, 0.000, 0.000}),
+			Relative({1.000, 0.000, 0.000}),
+			Relative({1.000, 1.000, 0.000}),
+			Relative({0.000, 1.000, 0.000}),
+			Relative({0.001, 0.998, 0.000}),
+			Relative({0.002, 0.999, 0.000}),
 		};
 		m.groups = { Group() };
 		m.groups[0].elements = {
-			Element({0, 1, 4}, Element::Type::Surface),
-			Element({1, 5, 4}, Element::Type::Surface),
-			Element({1, 2, 5}, Element::Type::Surface),
-			Element({2, 3, 5}, Element::Type::Surface),
-			Element({3, 4, 5}, Element::Type::Surface),
-			Element({0, 4, 3}, Element::Type::Surface)
+			Element({0, 1, 4}),
+			Element({1, 5, 4}),
+			Element({1, 2, 5}),
+			Element({2, 3, 5}),
+			Element({3, 4, 5}),
+			Element({0, 4, 3})
 		};
 		return m;
 	}
@@ -45,25 +46,21 @@ protected:
 	{
 		Mesh m = buildTinyTriMesh();
 		
-		m.coordinates.push_back(Coordinate({ 0.0, 0.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 1.0, 0.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 1.0, 1.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 0.0, 1.0, -1.0 }));
+		m.coordinates.push_back(Coordinate({ 0.0, 0.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 1.0, 0.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 1.0, 1.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 0.0, 1.0, 1.0 }));
 
-		m.groups[0].elements.push_back(Element({ 0, 3, 9 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 0, 9, 6 }, Element::Type::Surface));
-
-		m.groups[0].elements.push_back(Element({ 6, 9, 8 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 6, 8, 7 }, Element::Type::Surface));
-		
-		m.groups[0].elements.push_back(Element({ 1, 8, 2 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 1, 7, 8 }, Element::Type::Surface));
-		
-		m.groups[0].elements.push_back(Element({ 0, 6, 7 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 0, 7, 1 }, Element::Type::Surface));
-
-		m.groups[0].elements.push_back(Element({ 3, 8, 9 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 3, 2, 8 }, Element::Type::Surface));
+		m.groups[0].elements.push_back(Element({ 0, 3, 9 }));
+		m.groups[0].elements.push_back(Element({ 0, 9, 6 }));
+		m.groups[0].elements.push_back(Element({ 6, 9, 8 }));
+		m.groups[0].elements.push_back(Element({ 6, 8, 7 }));
+		m.groups[0].elements.push_back(Element({ 1, 8, 2 }));
+		m.groups[0].elements.push_back(Element({ 1, 7, 8 }));
+		m.groups[0].elements.push_back(Element({ 0, 6, 7 }));
+		m.groups[0].elements.push_back(Element({ 0, 7, 1 }));
+		m.groups[0].elements.push_back(Element({ 3, 8, 9 }));
+		m.groups[0].elements.push_back(Element({ 3, 2, 8 }));
 
 		return m;
 	}
@@ -157,18 +154,27 @@ TEST_F(CollapserTest, closedness_for_alhambra)
     auto slicedMesh = Slicer{m}.getMesh();
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 	
-	auto collapsedMesh = Collapser(slicedMesh, 8).getMesh();
+	auto collapsedMesh = Collapser(slicedMesh, 3).getMesh();
 	EXPECT_TRUE(meshTools::isAClosedTopology(collapsedMesh.groups[0].elements));
+	EXPECT_NO_THROW(meshTools::checkNoCellsAreCrossed(collapsedMesh));
 
-	meshTools::convertToAbsoluteCoordinates(slicedMesh);
-	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
+	{
+		auto cM = Collapser(slicedMesh, 6).getMesh();
+		EXPECT_TRUE(meshTools::isAClosedTopology(cM.groups[0].elements));
+		EXPECT_NO_THROW(meshTools::checkNoCellsAreCrossed(cM));
+	}
 
-	meshTools::convertToAbsoluteCoordinates(collapsedMesh);
-	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsedMesh);
 
-	auto contourMesh = meshTools::buildMeshFromContours(collapsedMesh);
-	meshTools::convertToAbsoluteCoordinates(contourMesh);
-    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
+	// // For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
+
+	// meshTools::convertToAbsoluteCoordinates(collapsedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsedMesh);
+
+	// auto contourMesh = meshTools::buildMeshFromContours(collapsedMesh);
+	// meshTools::convertToAbsoluteCoordinates(contourMesh);
+    // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
 
 	
 }
@@ -214,7 +220,7 @@ TEST_F(CollapserTest, areas_are_below_threshold_issue_2)
 }
 
 
-TEST_F(CollapserTest, testRoundLinesToTolerance)
+TEST_F(CollapserTest, round_lines_to_tolerance)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -288,10 +294,7 @@ TEST_F(CollapserTest, testRoundLinesToTolerance)
 	}
 }
 
-
-
-
-TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
+TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -362,7 +365,7 @@ TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
 }
 
 
-TEST_F(CollapserTest, testEqualLinesGetErased)
+TEST_F(CollapserTest, equal_lines_get_erased)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -371,12 +374,12 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 	mesh.grid = buildGridSize2();
 
 	mesh.coordinates = {
-		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.000, 0.000, 0.000}),
 		Coordinate({ 0.325, 0.325, 0.325}),
 		Coordinate({ 1.557, 1.556, 1.584}),
 		Coordinate({ 1.995, 3.226, 0.112}),
 		Coordinate({ 1.562, 1.562, 1.579}),
-		Coordinate({ 2.004, 3.23, 0.109}),
+		Coordinate({ 2.004, 3.230, 0.109}),
 	};
 	mesh.groups.resize(2);
 	mesh.groups[0].elements = {
@@ -397,7 +400,7 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 	Mesh expectedMesh;
 	expectedMesh.grid = buildGridSize2();
 	expectedMesh.coordinates = {
-		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.00, 0.00, 0.00}),
 		Coordinate({ 0.33, 0.33, 0.33}),
 		Coordinate({ 1.56, 1.56, 1.58}),
 		Coordinate({ 2.00, 3.23, 0.11}),
@@ -414,6 +417,7 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 		Element({2, 3}, Element::Type::Line),
 		Element({3, 2}, Element::Type::Line),
 	};
+
 
 	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
 

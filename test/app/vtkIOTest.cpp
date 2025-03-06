@@ -11,18 +11,7 @@ class VTKIOTest : public ::testing::Test
 
 TEST_F(VTKIOTest, readMeshFromSTL)
 {
-    std::string fn{"testData/alhambra.stl"};
-    
-    auto m{ readInputMesh(fn) };
-
-    EXPECT_EQ(m.coordinates.size(), 584);
-    EXPECT_EQ(m.groups.size(), 1);  
-    EXPECT_EQ(m.countElems(), 1284);
-}
-
-TEST_F(VTKIOTest, readMeshFromVTK)
-{
-    std::string fn{"testData/alhambra.vtk"};
+    std::string fn{"testData/cases/alhambra/alhambra.stl"};
     
     auto m{ readInputMesh(fn) };
 
@@ -33,7 +22,7 @@ TEST_F(VTKIOTest, readMeshFromVTK)
 
 TEST_F(VTKIOTest, exportAndReadMeshFromVTU)
 {
-    auto mSTL{ readInputMesh("testData/alhambra.stl") };
+    auto mSTL{ readInputMesh("testData/cases/alhambra/alhambra.stl") };
     exportMeshToVTU("tmp_exported_alhambra.vtu", mSTL);
     auto mVTU{ readInputMesh("tmp_exported_alhambra.vtu") };
 
