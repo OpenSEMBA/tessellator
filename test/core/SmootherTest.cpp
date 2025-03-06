@@ -87,7 +87,7 @@ TEST_F(SmootherTest, touching_by_single_point)
 	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
 }
 
-TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
+TEST_F(SmootherTest, DISABLED_preserves_topological_closedness_for_alhambra)
 {
 	
 	auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");

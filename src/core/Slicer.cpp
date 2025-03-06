@@ -49,7 +49,7 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
     collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces }.getMesh();
     collapsed.coordinates = relativeToAbsolute(collapsed.coordinates);
 
-    // Slices the mesh.
+    // Slices.
     mesh_.grid = collapsed.grid;
     mesh_.coordinates.reserve(mesh_.coordinates.size() * 100);
     mesh_.groups.resize(collapsed.groups.size());
@@ -59,7 +59,6 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
     }
     Coordinates& sCoords = mesh_.coordinates;
 
-    std::mutex writingMeshElems;
     for (std::size_t g = 0; g < collapsed.groups.size(); g++) {
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
