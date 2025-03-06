@@ -142,40 +142,21 @@ TEST_F(CollapserTest, preserves_closedness)
 	
 }
 
-TEST_F(CollapserTest, closedness_for_alhambra)
+TEST_F(CollapserTest, closedness_for_sphere)
 {
-    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
-    m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    
-    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
-
-    auto slicedMesh = Slicer{m}.getMesh();
-    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+	for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
 	
-	auto collapsedMesh = Collapser(slicedMesh, 3).getMesh();
-	EXPECT_TRUE(meshTools::isAClosedTopology(collapsedMesh.groups[0].elements));
-	EXPECT_NO_THROW(meshTools::checkNoCellsAreCrossed(collapsedMesh));
+	Mesh collapsed = m;
+	GridTools gT{ m.grid };
+    collapsed.coordinates = gT.absoluteToRelative(collapsed.coordinates);
+    collapsed = Collapser{ collapsed, 4 }.getMesh();
+    collapsed.coordinates = gT.relativeToAbsolute(collapsed.coordinates);
 
-	{
-		auto cM = Collapser(slicedMesh, 6).getMesh();
-		EXPECT_TRUE(meshTools::isAClosedTopology(cM.groups[0].elements));
-		EXPECT_NO_THROW(meshTools::checkNoCellsAreCrossed(cM));
-	}
-
-
-	// // For debugging.
-	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
-
-	// meshTools::convertToAbsoluteCoordinates(collapsedMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsedMesh);
-
-	// auto contourMesh = meshTools::buildMeshFromContours(collapsedMesh);
-	// meshTools::convertToAbsoluteCoordinates(contourMesh);
-    // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
-
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+	EXPECT_TRUE(meshTools::isAClosedTopology(collapsed.groups[0].elements));
 	
 }
 

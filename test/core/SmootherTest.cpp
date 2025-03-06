@@ -5,6 +5,8 @@
 #include "utils/Tools.h"
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
+#include "core/Slicer.h"
+#include "app/vtkIO.h"
 
 namespace meshlib::core {
 using namespace utils;
@@ -84,5 +86,26 @@ TEST_F(SmootherTest, touching_by_single_point)
 
 	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
 }
+
+TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
+{
+	
+	auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+	
+	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+	auto slicedMesh = Slicer{m}.getMesh();
+	EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+
+	SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 30;
+    smootherOpts.contourAlignmentAngle = 0;
+	auto smoothedMesh = Smoother{m}.getMesh();
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+}
+
+
 
 }

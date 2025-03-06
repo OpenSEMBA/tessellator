@@ -43,7 +43,7 @@ TEST_F(RedundancyCleanerTest, removeRepeatedElements_with_indices_rotated)
 	EXPECT_EQ(m, r);
 }
 
-TEST_F(RedundancyCleanerTest, testRemoveRepeatedLinesFromSameGroup)
+TEST_F(RedundancyCleanerTest, removeRepeatedLinesFromSameGroup)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);
@@ -69,7 +69,7 @@ TEST_F(RedundancyCleanerTest, testRemoveRepeatedLinesFromSameGroup)
 }
 
 
-TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsContainedWithinLines)
+TEST_F(RedundancyCleanerTest, removeOverlappedElementsContainedWithinLines)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);
@@ -169,7 +169,7 @@ TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsContainedWithinLines)
 }
 
 
-TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsWhenSurfaceMeshing)
+TEST_F(RedundancyCleanerTest, removeOverlappedElementsWhenSurfaceMeshing)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);
@@ -338,7 +338,7 @@ TEST_F(RedundancyCleanerTest, testRemoveOverlappedElementsWhenSurfaceMeshing)
 	}
 }
 
-TEST_F(RedundancyCleanerTest, testDoNotRemoveOppositeLines)
+TEST_F(RedundancyCleanerTest, doNotRemoveOppositeLines)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.2);

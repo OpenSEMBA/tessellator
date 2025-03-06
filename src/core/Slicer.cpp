@@ -97,6 +97,7 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
 
     // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);
+    meshTools::checkNoNullAreasExist(mesh_);
 }
 
 Elements Slicer::sliceTriangle(
