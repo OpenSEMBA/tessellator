@@ -114,7 +114,7 @@ void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalen
                     usedCoordinates.insert(vIds[v]);
                 }
             }
-            if(element.isQuad()){
+            if(element.isQuad() || element.isTriangle()){
                 if (usedCoordinatesFromSurface.count(vIds) == 0){
                     usedCoordinatesFromSurface.insert(vIds);
                     for (std::size_t v = 0; v < vIds.size(); ++v){
@@ -286,12 +286,15 @@ void RedundancyCleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const d
     }
 }
 
-void RedundancyCleaner::fuseCoords(Mesh& mesh) 
+void RedundancyCleaner::fuseCoords(Mesh& mesh, bool cleanDegeneracy) 
 {
     fuseCoords_(mesh);
-    removeElementsWithCondition(mesh, [&](const Element& e) {
-        return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
-    });
+    if(cleanDegeneracy){
+        removeElementsWithCondition(mesh, [&](const Element& e) {
+            return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
+        });
+    }
+    
 }
 
 void RedundancyCleaner::cleanCoords(Mesh& output) 

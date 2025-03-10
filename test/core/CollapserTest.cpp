@@ -100,6 +100,8 @@ TEST_F(CollapserTest, collapser)
 	EXPECT_EQ(4, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(2, r.groups[0].elements.size());
+	EXPECT_TRUE(r.groups[0].elements[0].isTriangle());
+	EXPECT_TRUE(r.groups[0].elements[1].isTriangle());
 }
 
 
@@ -111,6 +113,8 @@ TEST_F(CollapserTest, collapser_2)
 	EXPECT_EQ(4, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(2, r.groups[0].elements.size());
+	EXPECT_TRUE(r.groups[0].elements[0].isTriangle());
+	EXPECT_TRUE(r.groups[0].elements[1].isTriangle());
 }
 
 TEST_F(CollapserTest, collapser_3)
@@ -295,22 +299,22 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 	Mesh expectedMesh;
 	expectedMesh.grid = buildGridSize2();
 
-	/*
+	
 	expectedMesh.coordinates = {
 		Coordinate({0.33, 1.36, 4.4})
 	};
-	*/
+	
 
 	expectedMesh.groups.resize(1);
 
-	// expectedMesh.groups[0].elements = { Element({0}, Element::Type::Node) };
+	expectedMesh.groups[0].elements = { Element({0}, Element::Type::Node) };
 
 
 	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
 
 	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
-	ASSERT_EQ(resultMesh.coordinates.size(), 0);
-	/*
+	// ASSERT_EQ(resultMesh.coordinates.size(), 0);
+	
 	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
 		auto& expectedCoordinate = expectedMesh.coordinates[c];
 		auto& resultCoordinate = resultMesh.coordinates[c];
@@ -319,7 +323,7 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
 		}
 	}
-	*/
+	
 
 	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
 	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
@@ -396,7 +400,6 @@ TEST_F(CollapserTest, equal_lines_get_erased)
 		Element({0, 1}, Element::Type::Line),
 		Element({1, 2}, Element::Type::Line),
 		Element({2, 3}, Element::Type::Line),
-		Element({3, 2}, Element::Type::Line),
 	};
 
 

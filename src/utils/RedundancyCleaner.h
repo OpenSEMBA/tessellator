@@ -11,7 +11,7 @@ namespace utils {
 class RedundancyCleaner {
 public:
     static void cleanCoords(Mesh&);
-    static void fuseCoords(Mesh&);
+    static void fuseCoords(Mesh&, bool cleanDegeneracy = true);
     static void removeElementsWithCondition(Mesh&, std::function<bool(const Element&)>);
     static void collapseCoordsInLineDegenerateTriangles(Mesh&, const double& areaThreshold);
     static void removeRepeatedElements(Mesh&);
