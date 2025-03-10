@@ -171,11 +171,27 @@ IdSet Slicer::buildIntersectionsWithGridPlanes(
         triangle[1] = element[1];
         triangle[2] = element[2];
         edgeIntersectionsWithPlanes = getEdgeIntersectionsWithPlanes(triangle);
+        std::set<Plane> processedPlanes;
 
         for (const auto& intersection : edgeIntersectionsWithPlanes) {
             for (const auto& v : meshSegments(intersection.second)) {
-                auxCoordinatesSet.insert(v);
+                bool inProcessedPlanes = false;
+                std::size_t equalAxes = 0;
+                for (Axis axis = X; axis <= Z; axis++) {
+                    if (approxDir(toNearestVertexDir(v[axis]), v[axis])) {
+                        Plane expectedPlane = std::make_pair(v[axis], axis);
+                        ++equalAxes;
+
+                        if (expectedPlane != intersection.first){
+                            inProcessedPlanes = inProcessedPlanes || processedPlanes.count(expectedPlane) != 0;
+                        }
+                    }
+                }
+                if (equalAxes < 2 || !inProcessedPlanes){
+                    auxCoordinatesSet.insert(v);
+                }
             }
+            processedPlanes.insert(intersection.first);
         }
         newCoordinates.insert(newCoordinates.end(), auxCoordinatesSet.begin(), auxCoordinatesSet.end());
     }
