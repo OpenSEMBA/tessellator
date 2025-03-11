@@ -19,7 +19,7 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces)
         v = v.round(factor);
     }
     
-    RedundancyCleaner::fuseCoords(mesh_, false);
+    RedundancyCleaner::fuseCoords(mesh_);
     RedundancyCleaner::cleanCoords(mesh_);
     
     collapseDegenerateElements(mesh_, 0.4 / (factor * factor));
@@ -71,7 +71,7 @@ void Collapser::collapseDegenerateElements(Mesh& mesh, const double& areaThresho
             }
         }
 
-        RedundancyCleaner::fuseCoords(mesh, false);
+        RedundancyCleaner::fuseCoords(mesh);
         RedundancyCleaner::cleanCoords(mesh);
 
         for (auto & group : mesh.groups) {

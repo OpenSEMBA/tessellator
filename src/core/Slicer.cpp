@@ -93,6 +93,7 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
 
     RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
     RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
 
     // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);
@@ -177,7 +178,7 @@ IdSet Slicer::buildIntersectionsWithGridPlanes(
             for (const auto& v : meshSegments(intersection.second)) {
                 bool inProcessedPlanes = false;
                 std::size_t equalAxes = 0;
-                for (Axis axis = X; axis <= Z; axis++) {
+                for (Axis axis = X; axis <= Z; ++axis) {
                     if (approxDir(toNearestVertexDir(v[axis]), v[axis])) {
                         Plane expectedPlane = std::make_pair(v[axis], axis);
                         ++equalAxes;

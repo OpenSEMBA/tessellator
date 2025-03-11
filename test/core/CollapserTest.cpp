@@ -334,7 +334,7 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 		auto& resultGroup = resultMesh.groups[g];
 
 		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
-		/*
+		
 		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
 			auto& expectedElement = expectedGroup.elements[e];
 			auto& resultElement = resultGroup.elements[e];
@@ -345,7 +345,6 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
 			}
 		}
-		*/
 	}
 }
 

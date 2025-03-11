@@ -31,6 +31,7 @@ Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
     }
 
     RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
     RedundancyCleaner::cleanCoords(mesh_);
 }
 
@@ -62,6 +63,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Rel
     }
 
     RedundancyCleaner::fuseCoords(auxiliarMesh);
+    RedundancyCleaner::removeDegenerateElements(auxiliarMesh);
     RedundancyCleaner::cleanCoords(auxiliarMesh);
 
     std::map<Surfel, IdSet> idSetByCellSurface;

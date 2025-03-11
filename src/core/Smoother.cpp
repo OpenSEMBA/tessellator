@@ -78,6 +78,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     }
     
     RedundancyCleaner::fuseCoords(res);
+    RedundancyCleaner::removeDegenerateElements(res);
     res = buildMeshFilteringElements(res, isTriangle);
     RedundancyCleaner::cleanCoords(res);
     mesh_ = res;
@@ -88,6 +89,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
         cs = sT_.collapsePointsOnContour(g.elements, cs, opts_.contourAlignmentAngle);
     }
     RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
 
     meshTools::checkNoCellsAreCrossed(mesh_);
 }
