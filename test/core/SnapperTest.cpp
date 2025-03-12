@@ -44,7 +44,30 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
+// TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
+// {
+//     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+//     for (auto x: {X,Y,Z}) {
+//         m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+//     }
 
+//     auto slicedMesh = Slicer{m}.getMesh();
+    
+// 	SmootherOptions smootherOpts;
+//     smootherOpts.featureDetectionAngle = 30;
+//     smootherOpts.contourAlignmentAngle = 0;
+// 	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
+
+//     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+//     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+
+//     // //For debugging.
+// 	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+
+// 	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+// }
 
 
 // TEST_F(SnapperTest, triangles_convert_to_lines)
