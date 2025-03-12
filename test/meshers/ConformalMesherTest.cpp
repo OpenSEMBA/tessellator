@@ -17,8 +17,8 @@ protected:
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
-        opts.snapperOptions.edgePoints = 5;
-        opts.snapperOptions.forbiddenLength = 0.3;
+        opts.snapperOptions.edgePoints = 0;
+        opts.snapperOptions.forbiddenLength = 0.0;
         
         ConformalMesher mesher{inputMesh, opts};
 
@@ -94,7 +94,6 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_2)
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_1)
 {
     // Triangle in a cell face with vertices on edges.
-    // Is non-conformal.
     //  2-- 
     //   \ -- 1 
     //    \ / 
@@ -121,8 +120,13 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_1)
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
 {
-    // Triangles forming a patch in a cell face with a single boundary crossing the cell face.
-    // It is conformal.
+    // Triangles forming a patch in a cell face with a single boundary 
+    // crossing the cell face.
+    //  1 ----- 2
+    //  | ____/ |
+    //  0 ___   |
+    //    \   \ |
+    //      4 - 3
     Mesh m;
     {
         m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
@@ -149,7 +153,6 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_2)
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_3)
 {
     // Triangle in a cell face with two vertices in corner and on edge.
-    // Is conformal.
     //  2--1 
     //  | / 
     //  0  
@@ -176,7 +179,6 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_3)
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_4)
 {
     // Patch with two triangles on face and two triangles within the cell.
-    // Is conformal.
     //  1---2 
     //  |  /   - -  -5
     //  |/ _ - -4
@@ -210,7 +212,6 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_4)
 TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_5)
 {
     // Patch with one triangles on face and one triangles within the cell.
-    // Is conformal.
     //  1---2 
     //  |  /   - -  -5
     //  |/ _ ---
@@ -237,53 +238,99 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_5)
     EXPECT_EQ(0, res.size());
 }
 
-TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches_1)
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_6)
 {
-    // Isolated patches in a cell with vertices not touching any edge.
-    // Is non-conformal.
+    // Triangles forming a patch in a cell face with a single boundary 
+    // crossing the cell face. And two triangles across cell.
+    //  1 ----- 2
+    //  | ____/ |
+    // 0,5 ___  |
+    //    \   \ |
+    //    4,6 - 3
     Mesh m;
     {
-        m.grid = buildUnitLengthGrid(0.1);
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
         m.coordinates = {
-            Relative({1.25, 1.20, 1.50}),
-            Relative({1.70, 1.50, 1.50}),
-            Relative({1.20, 1.80, 1.50})
-        };
-        m.groups = { Group() };
-        m.groups[0].elements = {
-            Element({0, 1, 2})
-        };
-    }
-    auto res = ConformalMesher::cellsWithInteriorDisconnectedPatches(m);
-
-    EXPECT_EQ(1, res.size());
-}
-
-TEST_F(ConformalMesherTest, cellsWithInteriorDisconnectedPatches_2)
-{
-    // Coplanar triangles are conformal.
-    //  1 -- 2 
-    //  |  / |
-    //  | /  |
-    //  0 -- 3
-    Mesh m;
-    {
-        m.grid = buildUnitLengthGrid(0.1);
-        m.coordinates = {
-            Relative({0.00, 0.00, 1.50}),
-            Relative({0.00, 1.00, 1.50}),
-            Relative({1.00, 1.00, 1.50}),
-            Relative({1.00, 0.00, 1.50})
+            Relative({0.0, 0.5, 1.0}), // 0 
+            Relative({0.0, 1.0, 1.0}), // 1
+            Relative({1.0, 1.0, 1.0}), // 2
+            Relative({1.0, 0.0, 1.0}), // 3
+            Relative({0.5, 0.0, 1.0}), // 4
+            Relative({0.0, 0.5, 2.0}), // 5
+            Relative({0.5, 0.0, 2.0}), // 6
         };
         m.groups = { Group() };
         m.groups[0].elements = {
             Element({0, 1, 2}),
-            Element({2, 3, 0})
+            Element({2, 3, 0}),
+            Element({3, 4, 0}),
+            Element({0, 4, 5}),
+            Element({5, 4, 6})
         };
     }
-    auto res = ConformalMesher::cellsWithInteriorDisconnectedPatches(m);
+
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
 
     EXPECT_EQ(0, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_7)
+{
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.01); // 100 x 100 x 100 grid
+        m.coordinates = {
+            Relative({34.0, 35.0, 1.0}), // 0 
+            Relative({35.0, 35.0, 1.0}), // 1
+            Relative({34.0, 35.5, 1.0}), // 2
+            Relative({35.0, 36.0, 1.0}), // 3
+            Relative({34.3, 36.0, 1.0}), // 4
+            Relative({34.3, 36.0, 2.0}), // 5
+            Relative({34.0, 35.5, 2.0}), // 6
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 2, 1}),
+            Element({1, 2, 3}),
+            Element({2, 4, 3}),
+            Element({2, 5, 4}),
+            Element({5, 2, 6})
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
+
+    EXPECT_EQ(0, res.size());
+}
+
+TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_8)
+{
+    // 2 Disconnected triangles on cell face.
+    //  1 ----- 2
+    //  | ____/ 
+    //  0 ___   
+    //    \   \ 
+    //      4 - 3
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.5, 1.0}),
+            Relative({0.0, 1.0, 1.0}),
+            Relative({1.0, 1.0, 1.0}),
+            Relative({1.0, 0.0, 1.0}),
+            Relative({0.5, 0.0, 1.0}),
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({3, 4, 0}),
+        };
+    }
+    
+    auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
+
+    EXPECT_EQ(2, res.size());
 }
 
 TEST_F(ConformalMesherTest, sphere)
@@ -310,14 +357,8 @@ TEST_F(ConformalMesherTest, sphere)
     {
         auto cells = ConformalMesher::cellsWithMoreThanAPathPerFace(mesh);
         auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
-        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
+        // utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
         exportMeshToVTU("testData/cases/sphere/sphere.breaksRuleNo2.vtk", dbgMesh);
-    }
-    {
-        auto cells = ConformalMesher::cellsWithInteriorDisconnectedPatches(mesh);
-        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
-        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
-        exportMeshToVTU("testData/cases/sphere/sphere.breaksRuleNo3.vtk", dbgMesh);
     }
 } 
 
@@ -347,12 +388,6 @@ TEST_F(ConformalMesherTest, alhambra)
         auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
         utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
         exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo2.vtk", dbgMesh);
-    }
-    {
-        auto cells = ConformalMesher::cellsWithInteriorDisconnectedPatches(mesh);
-        auto dbgMesh = utils::meshTools::buildMeshFromSelectedCells(mesh, cells);
-        utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
-        exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo3.vtk", dbgMesh);
     }
 }
 

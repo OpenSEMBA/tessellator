@@ -82,34 +82,24 @@ std::size_t countPathsInCellBound(
     // Keep only edges if both vertices are in the cell bound.
     // Isolated vertices are not included.
     // Edges between two triangles are removed.
-    std::list<std::pair<CoordinateId, CoordinateId>> graphEdges;
+    CoordGraph cellBoundGraph;
     for (const auto& line: cG.getEdgesAsLines()) {
         const auto& v0 = line.vertices[0];
         const auto& v1 = line.vertices[1];
         if (!vIdsInBound.count(v0) || !vIdsInBound.count(v1)) {
             continue;
         }
-        auto it = std::find(graphEdges.begin(), graphEdges.end(), std::make_pair(v1, v0));
-        if (it != graphEdges.end()) {
-            continue;
-        } else {
-            graphEdges.push_back(std::make_pair(v0, v1));
-        }
+        cellBoundGraph.addEdge(v0,v1);
     }
-   
-    // Count non-edge-aligned lines pointing outwards 
+    Elements graphEdges = cellBoundGraph.getBoundaryGraph().getEdgesAsLines();
+       
+    // Count non-edge lines pointing outwards 
     // from each vertex in the edge.
-    for (auto const& vId: vIdsInBound) {
-        if (!gT.isRelativeInCellEdge(mesh.coordinates[vId])) {
-            continue;
-        }
-        for (const auto& line: graphEdges) {
-            if (line.first == vId &&
-                !GridTools::areCoordOnSameEdge(
-                    mesh.coordinates[line.first],
-                    mesh.coordinates[line.second])) {
-                pathsInCellBound++;
-            }
+    for (const auto& line: graphEdges) {
+        const auto& c0 = mesh.coordinates[line.vertices[0]];
+        const auto& c1 = mesh.coordinates[line.vertices[1]];
+        if (!GridTools::areCoordOnSameEdge(c0, c1)) {
+            pathsInCellBound++;
         }
     }
     return pathsInCellBound;
@@ -138,27 +128,6 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
     return res;
 }
 
-std::set<Cell> ConformalMesher::cellsWithInteriorDisconnectedPatches(const Mesh& mesh)
-{
-    GridTools gT(mesh.grid);
-    std::set<Cell> res;
-    for (auto const& c: buildCellMapForAllElements(mesh)) {
-        for (auto const& p: CoordGraph(c.second).getBoundaryGraph().split()) {
-            auto vIds = p.getVertices();
-            bool allInterior = std::all_of(vIds.begin(), vIds.end(),
-                 [&](auto vId) {
-                    return gT.isRelativeInterior(mesh.coordinates[vId]);
-                }
-            );
-            if (allInterior) {
-                res.insert(c.first);
-                break;
-            }
-        }
-    }
-    return res;
-}
-
 std::set<Cell> ConformalMesher::cellsWithAVertexInAnEdgeForbiddenRegion(const Mesh& mesh)
 {
     std::set<Cell> res;
@@ -176,7 +145,7 @@ std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
 
 std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 {
-    // Find cells not respecting **The Five Rules**.
+    // Find cells not respecting **The Three Rules**.
     std::set<Cell> res;
     
     // Rule #1: Cell edges must contain at most one vertex in each edge.
@@ -185,15 +154,8 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
     // Rule #2: Cell faces must always be crossed by a single path.
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
 
-    // Rule #3: Triangles inside cells must be part of a patch with at 
-    // least one valid line on a cell face.
-    res = mergeCellSets(res, cellsWithInteriorDisconnectedPatches(mesh));
-    
-    // Rule #4: All vertices in edges must be out of their forbidden regions.
-    res = mergeCellSets(res, cellsWithAVertexInAnEdgeForbiddenRegion(mesh));
-
-    // Rule #5: Conformal cells can't contain line elements.
-    // res = mergeCellSets(res, cellsContainingLineElements(mesh));
+    // Rule #3: Conformal cells can't contain node or line elements.
+    // res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
 
     return res;
 }

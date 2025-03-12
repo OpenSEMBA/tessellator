@@ -694,12 +694,12 @@ TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
 
-    //For debugging.
-	meshTools::convertToAbsoluteCoordinates(slicedMesh);
-	vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
 
-	auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
-	vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
 TEST_F(SlicerTest, sphere_case_patch_contour_check_1)
