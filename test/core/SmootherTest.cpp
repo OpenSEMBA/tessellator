@@ -107,10 +107,17 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
 	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 	EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.smoothed.vtk", smoothedMesh);
+	// 
+	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
 }
 
 
-TEST_F(SmootherTest, DISABLED_preserves_topological_closedness_for_sphere)
+TEST_F(SmootherTest, preserves_topological_closedness_for_sphere)
 {
     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
     for (auto x: {X,Y,Z}) {
@@ -122,7 +129,7 @@ TEST_F(SmootherTest, DISABLED_preserves_topological_closedness_for_sphere)
 	SmootherOptions smootherOpts;
     smootherOpts.featureDetectionAngle = 30;
     smootherOpts.contourAlignmentAngle = 0;
-	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
+	auto smoothedMesh = Smoother{slicedMesh, smootherOpts}.getMesh();
 
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
@@ -131,8 +138,11 @@ TEST_F(SmootherTest, DISABLED_preserves_topological_closedness_for_sphere)
     // //For debugging.
 	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
-
-	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	//
+	// meshTools::convertToAbsoluteCoordinates(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.smoothed.vtk", smoothedMesh);
+	//
+	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 

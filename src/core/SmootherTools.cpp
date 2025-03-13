@@ -341,9 +341,11 @@ void SmootherTools::remeshWithNoInteriorPoints(
             Element::Type::Surface));
         }
     }
-        
-    if (hasWrongOrientation(*patch[0], remeshedEls[0], cs)) {
-        reorient(remeshedEls);
+    
+    for (auto & element: remeshedEls){
+        if (hasWrongOrientation(*patch[0], element, cs)) {
+            reorientSingleElement(element);
+        }
     }
 
     for (auto comp = remeshedEls.size(); comp < patch.size(); comp++) {
@@ -562,5 +564,13 @@ void SmootherTools::reorient(
         e.vertices[1] = c;
     }
 }
+
+
+void SmootherTools::reorientSingleElement(
+    Element& element)
+{
+    std::swap(element.vertices[0], element.vertices[1]);
+}
+
 }
 }
