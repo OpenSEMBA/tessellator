@@ -3,6 +3,7 @@ message(STATUS "Creating build system for tessellator-tests")
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
+
 include_directories(
 	${PROJECT_SOURCE_DIR}/src/
 	${PROJECT_SOURCE_DIR}/src/app/
@@ -20,6 +21,8 @@ add_executable(tessellator_tests
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
     "core/StructurerTest.cpp"
+	"core/SmootherTest.cpp"
+	"core/SmootherToolsTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/ConvexHullTest.cpp"
 	"utils/CoordGraphTest.cpp"
@@ -29,8 +32,8 @@ add_executable(tessellator_tests
 	"utils/MeshToolsTest.cpp"
 	"utils/RedundancyCleanerTest.cpp"
     "meshers/StructuredMesherTest.cpp"
+	"meshers/OffgridMesherTest.cpp"
 )
-
 
 target_link_libraries(tessellator_tests	
 	tessellator-meshers
@@ -53,10 +56,9 @@ if (TESSELLATOR_ENABLE_CGAL)
 		"cgal/RepairerTest.cpp"
 		"cgal/filler/FillerTest.cpp"
 		"cgal/filler/FillerToolsTest.cpp"
-		"core/SmootherTest.cpp"
-		"core/SmootherToolsTest.cpp"
-		"meshers/OffgridMesherTest.cpp"
-	)	
+	)
+
+	target_link_libraries(tessellator_tests tessellator-cgal)
 endif()
 
 add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)

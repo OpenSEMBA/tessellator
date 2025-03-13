@@ -4,6 +4,7 @@
 #include "RedundancyCleaner.h"
 #include "GridTools.h"
 #include "ElemGraph.h"
+#include "CoordGraph.h"
 
 #include <sstream>
 
@@ -53,6 +54,55 @@ Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
             }
         }
     }
+    return res;
+}
+
+Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh)
+{
+    Mesh res = mesh;
+
+    for (auto& g : res.groups) {
+        IdSet sharedBySingleVertex;
+        std::vector<IdSet> idSets;
+        auto disjointElementsGraphs = ElemGraph(g.elements, res.coordinates).split();
+        if (disjointElementsGraphs.size() == 1) {
+            continue;
+        }
+
+        for (const auto& disjointElementsGraph : disjointElementsGraphs) {
+            auto elementsInGraph = disjointElementsGraph.getAsElements(g.elements);
+            idSets.push_back(CoordGraph(elementsInGraph).getVertices());
+        }
+
+        for (auto i = 0; i < idSets.size(); i++) {
+            for (auto j = i+1; j < idSets.size(); j++) {
+                IdSet shared = intersectWithIdSet(idSets[i], idSets[j]);
+                sharedBySingleVertex.insert(shared.begin(), shared.end());
+            }
+        }
+        
+        for (auto i = 1; i < disjointElementsGraphs.size(); i++) {
+            std::map<CoordinateId, CoordinateId> remapedCoord;
+            for (auto& eId : disjointElementsGraphs[i].getVertices()) {
+                Element& e = g.elements[eId];
+                for (auto& vId : e.vertices) {
+                    if (sharedBySingleVertex.count(vId) == 0) {
+                        continue;
+                    }
+                    if (remapedCoord.count(vId) == 0) {
+                        Coordinate newCoord = res.coordinates[vId];
+                        CoordinateId newVId = res.coordinates.size();
+                        res.coordinates.push_back(newCoord);
+                        remapedCoord.emplace(vId, newVId);
+                        vId = newVId;
+                    } else {
+                        vId = remapedCoord[vId];
+                    }
+                }
+            }
+        }
+    }
+        
     return res;
 }
 

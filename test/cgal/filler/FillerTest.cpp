@@ -4,12 +4,14 @@
 
 #include "filler/Filler.h"
 #include "core/Slicer.h"
+#include "meshers/OffgridMesher.h"
 
 namespace meshlib::cgal::filler {
 
 using namespace filler;
 using namespace meshFixtures;
 using namespace utils::meshTools;
+using namespace meshers;
 using namespace core;
 
 class FillerTest : public ::testing::Test {

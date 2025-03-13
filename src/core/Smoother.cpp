@@ -6,11 +6,9 @@
 #include "utils/MeshTools.h"
 #include "Collapser.h"
 
-#include "cgal/Manifolder.h"
-#include <CGAL/Polygon_mesh_processing/manifoldness.h>
-
 #include <assert.h>
 #include <algorithm>
+
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
 #endif
@@ -30,9 +28,8 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 
     mesh_ = mesh;
     mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
+    mesh_ = meshTools::duplicateCoordinatesSharedBySingleTrianglesVertex(mesh_);
     
-    mesh_ = cgal::Manifolder(mesh_).getSurfacesMesh();
-
     Mesh res = mesh_;
     for (auto& g : res.groups) {
         auto const singularIds = 
@@ -82,13 +79,6 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     
     RedundancyCleaner::fuseCoords(res);
     res = buildMeshFilteringElements(res, isTriangle);
-    for (auto& g : res.groups) {
-        auto aux{ 
-            cgal::polyhedronTools::buildPolyhedronFromElements(res.coordinates, g.elements) };
-        cgal::PMP::duplicate_non_manifold_vertices(aux);
-        g.elements.clear();
-        g.elements = cgal::polyhedronTools::buildElementsFromPolyhedron(res.coordinates, aux);
-    }
     RedundancyCleaner::cleanCoords(res);
     mesh_ = res;
 

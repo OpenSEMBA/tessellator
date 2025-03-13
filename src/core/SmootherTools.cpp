@@ -6,8 +6,6 @@
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
 
-#include "cgal/Delaunator.h"
-
 #include <algorithm>
 #include <stdexcept>
 #include <assert.h>
@@ -330,9 +328,20 @@ void SmootherTools::remeshWithNoInteriorPoints(
     if (in.size() < 1) {
         return;
     }
-    CoordinateIds cPolygon = g.getBoundaryGraph().findCycles().front();
-    Elements remeshedEls = cgal::Delaunator(&cs).mesh({}, { cPolygon });
 
+    auto cPolygons = g.getBoundaryGraph().findCycles();
+    Elements remeshedEls;
+    for (const auto& cPolygon : cPolygons) {
+        for (std::size_t i = 0; i < cPolygon.size() - 2; i++) {
+            remeshedEls.push_back( Element({ 
+                cPolygon[0], 
+                cPolygon[i + 1], 
+                cPolygon[i + 2] 
+            }, 
+            Element::Type::Surface));
+        }
+    }
+        
     if (hasWrongOrientation(*patch[0], remeshedEls[0], cs)) {
         reorient(remeshedEls);
     }
@@ -344,6 +353,9 @@ void SmootherTools::remeshWithNoInteriorPoints(
     if (remeshedEls.size() != patch.size()) {
         throw std::logic_error("Not all elements have been remeshed");
     }
+
+
+
 
     const std::lock_guard<std::mutex> lock(writingElements_);
     for (auto comp = 0; comp < patch.size(); comp++) {

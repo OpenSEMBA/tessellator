@@ -52,7 +52,7 @@ public:
 
     static VecD getNormal(
         const Coordinates&, 
-        double coplanarityAngleTolerance);
+        double coplanarityAngleTolerance = COPLANARITY_ANGLE_TOLERANCE);
     static VecD getLSFPlaneNormal(const Coordinates& inPts);
     static VecD getMeanNormalOfElements(
         const ElementsView& elements,
