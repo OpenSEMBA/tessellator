@@ -15,25 +15,6 @@ using namespace utils;
 using namespace meshTools;
 using namespace core;
 
-Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
-{
-    Mesh volumeMesh{ inputMesh.grid, inputMesh.coordinates };
-    volumeMesh.groups.resize(inputMesh.groups.size());
-    for (const auto& gId : volumeGroups) {
-        mergeGroup(volumeMesh.groups[gId], inputMesh.groups[gId]);
-    }
-    return volumeMesh;
-}
-
-Mesh OffgridMesher::buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups)
-{
-    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
-    for (const auto& gId : volumeGroups) {
-        resultMesh.groups[gId].elements.clear();
-    }
-    return resultMesh;
-}
-
 OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
     MesherBase::MesherBase(in),
     opts_{ opts }
@@ -42,7 +23,7 @@ OffgridMesher::OffgridMesher(const Mesh& in, const OffgridMesherOptions& opts) :
     volumeMesh_ = buildVolumeMesh(in, opts_.volumeGroups);
     process(volumeMesh_);
         
-    log("Retrieving groups to be meshed as volumes.");
+    log("Retrieving groups to be meshed as surfaces.");
     surfaceMesh_ = buildSurfaceMesh(in, opts_.volumeGroups);  
     process(surfaceMesh_);
 

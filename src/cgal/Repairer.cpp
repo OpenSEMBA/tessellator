@@ -73,6 +73,7 @@ Mesh repair(const Mesh& m)
     }
 
     RedundancyCleaner::fuseCoords(r);
+    RedundancyCleaner::removeDegenerateElements(r);
     RedundancyCleaner::cleanCoords(r);
 
     return r;

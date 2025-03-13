@@ -6,10 +6,14 @@
 #include "utils/Geometry.h"
 #include "utils/CoordGraph.h"
 #include "utils/GridTools.h"
+#include "utils/MeshTools.h"
+#include "app/vtkIO.h"
+
 
 namespace meshlib::core {
 
 using namespace utils;
+using namespace meshTools;
 
 class CollapserTest : public ::testing::Test {
 protected:
@@ -17,22 +21,23 @@ protected:
 	static Mesh buildTinyTriMesh() 
 	{
 		Mesh m;
+		m.grid = buildGridSize2();
 		m.coordinates = {
-			Coordinate({0.000, 0.000, 0.000}),
-			Coordinate({1.000, 0.000, 0.000}),
-			Coordinate({1.000, 1.000, 0.000}),
-			Coordinate({0.000, 1.000, 0.000}),
-			Coordinate({0.001, 0.998, 0.000}),
-			Coordinate({0.002, 0.999, 0.000}),
+			Relative({0.000, 0.000, 0.000}),
+			Relative({1.000, 0.000, 0.000}),
+			Relative({1.000, 1.000, 0.000}),
+			Relative({0.000, 1.000, 0.000}),
+			Relative({0.001, 0.998, 0.000}),
+			Relative({0.002, 0.999, 0.000}),
 		};
 		m.groups = { Group() };
 		m.groups[0].elements = {
-			Element({0, 1, 4}, Element::Type::Surface),
-			Element({1, 5, 4}, Element::Type::Surface),
-			Element({1, 2, 5}, Element::Type::Surface),
-			Element({2, 3, 5}, Element::Type::Surface),
-			Element({3, 4, 5}, Element::Type::Surface),
-			Element({0, 4, 3}, Element::Type::Surface)
+			Element({0, 1, 4}),
+			Element({1, 5, 4}),
+			Element({1, 2, 5}),
+			Element({2, 3, 5}),
+			Element({3, 4, 5}),
+			Element({0, 4, 3})
 		};
 		return m;
 	}
@@ -41,25 +46,21 @@ protected:
 	{
 		Mesh m = buildTinyTriMesh();
 		
-		m.coordinates.push_back(Coordinate({ 0.0, 0.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 1.0, 0.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 1.0, 1.0, -1.0 }));
-		m.coordinates.push_back(Coordinate({ 0.0, 1.0, -1.0 }));
+		m.coordinates.push_back(Coordinate({ 0.0, 0.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 1.0, 0.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 1.0, 1.0, 1.0 }));
+		m.coordinates.push_back(Coordinate({ 0.0, 1.0, 1.0 }));
 
-		m.groups[0].elements.push_back(Element({ 0, 3, 9 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 0, 9, 6 }, Element::Type::Surface));
-
-		m.groups[0].elements.push_back(Element({ 6, 9, 8 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 6, 8, 7 }, Element::Type::Surface));
-		
-		m.groups[0].elements.push_back(Element({ 1, 8, 2 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 1, 7, 8 }, Element::Type::Surface));
-		
-		m.groups[0].elements.push_back(Element({ 0, 6, 7 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 0, 7, 1 }, Element::Type::Surface));
-
-		m.groups[0].elements.push_back(Element({ 3, 8, 9 }, Element::Type::Surface));
-		m.groups[0].elements.push_back(Element({ 3, 2, 8 }, Element::Type::Surface));
+		m.groups[0].elements.push_back(Element({ 0, 3, 9 }));
+		m.groups[0].elements.push_back(Element({ 0, 9, 6 }));
+		m.groups[0].elements.push_back(Element({ 6, 9, 8 }));
+		m.groups[0].elements.push_back(Element({ 6, 8, 7 }));
+		m.groups[0].elements.push_back(Element({ 1, 8, 2 }));
+		m.groups[0].elements.push_back(Element({ 1, 7, 8 }));
+		m.groups[0].elements.push_back(Element({ 0, 6, 7 }));
+		m.groups[0].elements.push_back(Element({ 0, 7, 1 }));
+		m.groups[0].elements.push_back(Element({ 3, 8, 9 }));
+		m.groups[0].elements.push_back(Element({ 3, 2, 8 }));
 
 		return m;
 	}
@@ -73,19 +74,12 @@ protected:
 		grid[2] = utils::GridTools::linspace(-0.5, 1.5, num);
 		return grid;
 	}
-
-	static bool isClosed(const Mesh& m) 
-	{
-		return CoordGraph(m.groups[0].elements)
-				.getBoundaryGraph()
-				.getVertices()
-				.size() == 0;
-	}
 };
 
 TEST_F(CollapserTest, collapser)
 {
 	Mesh m;
+	m.grid = buildGridSize2();
 	m.coordinates = {
 		Coordinate({0.000, 0.000, 0.000}),
 		Coordinate({1.000, 0.000, 0.000}),
@@ -106,6 +100,8 @@ TEST_F(CollapserTest, collapser)
 	EXPECT_EQ(4, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(2, r.groups[0].elements.size());
+	EXPECT_TRUE(r.groups[0].elements[0].isTriangle());
+	EXPECT_TRUE(r.groups[0].elements[1].isTriangle());
 }
 
 
@@ -117,6 +113,8 @@ TEST_F(CollapserTest, collapser_2)
 	EXPECT_EQ(4, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(2, r.groups[0].elements.size());
+	EXPECT_TRUE(r.groups[0].elements[0].isTriangle());
+	EXPECT_TRUE(r.groups[0].elements[1].isTriangle());
 }
 
 TEST_F(CollapserTest, collapser_3)
@@ -136,15 +134,34 @@ TEST_F(CollapserTest, collapser_3)
 TEST_F(CollapserTest, preserves_closedness)
 {
 	Mesh m = buildTinyTriClosedMesh();
+	EXPECT_TRUE(isAClosedTopology(m.groups[0].elements));
 
 	Mesh r = Collapser(m, 2).getMesh();
-
+	
 	EXPECT_EQ(8, r.coordinates.size());
 	ASSERT_EQ(1, r.groups.size());
 	EXPECT_EQ(12, r.groups[0].elements.size());
 
-	EXPECT_TRUE(isClosed(m));
-	EXPECT_TRUE(isClosed(r));
+	EXPECT_TRUE(isAClosedTopology(r.groups[0].elements));
+	
+}
+
+TEST_F(CollapserTest, closedness_for_sphere)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+	for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+	
+	Mesh collapsed = m;
+	GridTools gT{ m.grid };
+    collapsed.coordinates = gT.absoluteToRelative(collapsed.coordinates);
+    collapsed = Collapser{ collapsed, 4 }.getMesh();
+    collapsed.coordinates = gT.relativeToAbsolute(collapsed.coordinates);
+
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+	EXPECT_TRUE(meshTools::isAClosedTopology(collapsed.groups[0].elements));
+	
 }
 
 TEST_F(CollapserTest, areas_are_below_threshold_issue)
@@ -188,7 +205,7 @@ TEST_F(CollapserTest, areas_are_below_threshold_issue_2)
 }
 
 
-TEST_F(CollapserTest, testRoundLinesToTolerance)
+TEST_F(CollapserTest, round_lines_to_tolerance)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -262,10 +279,7 @@ TEST_F(CollapserTest, testRoundLinesToTolerance)
 	}
 }
 
-
-
-
-TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
+TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -285,22 +299,22 @@ TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
 	Mesh expectedMesh;
 	expectedMesh.grid = buildGridSize2();
 
-	/*
+	
 	expectedMesh.coordinates = {
 		Coordinate({0.33, 1.36, 4.4})
 	};
-	*/
+	
 
 	expectedMesh.groups.resize(1);
 
-	// expectedMesh.groups[0].elements = { Element({0}, Element::Type::Node) };
+	expectedMesh.groups[0].elements = { Element({0}, Element::Type::Node) };
 
 
 	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
 
 	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
-	ASSERT_EQ(resultMesh.coordinates.size(), 0);
-	/*
+	// ASSERT_EQ(resultMesh.coordinates.size(), 0);
+	
 	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
 		auto& expectedCoordinate = expectedMesh.coordinates[c];
 		auto& resultCoordinate = resultMesh.coordinates[c];
@@ -309,7 +323,7 @@ TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
 			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
 		}
 	}
-	*/
+	
 
 	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
 	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
@@ -320,7 +334,7 @@ TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
 		auto& resultGroup = resultMesh.groups[g];
 
 		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
-		/*
+		
 		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
 			auto& expectedElement = expectedGroup.elements[e];
 			auto& resultElement = resultGroup.elements[e];
@@ -331,12 +345,11 @@ TEST_F(CollapserTest, testCollapseIndividualLinesBelowTolerance)
 				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
 			}
 		}
-		*/
 	}
 }
 
 
-TEST_F(CollapserTest, testEqualLinesGetErased)
+TEST_F(CollapserTest, equal_lines_get_erased)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -345,12 +358,12 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 	mesh.grid = buildGridSize2();
 
 	mesh.coordinates = {
-		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.000, 0.000, 0.000}),
 		Coordinate({ 0.325, 0.325, 0.325}),
 		Coordinate({ 1.557, 1.556, 1.584}),
 		Coordinate({ 1.995, 3.226, 0.112}),
 		Coordinate({ 1.562, 1.562, 1.579}),
-		Coordinate({ 2.004, 3.23, 0.109}),
+		Coordinate({ 2.004, 3.230, 0.109}),
 	};
 	mesh.groups.resize(2);
 	mesh.groups[0].elements = {
@@ -371,7 +384,7 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 	Mesh expectedMesh;
 	expectedMesh.grid = buildGridSize2();
 	expectedMesh.coordinates = {
-		Coordinate({ 0.0, 0.0, 0.0}),
+		Coordinate({ 0.00, 0.00, 0.00}),
 		Coordinate({ 0.33, 0.33, 0.33}),
 		Coordinate({ 1.56, 1.56, 1.58}),
 		Coordinate({ 2.00, 3.23, 0.11}),
@@ -386,8 +399,8 @@ TEST_F(CollapserTest, testEqualLinesGetErased)
 		Element({0, 1}, Element::Type::Line),
 		Element({1, 2}, Element::Type::Line),
 		Element({2, 3}, Element::Type::Line),
-		Element({3, 2}, Element::Type::Line),
 	};
+
 
 	auto resultMesh = Collapser(mesh, decimalPlaces).getMesh();
 

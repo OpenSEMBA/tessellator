@@ -147,11 +147,11 @@ static Mesh buildTetsSharingEdgeMesh()
 
     m.coordinates = {
         Coordinate({+4.86485365e+01, +4.15757576e+00, +1.00000000e-01}),
-        Coordinate({+5.10000000e+01, +4.45454545e+00, +0.00000000e+00}),
+        Coordinate({+5.10000000e+01, +4.45454545e+00, +0.0}),
         Coordinate({+5.10000000e+01, +8.90909091e+00, +5.00000000e-01}),
         Coordinate({+4.86485365e+01, +1.30666667e+01, +1.00000000e-01}),
-        Coordinate({+5.10000000e+01, +1.33636364e+01, +0.00000000e+00}),
-        Coordinate({+4.51140002e+01, +1.35823746e+01, +0.00000000e+00})
+        Coordinate({+5.10000000e+01, +1.33636364e+01, +0.0}),
+        Coordinate({+4.51140002e+01, +1.35823746e+01, +0.0})
     };
 
     m.groups = {
@@ -173,9 +173,9 @@ static Mesh buildTri45Mesh(double stepSize)
     Grid grid = utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
 
     Coordinates coords{
-        Coordinate({ 1.50000000e+00, 1.00000000e+00, 1.50000000e+00 }),
-        Coordinate({ 1.00000000e+00, 2.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 1.00000000e+00, 1.00000000e+00 })
+        Coordinate({ 1.5, 1.0, 1.5 }),
+        Coordinate({ 1.0, 2.0, 1.0 }),
+        Coordinate({ 1.0, 1.0, 1.0 })
     };
 
     Groups groups{ Group{} };
@@ -549,12 +549,12 @@ static Mesh buildPlaneXYMesh(double stepSize) {
     Grid grid = utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
 
     std::vector<Coordinate> coords = {
-        Coordinate({ 2.00000000e+00, 2.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.50000000e+00, 2.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 2.00000000e+00, 1.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.50000000e+00, 1.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 2.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 1.00000000e+00, 1.00000000e+00 })
+        Coordinate({ 2.0, 2.0, 1.0 }),
+        Coordinate({ 1.5, 2.0, 1.0 }),
+        Coordinate({ 2.0, 1.0, 1.0 }),
+        Coordinate({ 1.5, 1.0, 1.0 }),
+        Coordinate({ 1.0, 2.0, 1.0 }),
+        Coordinate({ 1.0, 1.0, 1.0 })
     };
 
     Element tri;
@@ -625,12 +625,12 @@ static Mesh buildPlane45Mesh(double stepSize) {
     Grid grid = utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
 
     std::vector<Coordinate> coords = {
-        Coordinate({ 2.00000000e+00, 2.00000000e+00, 2.00000000e+00 }),
-        Coordinate({ 1.50000000e+00, 2.00000000e+00, 1.50000000e+00 }),
-        Coordinate({ 2.00000000e+00, 1.00000000e+00, 2.00000000e+00 }),
-        Coordinate({ 1.50000000e+00, 1.00000000e+00, 1.50000000e+00 }),
-        Coordinate({ 1.00000000e+00, 2.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 1.00000000e+00, 1.00000000e+00 })
+        Coordinate({ 2.0, 2.0, 2.0 }),
+        Coordinate({ 1.5, 2.0, 1.5 }),
+        Coordinate({ 2.0, 1.0, 2.0 }),
+        Coordinate({ 1.5, 1.0, 1.5 }),
+        Coordinate({ 1.0, 2.0, 1.0 }),
+        Coordinate({ 1.0, 1.0, 1.0 })
     };
 
     Element tri;
@@ -749,12 +749,12 @@ static Mesh buildCornerBowtieMesh(double stepSize)
     }
 
     std::vector<Coordinate> coords = {
-        Coordinate({ +5.10000000e+01, -4.76385351e+01, +1.00000000e+00 }),
-        Coordinate({ +5.10000000e+01, -4.76385351e+01, +0.00000000e+00 }),
-        Coordinate({ +5.10000000e+01, -4.90000000e+01, +1.00000000e+00 }),
-        Coordinate({ +5.00000000e+01, -4.90000000e+01, +1.00000000e+00 }),
-        Coordinate({ +5.10000000e+01, -4.90000000e+01, +0.00000000e+00 }),
-        Coordinate({ +5.00000000e+01, -4.90000000e+01, +0.00000000e+00 })
+        Coordinate({ +5.10000000e+01, -4.76385351e+01, +1.0 }),
+        Coordinate({ +5.10000000e+01, -4.76385351e+01, +0.0 }),
+        Coordinate({ +5.10000000e+01, -4.90000000e+01, +1.0 }),
+        Coordinate({ +5.00000000e+01, -4.90000000e+01, +1.0 }),
+        Coordinate({ +5.10000000e+01, -4.90000000e+01, +0.0 }),
+        Coordinate({ +5.00000000e+01, -4.90000000e+01, +0.0 })
     };
 
     Element tri;
@@ -780,14 +780,14 @@ static Mesh buildCubeSurfaceMesh(double stepSize)
         utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
 
     std::vector<Coordinate> coords = {
-        Coordinate({ 0.00000000e+00, 1.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 0.00000000e+00, 0.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 0.00000000e+00, 1.00000000e+00, 0.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 1.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 0.00000000e+00, 1.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 1.00000000e+00, 0.00000000e+00 }),
-        Coordinate({ 0.00000000e+00, 0.00000000e+00, 0.00000000e+00 }),
-        Coordinate({ 1.00000000e+00, 0.00000000e+00, 0.00000000e+00 })
+        Coordinate({ 0.0, 1.0, 1.0 }),
+        Coordinate({ 0.0, 0.0, 1.0 }),
+        Coordinate({ 0.0, 1.0, 0.0 }),
+        Coordinate({ 1.0, 1.0, 1.0 }),
+        Coordinate({ 1.0, 0.0, 1.0 }),
+        Coordinate({ 1.0, 1.0, 0.0 }),
+        Coordinate({ 0.0, 0.0, 0.0 }),
+        Coordinate({ 1.0, 0.0, 0.0 })
     };
 
     Element tri;
@@ -989,8 +989,8 @@ static Mesh buildProblematicTriMesh()
     })
     };
     m.coordinates = {
-        Coordinate({ -2.84407720e+01, -9.00000000e+00, +7.93126475e+00 }),
-        Coordinate({ -2.72927428e+01, -9.00000000e+00, +7.62365125e+00 }),
+        Coordinate({ -2.84407720e+01, -9.0, +7.93126475e+00 }),
+        Coordinate({ -2.72927428e+01, -9.0, +7.62365125e+00 }),
         Coordinate({ -2.11727225e+01, +2.64620374e+00, +5.98379674e+00 })
     };
 

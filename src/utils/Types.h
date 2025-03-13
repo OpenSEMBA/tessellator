@@ -22,6 +22,10 @@ const Axis X{ 0 };
 const Axis Y{ 1 };
 const Axis Z{ 2 };
 
+using Side = std::size_t;
+const Side L{ 0 };
+const Side U{ 1 };
+
 using Cell = Vector<int>;
 using Relative = Coordinate;
 using Relatives = std::vector<Relative>;

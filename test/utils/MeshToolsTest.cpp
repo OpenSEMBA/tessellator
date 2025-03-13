@@ -524,11 +524,11 @@ TEST_F(MeshToolsTest, duplicateCoordinatesSharedBySingleTrianglesVertex_3)
 	EXPECT_EQ(CoordinateIds({6, 4, 7}), r.groups[0].elements[3].vertices);
 }
 
-TEST_F(MeshToolsTest, getBoundingBox)
+TEST_F(MeshToolsTest, getElementsBoundingBox)
 {
 	Mesh m = buildTriOutOfGridMesh();
 
-	auto bb = getBoundingBox(m);
+	auto bb = getElementsBoundingBox(m);
 	
 	EXPECT_EQ(m.coordinates[2], bb.first);
 	EXPECT_EQ(m.coordinates[0], bb.second);
@@ -537,7 +537,7 @@ TEST_F(MeshToolsTest, getBoundingBox)
 TEST_F(MeshToolsTest, getBoundingBox_2)
 {
 	Mesh m = buildTriPartiallyOutOfGridMesh(1.0);
-	auto bb = getBoundingBox(m);
+	auto bb = getElementsBoundingBox(m);
 
 	EXPECT_EQ(VecD({-10.00, 0.01, 0.5 }), bb.first);
 	EXPECT_EQ(VecD({ 1.99, 1.99, 0.5 }), bb.second);
@@ -549,7 +549,7 @@ TEST_F(MeshToolsTest, getBoundingBox_epsilon_coord)
 	m.coordinates[2] = 
 		Coordinate( { -std::numeric_limits<double>::epsilon(), 1.00, 0.5 });
 	
-	auto bb = getBoundingBox(m);
+	auto bb = getElementsBoundingBox(m);
 
 	EXPECT_EQ(VecD({ 0.00, 0.01, 0.5 }), bb.first);
 	EXPECT_EQ(VecD({ 1.99, 1.99, 0.5}), bb.second);
@@ -621,47 +621,6 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 		ASSERT_NO_THROW(meshTools::reduceGrid(sliced, originalGrid));
 		EXPECT_EQ(6, sliced.countElems());
 	}
-
-}
-
-TEST_F(MeshToolsTest, setGrid)
-{
-	auto m{ buildTriOutOfGridMesh() };
-
-	EXPECT_EQ(0, setGrid(m, m.grid).countElems());
-}
-
-TEST_F(MeshToolsTest, setGrid_2)
-{
-	Mesh m;
-	{
-		m.grid[X] = { -0.5, 0.0, 1.0, 1.5 };
-		m.grid[Y] = m.grid[X];
-		m.grid[Z] = m.grid[X];
-
-		m.coordinates = {
-			Coordinate({1.0, 1.5, 1.0}),
-			Coordinate({2.0, 1.5, 1.0}),
-			Coordinate({1.0, 1.5, 2.0}),
-		};
-
-		m.groups = { Group() };
-		m.groups[0].elements = {
-			Element({2, 0, 1})
-		};
-	}
-
-	Grid nG;
-	nG[X] = { -0.5, 0.5, 1.5 };
-	nG[Y] = nG[X];
-	nG[Z] = nG[X];
-
-	Mesh r{ setGrid(m, nG) };
-
-	EXPECT_EQ(1, r.countElems());
-
-	ASSERT_EQ(3, r.coordinates.size());
-	EXPECT_EQ(Coordinate({ 0.5, 1.0, 0.5 }), r.coordinates[0]);
 }
 
 }

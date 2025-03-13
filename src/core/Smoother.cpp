@@ -35,19 +35,19 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
         auto const singularIds = 
             sT_.buildSingularIds(g.elements, mesh_.coordinates, opts_.featureDetectionAngle);
 
-        std::vector<ElementsView> ps;
+        std::vector<ElementsView> patchs;
         for (auto const& cell : sT_.buildCellElemMap(g.elements, mesh_.coordinates)) {
             for (auto const& p :
                 Geometry::buildDisjointSmoothSets(cell.second, mesh_.coordinates, opts_.featureDetectionAngle)) {
-                ps.push_back(p);
+                patchs.push_back(p);
             }
         }
 
-        std::for_each(ps.begin(), ps.end(), [&](auto& p) {
+        std::for_each(patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.remeshBoundary(g.elements, res.coordinates, mesh_.coordinates, p);
         });
                 
-        std::for_each(ps.begin(), ps.end(), [&](auto& p) {
+        std::for_each(patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnCellEdges(res.coordinates, p, singularIds, opts_.contourAlignmentAngle);
         });
 
@@ -55,7 +55,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
 #endif
-            ps.begin(), ps.end(), [&](auto& p) {
+            patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnCellFaces(res.coordinates, p, singularIds);
         });
 
@@ -63,7 +63,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
 #endif
-            ps.begin(), ps.end(), [&](auto& p) {
+            patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnFeatureEdges(res.coordinates, p, singularIds);
         });
 
@@ -71,13 +71,14 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
 #endif      
-            ps.begin(), ps.end(), [&](auto& p) {
+            patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapseInteriorPointsToBound(res.coordinates, p);
         });
 
     }
     
     RedundancyCleaner::fuseCoords(res);
+    RedundancyCleaner::removeDegenerateElements(res);
     res = buildMeshFilteringElements(res, isTriangle);
     RedundancyCleaner::cleanCoords(res);
     mesh_ = res;
@@ -88,6 +89,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
         cs = sT_.collapsePointsOnContour(g.elements, cs, opts_.contourAlignmentAngle);
     }
     RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
 
     meshTools::checkNoCellsAreCrossed(mesh_);
 }

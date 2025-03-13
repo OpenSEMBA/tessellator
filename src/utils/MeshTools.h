@@ -1,13 +1,14 @@
 #pragma once
 
 #include "types/Mesh.h"
+#include "utils/Types.h"
 
-namespace meshlib {
-namespace utils {
-namespace meshTools {
+
+namespace meshlib::utils::meshTools {
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh);
 Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh);
+
 static bool isNode(const Element& e) { return e.isNode(); }
 static bool isNotNode(const Element& e) { return !e.isNode(); }
 static bool isLine(const Element& e) { return e.isLine(); }
@@ -23,15 +24,14 @@ std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Eleme
 
 Mesh buildMeshFilteringElements(
 	const Mesh& in, std::function<bool(const Element&)> filter);
+Mesh buildMeshFromSelectedCells(const Mesh& in, const std::set<Cell>& selectedCells);
+Mesh buildMeshFromContours(const Mesh&);
+
+std::pair<Coordinate, Coordinate> getElementsBoundingBox(const Mesh&);
 
 Grid getEnlargedGridIncludingAllElements(const Mesh&);
-
-std::pair<VecD, VecD> getBoundingBox(const Mesh&);
-
 void reduceGrid(Mesh&, const Grid&);
 Mesh reduceGrid(const Mesh& m, const Grid& g);
-
-Mesh setGrid(const Mesh& m, const Grid& g);
 
 void convertToAbsoluteCoordinates(Mesh&);
 	
@@ -47,6 +47,6 @@ void mergeGroup(Group& lG, const Group& rG, const CoordinateId& coordCount = 0);
 void mergeMesh(Mesh& lMesh, const Mesh& iMesh);
 void mergeMeshAsNewGroup(Mesh& lMesh, const Mesh& iMesh);
 
-}
-}
+bool isAClosedTopology(const Elements& es);
+
 }

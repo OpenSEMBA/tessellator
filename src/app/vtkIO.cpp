@@ -183,7 +183,7 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
     return vtu;
 }
 
-vtkSmartPointer<vtkUnstructuredGrid> gridToVTKUnstructured(const Grid& grid)
+vtkSmartPointer<vtkUnstructuredGrid> gridToVTU(const Grid& grid)
 {
     vtkNew<vtkUnstructuredGrid> vtu;
 
@@ -224,7 +224,17 @@ vtkSmartPointer<vtkUnstructuredGrid> gridToVTKUnstructured(const Grid& grid)
     return vtu;
 }
 
-Mesh readMeshGroups(const std::filesystem::path& filename)
+std::string getBasename(const std::filesystem::path& fn)
+{
+    return std::filesystem::path(fn).stem().stem().string();
+}
+
+std::filesystem::path getFolder(const std::filesystem::path& fn)
+{
+    return std::filesystem::path(fn).parent_path();
+}
+
+Mesh readInputMesh(const std::filesystem::path& filename)
 {
     vtkSmartPointer<vtkUnstructuredGrid> vtu = readAsVTU(filename);
     return vtuToMesh(vtu);
@@ -233,10 +243,6 @@ Mesh readMeshGroups(const std::filesystem::path& filename)
 void exportToVTU(const std::filesystem::path& filename, const vtkSmartPointer<vtkUnstructuredGrid>& vtu)
 {
     std::string fn = filename.string();
-    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
-    if (extension != ".vtu") {
-        throw std::runtime_error("Extension must be .vtu");
-    }
     vtkNew<vtkUnstructuredGridWriter> writer;
     writer->SetFileName(fn.c_str());
     writer->SetInputData(vtu);
@@ -250,7 +256,7 @@ void exportMeshToVTU(const std::filesystem::path& fn, const Mesh& mesh)
 
 void exportGridToVTU(const std::filesystem::path& fn, const Grid& grid)
 {
-    exportToVTU(fn, gridToVTKUnstructured(grid));
+    exportToVTU(fn, gridToVTU(grid));
 }
 
 

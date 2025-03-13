@@ -114,7 +114,7 @@ void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalen
                     usedCoordinates.insert(vIds[v]);
                 }
             }
-            if(element.isQuad()){
+            if(element.isQuad() || element.isTriangle()){
                 if (usedCoordinatesFromSurface.count(vIds) == 0){
                     usedCoordinatesFromSurface.insert(vIds);
                     for (std::size_t v = 0; v < vIds.size(); ++v){
@@ -216,79 +216,33 @@ Elements RedundancyCleaner::findDegenerateElements_(
     return res;
 }
 
-void RedundancyCleaner::collapseCoordsInLineDegenerateTriangles(Mesh& m, const double& areaThreshold) 
+void RedundancyCleaner::fuseCoords(Mesh& mesh) 
 {
-    const std::size_t MAX_NUMBER_OF_ITERATION = 1000;
-    bool degeneratedTrianglesFound = true;
-    for (std::size_t iter = 0; 
-        iter < MAX_NUMBER_OF_ITERATION && degeneratedTrianglesFound; 
-        ++iter) 
-    {
-        degeneratedTrianglesFound = false;
-        for (auto& g : m.groups) {
-            for (auto& e : g.elements) {
-                if (!e.isTriangle() ||
-                    !Geometry::isDegenerate(Geometry::asTriV(e, m.coordinates), areaThreshold)) {
-                    continue;
-                }
-                degeneratedTrianglesFound = true;
-                Coordinates& coords = m.coordinates;
-                const std::vector<CoordinateId>& v = e.vertices;
-                std::pair<std::size_t, CoordinateId> replace;
-
-                std::array<double, 3> sumOfDistances{ 0,0,0 };
-                for (std::size_t d : {0, 1, 2}) {
-                    for (std::size_t dd : {1, 2}) {
-                        sumOfDistances[d] += (coords[v[d]] - coords[v[(d + dd) % 3]]).norm();
-                    }
-                }
-                auto minPos = std::min_element(sumOfDistances.begin(), sumOfDistances.end());
-                auto midId = std::distance(sumOfDistances.begin(), minPos);
-
-                const auto& cMid = coords[v[midId]];
-                const auto& cExt1 = coords[v[(midId + 1) % 3]];
-                const auto& cExt2 = coords[v[(midId + 2) % 3]];
-
-                if ((cMid - cExt1).norm() < (cMid - cExt2).norm()) {
-                    coords[e.vertices[midId]] = coords[e.vertices[(midId + 1) % 3]];
-                }
-                else {
-                    coords[e.vertices[midId]] = coords[e.vertices[(midId + 2) % 3]];
-                }
-            }
-        }
-
-        fuseCoords(m);
-        cleanCoords(m);
-    }
-     
-    std::stringstream msg;
-    bool breaksPostCondition = false;
-    for (auto const& g : m.groups) {
-        for (auto const& e : g.elements) {
-            if (e.isNode() || e.isLine()) {
-                continue;
-            }
-
-            double area = Geometry::area(Geometry::asTriV(e, m.coordinates));
-            if (e.isTriangle() && area < areaThreshold) {
-                breaksPostCondition = true;
-                msg << std::endl;
-                msg << "Group: " << &g - &m.groups.front()
-                    << ", Element: " << &e - &g.elements.front() << std::endl;
-                msg << meshTools::info(e, m) << std::endl;
+    std::map<Coordinate, IdSet> posIds;
+    for (GroupId g = 0; g < mesh.groups.size(); g++) {
+        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
+            const Element& elem = mesh.groups[g].elements[e];
+            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
+                CoordinateId id = elem.vertices[i];
+                Coordinate pos = mesh.coordinates[id];
+                posIds[pos].insert(id);
             }
         }
     }
-    if (breaksPostCondition) {
-        msg << std::endl << "Triangles with area above threshold exist after collapsing.";
-        throw std::runtime_error(msg.str());
+
+    for (GroupId g = 0; g < mesh.groups.size(); g++) {
+        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
+            Element& elem = mesh.groups[g].elements[e];
+            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
+                CoordinateId oldMeshedId = elem.vertices[i];
+                CoordinateId newMeshedId = *posIds[mesh.coordinates[oldMeshedId]].begin();
+                std::replace(elem.vertices.begin(), elem.vertices.end(), oldMeshedId, newMeshedId);
+            }
+        }
     }
 }
 
-void RedundancyCleaner::fuseCoords(Mesh& mesh) 
-{
-    fuseCoords_(mesh);
+void RedundancyCleaner::removeDegenerateElements(Mesh& mesh){
     removeElementsWithCondition(mesh, [&](const Element& e) {
         return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
     });
@@ -326,32 +280,6 @@ void RedundancyCleaner::cleanCoords(Mesh& output)
         }
     }
     
-}
-
-void RedundancyCleaner::fuseCoords_(Mesh& msh) 
-{
-    std::map<Coordinate, IdSet> posIds;
-    for (GroupId g = 0; g < msh.groups.size(); g++) {
-        for (ElementId e = 0; e < msh.groups[g].elements.size(); e++) {
-            const Element& elem = msh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId id = elem.vertices[i];
-                Coordinate pos = msh.coordinates[id];
-                posIds[pos].insert(id);
-            }
-        }
-    }
-
-    for (GroupId g = 0; g < msh.groups.size(); g++) {
-        for (ElementId e = 0; e < msh.groups[g].elements.size(); e++) {
-            Element& elem = msh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId oldMeshedId = elem.vertices[i];
-                CoordinateId newMeshedId = *posIds[msh.coordinates[oldMeshedId]].begin();
-                std::replace(elem.vertices.begin(), elem.vertices.end(), oldMeshedId, newMeshedId);
-            }
-        }
-    }
 }
 
 void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 

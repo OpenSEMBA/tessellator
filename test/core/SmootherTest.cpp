@@ -5,6 +5,8 @@
 #include "utils/Tools.h"
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
+#include "core/Slicer.h"
+#include "app/vtkIO.h"
 
 namespace meshlib::core {
 using namespace utils;
@@ -83,6 +85,65 @@ TEST_F(SmootherTest, touching_by_single_point)
 	auto r{ Smoother{m}.getMesh() };
 
 	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
+}
+
+TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
+{
+	
+	auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+	
+	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+	
+	auto slicedMesh = Slicer{m}.getMesh();
+	
+	SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 30;
+    smootherOpts.contourAlignmentAngle = 0;
+	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
+	
+	EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+	EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.smoothed.vtk", smoothedMesh);
+	// 
+	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
+}
+
+
+TEST_F(SmootherTest, preserves_topological_closedness_for_sphere)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+
+    auto slicedMesh = Slicer{m}.getMesh();
+    
+	SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 30;
+    smootherOpts.contourAlignmentAngle = 0;
+	auto smoothedMesh = Smoother{slicedMesh, smootherOpts}.getMesh();
+
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+	EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+	//
+	// meshTools::convertToAbsoluteCoordinates(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.smoothed.vtk", smoothedMesh);
+	//
+	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
 }

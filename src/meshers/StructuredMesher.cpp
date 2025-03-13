@@ -17,9 +17,6 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-
-
-
 StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
     MesherBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser)
@@ -35,7 +32,7 @@ StructuredMesher::StructuredMesher(const Mesh& inputMesh, int decimalPlacesInCol
 
 Mesh StructuredMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
-    auto resultMesh = MesherBase::buildSurfaceMesh(inputMesh);
+    auto resultMesh = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
     mergeMesh(resultMesh, volumeSurface);
     return resultMesh;
 }
@@ -76,8 +73,8 @@ void StructuredMesher::process(Mesh& mesh) const
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);
 
-    utils::GridTools gT{mesh.grid};
-    mesh.coordinates = gT.relativeToAbsolute(mesh.coordinates);
+    log("Converting relative to absolute coordinates.", 1);
+    utils::meshTools::convertToAbsoluteCoordinates(mesh);
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

@@ -4,6 +4,7 @@ add_library(tessellator-meshers
     "MesherBase.cpp"
     "StructuredMesher.cpp"
     "OffgridMesher.cpp"
+    "ConformalMesher.cpp"
 )
 target_link_libraries(tessellator-meshers tessellator-core tessellator-utils)
 

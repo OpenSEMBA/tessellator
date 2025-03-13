@@ -15,6 +15,8 @@
 
 namespace meshlib::app {
 
+using namespace vtkIO;
+
 namespace po = boost::program_options;
 
 Grid parseGridFromJSON(const nlohmann::json &j)
@@ -49,7 +51,7 @@ Mesh readMesh(const std::string &fn)
     std::filesystem::path meshObjectPath = caseFolder / objPathFromInput;
 
     std::cout << "-- Reading mesh groups from: " << meshObjectPath;
-    Mesh res = vtkIO::readMeshGroups(meshObjectPath);
+    Mesh res = vtkIO::readInputMesh(meshObjectPath);
     std::cout << "....... [OK]" << std::endl;
 
     std::cout << "-- Reading grid from input file";
@@ -86,10 +88,10 @@ int launcher(int argc, const char* argv[])
     meshlib::meshers::StructuredMesher mesher{mesh};
     Mesh resultMesh = mesher.mesh();
 
-    std::filesystem::path outputFolder = std::filesystem::path(inputFilename).parent_path();
-    auto basename = std::filesystem::path(inputFilename).stem().stem().string();
-    meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtu"), resultMesh);
-    meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtu"), resultMesh.grid);
+    std::filesystem::path outputFolder = getFolder(inputFilename);
+    auto basename = getBasename(inputFilename);
+    exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtk"), resultMesh);
+    exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
 
     return EXIT_SUCCESS;
 }

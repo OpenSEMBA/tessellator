@@ -12,7 +12,6 @@ public:
     virtual Mesh mesh() const = 0;
 
 protected:
-    virtual Mesh buildSurfaceMesh(const Mesh& inputMesh);
     virtual void process(Mesh&) const = 0;
 
     static void log(const std::string& msg, std::size_t level = 0);
@@ -24,6 +23,9 @@ protected:
 
     static Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged);
     static Grid buildSlicingGrid(const Grid& primal, const Grid& enlarged);
+
+    static Mesh buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
+    static Mesh buildSurfaceMesh(const Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
 
     Grid originalGrid_;
     Grid enlargedGrid_;

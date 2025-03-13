@@ -123,9 +123,9 @@ TEST_F(GridToolsTest, coordinateCellProperties_1)
 	Relative r({ 7.0000000000000000, 12.000000000000002, 6.6666666666666670 });
 
 	EXPECT_FALSE(GridTools::isRelativeInterior(r));
-	EXPECT_FALSE(GridTools::isRelativeOnCellFace(r));
-	EXPECT_TRUE( GridTools::isRelativeOnCellEdge(r));
-	EXPECT_FALSE(GridTools::isRelativeOnCellCorner(r));
+	EXPECT_FALSE(GridTools::isRelativeInCellFace(r));
+	EXPECT_TRUE( GridTools::isRelativeInCellEdge(r));
+	EXPECT_FALSE(GridTools::isRelativeInCellCorner(r));
 }
 
 TEST_F(GridToolsTest, coordinateCellProperties_2) 
@@ -133,9 +133,20 @@ TEST_F(GridToolsTest, coordinateCellProperties_2)
 	Relative r({ 6.9999999999999982, 12.000000000000000, 6.6666666666666670 });
 
 	EXPECT_FALSE(GridTools::isRelativeInterior(r));
-	EXPECT_FALSE(GridTools::isRelativeOnCellFace(r));
-	EXPECT_TRUE( GridTools::isRelativeOnCellEdge(r));
-	EXPECT_FALSE(GridTools::isRelativeOnCellCorner(r));
+	EXPECT_FALSE(GridTools::isRelativeInCellFace(r));
+	EXPECT_TRUE( GridTools::isRelativeInCellEdge(r));
+	EXPECT_FALSE(GridTools::isRelativeInCellCorner(r));
+}
+
+TEST_F(GridToolsTest, cellBounds)
+{
+	Relative r({ 1.0, 1.0, 1.0 });
+
+	EXPECT_TRUE(GridTools::isRelativeAtCellBound(r, {1,1,1}, {X,L}));
+	EXPECT_TRUE(GridTools::isRelativeAtCellBound(r, {0,0,0}, {X,U}));
+
+	EXPECT_FALSE(GridTools::isRelativeAtCellBound(r, {1,1,1}, {X,U}));
+	EXPECT_FALSE(GridTools::isRelativeAtCellBound(r, {0,0,0}, {X,L}));
 }
 
 TEST_F(GridToolsTest, getCellEdgeAxis) 
@@ -143,18 +154,18 @@ TEST_F(GridToolsTest, getCellEdgeAxis)
 	{
 		Relative r({ 1.0, 1.0, 2.5 });
 		EXPECT_FALSE(GridTools::isRelativeInterior(r));
-		EXPECT_FALSE(GridTools::isRelativeOnCellFace(r));
-		EXPECT_TRUE( GridTools::isRelativeOnCellEdge(r));
-		EXPECT_FALSE(GridTools::isRelativeOnCellCorner(r));
+		EXPECT_FALSE(GridTools::isRelativeInCellFace(r));
+		EXPECT_TRUE( GridTools::isRelativeInCellEdge(r));
+		EXPECT_FALSE(GridTools::isRelativeInCellCorner(r));
 
 		EXPECT_EQ(std::make_pair(true, Axis(2)), GridTools::getCellEdgeAxis(r));
 	}
 	{
 		Relative r({ 2.5, 1.0, 1.0});
 		EXPECT_FALSE(GridTools::isRelativeInterior(r));
-		EXPECT_FALSE(GridTools::isRelativeOnCellFace(r));
-		EXPECT_TRUE( GridTools::isRelativeOnCellEdge(r));
-		EXPECT_FALSE(GridTools::isRelativeOnCellCorner(r));
+		EXPECT_FALSE(GridTools::isRelativeInCellFace(r));
+		EXPECT_TRUE( GridTools::isRelativeInCellEdge(r));
+		EXPECT_FALSE(GridTools::isRelativeInCellCorner(r));
 
 		EXPECT_EQ(std::make_pair(true, Axis(0)), GridTools::getCellEdgeAxis(r));
 	}

@@ -9,6 +9,10 @@
 namespace meshlib {
 namespace core {
 
+struct SlicerOptions {
+    int initialCollapsingDecimalPlaces = 4;
+};
+
 class Slicer : public utils::GridTools {
 public:
     
@@ -18,7 +22,7 @@ public:
     typedef std::vector<PlaneAlignedPolyline> PlaneAlignedPolylines;
     typedef std::vector<Coordinate> PolylineV;
 
-    Slicer(const Mesh&);
+    Slicer(const Mesh&, const SlicerOptions& opts = SlicerOptions());
     Mesh getMesh() const { return mesh_; };
 
 
@@ -28,6 +32,7 @@ private:
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
     Mesh mesh_;
+    SlicerOptions opts_;
 
     Elements sliceTriangle(Coordinates&, const TriV&);
     Elements sliceLine(Coordinates&, const LinV&);
