@@ -3,9 +3,11 @@
 
 #include "Snapper.h"
 #include "Slicer.h"
+#include "Smoother.h"
 #include "utils/Tools.h"
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
+#include "app/vtkIO.h"
 
 using namespace meshlib;
 using namespace core;
@@ -44,30 +46,37 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
-// TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
-// {
-//     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
-//     for (auto x: {X,Y,Z}) {
-//         m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
-//     }
+TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
 
-//     auto slicedMesh = Slicer{m}.getMesh();
+    auto slicedMesh = Slicer{m}.getMesh();
     
-// 	SmootherOptions smootherOpts;
-//     smootherOpts.featureDetectionAngle = 30;
-//     smootherOpts.contourAlignmentAngle = 0;
-// 	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
+	SmootherOptions smootherOpts;
+    smootherOpts.featureDetectionAngle = 30;
+    smootherOpts.contourAlignmentAngle = 0;
+	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
 
-//     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
-//     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+    SnapperOptions snapperOpts;
+    snapperOpts.edgePoints = 3;
+    snapperOpts.forbiddenLength = 0.3;
+    auto snappedMesh = Snapper{smoothedMesh}.getMesh();
 
-//     // //For debugging.
-// 	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
-// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(snappedMesh.groups[0].elements));
 
-// 	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
-// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
-// }
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+
+	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+}
 
 
 // TEST_F(SnapperTest, triangles_convert_to_lines)
@@ -126,9 +135,4 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
 //     ASSERT_EQ(1, res.groups.size());
 //     ASSERT_EQ(1, res.groups[0].elements.size());
 //     EXPECT_EQ(expectedElement, res.groups[0].elements[0]);
-// }
-
-// TEST_F(SnapperTest, DISABLED_redundant_lines_are_removed)
-// {
-    
 // }
