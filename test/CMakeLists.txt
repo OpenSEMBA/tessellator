@@ -21,6 +21,7 @@ add_executable(tessellator_tests
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
     "core/StructurerTest.cpp"
+	"core/SelectiveStructurerTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
 	"types/MeshTest.cpp"
