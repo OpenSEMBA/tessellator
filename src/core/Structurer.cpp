@@ -642,6 +642,41 @@ bool Structurer::isEdgePartOfCellSurface(const Element& edge, const RelativeIds&
     return true;
 }
 
+bool Structurer::isRelativeInCell(const Relative& relative, const Cell& cell) const {
+    for (std::size_t axis=0; axis < 3; ++axis) {
+        if (!(cell[axis] <= relative[axis] && relative[axis] <= cell[axis] + 1)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+Mesh Structurer::structureSpecificCell(const Relatives& relatives, const Cell& cellToStructure, const Mesh& initialMesh) const{
+    Mesh resultMesh = initialMesh;
+    std::vector<Coordinate> resultCoordinates(relatives.size());
+
+    for (auto it = relatives.begin(); it != relatives.end(); ++it) {
+        auto& relative = *it;
+        std::size_t rel = std::distance(relatives.begin(), it);
+    
+        if (isRelativeInCell(relative, cellToStructure)) {
+            auto resultCell = calculateStructuredCell(relative);
+            for (std::size_t axis = 0; axis < 3; ++axis) {
+                resultCoordinates[rel][axis] = resultCell[axis];
+            }
+        } else {
+            resultCoordinates[rel] = relative;
+        }
+    }
+
+    for(std::size_t rel=0; rel < initialMesh.coordinates.size(); ++rel) {
+        for(std::size_t axis=0; axis < 3; ++axis) {
+            resultMesh.coordinates[rel][axis] = resultCoordinates[rel][axis];
+        }
+    }
+
+    return resultMesh;
+}
 
 }
 }

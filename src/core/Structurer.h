@@ -12,6 +12,8 @@ public:
 
     Cell calculateStructuredCell(const Relative& relative) const;
 
+    Mesh structureSpecificCell(const Relatives& relatives, const Cell& cellsToStructure, const Mesh& initialMesh) const;
+
 private:
     Mesh mesh_;
 
@@ -25,6 +27,7 @@ private:
     bool isEdgePartOfCellSurface(const Element& edge, const RelativeIds &surfaceRelativeIds) const;
     bool isPureDiagonal(const Element& edge, const Relatives& relatives);
     bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;
+    bool isRelativeInCell(const Relative& relative, const Cell& cell) const;
     void filterSurfacesFromRelativeIds(
         const RelativeIds& triangleVertices,
         int pureDiagonalIndex,
