@@ -2105,6 +2105,8 @@ TEST_F(StructurerTest, modifyAllCoordinatesAndCompareToStructurer)
     float step = 5.0;
     assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
 
+    Cell structuredCell = {0, 0, 0};
+
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
     mesh.coordinates = {
@@ -2122,20 +2124,8 @@ TEST_F(StructurerTest, modifyAllCoordinatesAndCompareToStructurer)
 
     auto expectedMesh = Structurer{ mesh }.getMesh();
     
-    std::vector<Coordinate> resultCoordinates(mesh.coordinates.size());
-    for (std::size_t rel=0; rel < mesh.coordinates.size(); ++rel) {
-        auto resultCell = Structurer{ mesh }.calculateStructuredCell(mesh.coordinates[rel]);
-        for (std::size_t axis=0; axis < 3; ++axis) {
-            resultCoordinates[rel][axis] = resultCell[axis];
-        }
-    }
+    auto resultMesh = Structurer{ mesh }.structureSpecificCell(mesh.coordinates, structuredCell, mesh);
 
-    Mesh resultMesh = mesh;
-    for(std::size_t rel=0; rel < mesh.coordinates.size(); ++rel) {
-        for(std::size_t axis=0; axis < 3; ++axis) {
-            resultMesh.coordinates[rel][axis] = resultCoordinates[rel][axis];
-        }
-    }
     
     ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
@@ -2207,34 +2197,7 @@ TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
             Element({1, 2}, Element::Type::Line),
     };
 
-    std::vector<Coordinate> resultCoordinates(mesh.coordinates.size());
-
-    for (std::size_t rel=0; rel < mesh.coordinates.size(); ++rel) {
-
-        bool coordIsInsideCell = true;
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            if (!(structuredCell[axis] <= mesh.coordinates[rel][axis] && mesh.coordinates[rel][axis] <= structuredCell[axis] + 1)) {
-                coordIsInsideCell = false;
-                break;
-            }
-        }
-
-        if(coordIsInsideCell) {
-            auto resultCell = Structurer{ mesh }.calculateStructuredCell(mesh.coordinates[rel]);
-            for(std::size_t axis=0; axis < 3; ++axis){
-                resultCoordinates[rel][axis] = resultCell[axis];
-            }
-        } else {
-            resultCoordinates[rel] = mesh.coordinates[rel];
-        }
-    }
-
-    Mesh resultMesh = mesh;
-    for(std::size_t rel=0; rel < mesh.coordinates.size(); ++rel) {
-        for(std::size_t axis=0; axis < 3; ++axis) {
-            resultMesh.coordinates[rel][axis] = resultCoordinates[rel][axis];
-        }
-    }
+    auto resultMesh = Structurer{ mesh }.structureSpecificCell(mesh.coordinates, structuredCell, mesh);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
