@@ -2,6 +2,8 @@
 
 #include "utils/RedundancyCleaner.h"
 
+#include <iostream>
+
 namespace meshlib {
 namespace core {
 using namespace utils;
@@ -651,31 +653,26 @@ bool Structurer::isRelativeInCell(const Relative& relative, const Cell& cell) co
     return true;
 }
 
-Mesh Structurer::structureSpecificCell(const Relatives& relatives, const Cell& cellToStructure, const Mesh& initialMesh) const{
-    Mesh resultMesh = initialMesh;
-    std::vector<Coordinate> resultCoordinates(relatives.size());
+void Structurer::structureSpecificCell(const Cell& cellToStructure, Mesh& resultMesh) const{
+    std::vector<Coordinate> resultCoordinates(resultMesh.coordinates.size());
+    Cell resultCell;
 
-    for (auto it = relatives.begin(); it != relatives.end(); ++it) {
-        auto& relative = *it;
-        std::size_t rel = std::distance(relatives.begin(), it);
-    
-        if (isRelativeInCell(relative, cellToStructure)) {
-            auto resultCell = calculateStructuredCell(relative);
+    for(std::size_t rel=0; rel < resultMesh.coordinates.size(); ++rel) {
+        if (isRelativeInCell(resultMesh.coordinates[rel], cellToStructure)) {
+            resultCell = calculateStructuredCell(resultMesh.coordinates[rel]);
             for (std::size_t axis = 0; axis < 3; ++axis) {
                 resultCoordinates[rel][axis] = resultCell[axis];
             }
         } else {
-            resultCoordinates[rel] = relative;
+            resultCoordinates[rel] = resultMesh.coordinates[rel];
         }
     }
 
-    for(std::size_t rel=0; rel < initialMesh.coordinates.size(); ++rel) {
+    for(std::size_t rel=0; rel < resultMesh.coordinates.size(); ++rel) {
         for(std::size_t axis=0; axis < 3; ++axis) {
             resultMesh.coordinates[rel][axis] = resultCoordinates[rel][axis];
         }
     }
-
-    return resultMesh;
 }
 
 }
