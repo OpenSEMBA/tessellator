@@ -44,50 +44,57 @@ Mesh Structurer::getMesh(){
     return mesh_;
 }
 
-// Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
-//     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
+Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
+    for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
-//         auto& inputGroup = inputMesh_.groups[g];
-//         auto& meshGroup = mesh_.groups[g];
-//         meshGroup.elements.reserve(inputGroup.elements.size() * 2);
+        auto& inputGroup = inputMesh_.groups[g];
+        auto& meshGroup = mesh_.groups[g];
+        meshGroup.elements.reserve(inputGroup.elements.size() * 2);
 
-//         auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
-//         auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
-
-//         for (const auto& cell : cellSet) {
-//             auto it = cellElemMap.find(cell);
-//             if (it != cellElemMap.end()) {
-//                 const std::vector<const Element*>& elements = it->second;
-//                 for (const auto* element : elements) {  
-//                     if (element->isLine()) {  
-//                         this->processLineAndAddToGroup(*element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
-//                     }
-//                     else if (element->isTriangle()) {
-//                         this->processTriangleAndAddToGroup(*element, inputMesh_.coordinates, meshGroup);
-//                     }
-//                 }
-//             }
-//         }
-
-//         for (const auto& [cell, elements] : cellElemMap) {
-//             if (cellSet.find(cell) == cellSet.end()) {  
-//                 for (const auto* element : elements) {
-//                     meshGroup.elements.push_back(*element);  
-//                 }
-//             }
-//         }
-
+        auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
-//     }
+        for (const auto& cell : cellSet) {
+            auto it = cellElemMap.find(cell);
+            if (it != cellElemMap.end()) {
+                const std::vector<const Element*>& elements = it->second;
+                for (const auto* element : elements) {  
+                    if (element->isLine()) {  
+                        this->processLineAndAddToGroup(*element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
+                    }
+                    else if (element->isTriangle()) {
+                        this->processTriangleAndAddToGroup(*element, inputMesh_.coordinates, meshGroup);
+                    }
+                }
+            }
+        }
+        
+        for (const auto& [cell, elements] : cellElemMap) {
+            if (cellSet.find(cell) == cellSet.end()) {  
+                for (const auto* element : elements) {
+                    meshGroup.elements.push_back(*element);  
+                }
+            }
+        }
+        
+    }
 
-//     for (std::size_t coord = 0; coord < mesh_.coordinates.size(); ++coord) {}
+    auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
 
-//     RedundancyCleaner::fuseCoords(mesh_);
-//     RedundancyCleaner::removeDegenerateElements(mesh_);
-//     RedundancyCleaner::cleanCoords(mesh_);
+    for (const auto& [cell, coords] : cellCoordMap) {
+            if (cellSet.find(cell) == cellSet.end()) {
+                for (const auto* coord : coords) {
+                    mesh_.coordinates.push_back(*coord);
+                }
+            }
+        }
 
-//     return mesh_;
-// }
+
+    RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
+    RedundancyCleaner::cleanCoords(mesh_);
+
+    return mesh_;
+}
 
 void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group){
     Group edges;
@@ -725,6 +732,5 @@ void Structurer::structureSpecificCell(const Cell& cellToStructure, Mesh& result
         }
     }
 }
-
 }
 }
