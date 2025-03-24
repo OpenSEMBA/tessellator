@@ -8,7 +8,8 @@ namespace core {
 class Structurer : public utils::GridTools {
 public:
     Structurer(const Mesh&);
-    Mesh getMesh() const { return mesh_; };
+    Mesh getMesh();
+    Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 
     Cell calculateStructuredCell(const Relative& relative) const;
 
@@ -16,6 +17,8 @@ public:
 
 private:
     Mesh mesh_;
+
+    Mesh inputMesh_;
 
     void processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group);
     void processLineAndAddToGroup(
