@@ -94,7 +94,10 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
             }
             
             if (shouldInsert) {
-                mesh_.coordinates.push_back(*coord);
+                auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), *coord);
+                if (it == mesh_.coordinates.end()) {
+                    mesh_.coordinates.push_back(*coord);
+                }
             }
         }
     }
