@@ -2035,7 +2035,7 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
 
 
 
-TEST_F(StructurerTest, DISABLED_modifyCoordinateOfASpecificCell)
+TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
 {
 
     // *-------------*-------------*          *---------------*---------------* 
@@ -2054,10 +2054,8 @@ TEST_F(StructurerTest, DISABLED_modifyCoordinateOfASpecificCell)
     float step = 5.0;
     assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
 
-    Cell structuredCell = {{0, 0, 0}};
-
     std::set<Cell> cellSet;
-    cellSet.insert({{0, 0, 0}});
+    cellSet.insert(Cell({0, 0, 0}));
     
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
@@ -2084,18 +2082,14 @@ TEST_F(StructurerTest, DISABLED_modifyCoordinateOfASpecificCell)
             Element({1, 2}, Element::Type::Line),
     };
 
-    // Mesh resultMesh = mesh;
-    // Structurer{ mesh }.structureSpecificCell(structuredCell, resultMesh);
-
     auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
     ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
+    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            // std::cout << "result, relative " << i << " axis " << axis << " value " << resultMesh.coordinates[i][axis] << "\n";
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
         }
     }
@@ -2140,8 +2134,8 @@ TEST_F(StructurerTest, DISABLED_structureMoreThanOneCell)
     assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
 
     std::set<Cell> cellSet;
-    cellSet.insert({{0, 0, 0}});
-    cellSet.insert({{1, 1, 0}});
+    cellSet.insert(Cell({0, 0, 0}));
+    cellSet.insert(Cell({1, 1, 0}));
     
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
@@ -2176,22 +2170,17 @@ TEST_F(StructurerTest, DISABLED_structureMoreThanOneCell)
             Element({3, 4}, Element::Type::Line),
     };
 
-    // Mesh resultMesh = mesh;
-    // Structurer structurer(mesh);
-    // for (const auto& cell : cellSet) {
-    //     structurer.structureSpecificCell(cell, resultMesh);
-    // }
-
     auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(cellSet.size(), 2);
-    // ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
     ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
+    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+            std::cout << "result, relative " << i << " axis " << axis << " value " << resultMesh.coordinates[i][axis] << "\n";
+            // EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
         }
     }
 
