@@ -2033,6 +2033,77 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
     }
 }
 
+TEST_F(StructurerTest, selectiveStructurerWithEmptySetOfCells)
+{
+
+    // *-------------*-------------*          *-------------*-------------* 
+    // |             |             |          |             |             | 
+    // |             |             |          |             |             | 
+    // |             |        _2   |  ->      |             |        _2   | 
+    // |             |     _-‾     |          |             |     _-‾     | 
+    // |             |  _-‾        |          |             |  _-‾        | 
+    // |     0-------1-‾           |          |     0-------1-‾           | 
+    // *-------------*-------------*          *-------------*-------------*
+    //
+    
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    std::set<Cell> cellSet;
+    
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Relative({ 0.4, 0.1, 0.7 }), // 0 First Segment, First Point
+        Relative({ 1.0, 0.1, 0.7 }), // 1 First Segment, Second Point
+        Relative({ 1.8, 0.6, 0.7 }), // 2 Second Segment, Final Point
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 2}, Element::Type::Line),
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 0.4, 0.1, 0.7 }), // 0 First Segment, First Point
+        Relative({ 1.0, 0.1, 0.7 }), // 1 First Segment, Second Point
+        Relative({ 1.8, 0.6, 0.7 }), // 2 Second Segment, Final Point
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+    };
+
+    auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
+
+    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
+
+    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
+        auto& resultElement = resultMesh.groups[0].elements[e];
+        auto& expectedElement = expectedElements[e];
+
+        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+        }
+    }
+
+}
 
 
 TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
