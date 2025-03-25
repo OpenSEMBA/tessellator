@@ -2179,7 +2179,7 @@ TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
 
 }
 
-TEST_F(StructurerTest, DISABLED_structureMoreThanOneCell) 
+TEST_F(StructurerTest, structureMoreThanOneCell) 
 {
     // *-------------*-------------*          *---------------*---------------4 
     // |             |             |          |               |               ║ 
@@ -2250,8 +2250,7 @@ TEST_F(StructurerTest, DISABLED_structureMoreThanOneCell)
 
     for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            std::cout << "result, relative " << i << " axis " << axis << " value " << resultMesh.coordinates[i][axis] << "\n";
-            // EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
         }
     }
 
