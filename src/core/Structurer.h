@@ -13,7 +13,6 @@ public:
 
     Cell calculateStructuredCell(const Relative& relative) const;
 
-    void structureSpecificCell(const Cell& cellsToStructure, Mesh& resultMesh) const;
 
 private:
     Mesh mesh_;

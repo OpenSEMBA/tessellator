@@ -712,36 +712,3 @@ bool Structurer::isEdgePartOfCellSurface(const Element& edge, const RelativeIds&
 
     return true;
 }
-
-bool Structurer::isRelativeInCell(const Relative& relative, const Cell& cell) const {
-    for (std::size_t axis=0; axis < 3; ++axis) {
-        if (!(cell[axis] <= relative[axis] && relative[axis] <= cell[axis] + 1)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void Structurer::structureSpecificCell(const Cell& cellToStructure, Mesh& resultMesh) const{
-    std::vector<Coordinate> resultCoordinates(resultMesh.coordinates.size());
-    Cell resultCell;
-
-    for(std::size_t rel=0; rel < resultMesh.coordinates.size(); ++rel) {
-        if (isRelativeInCell(resultMesh.coordinates[rel], cellToStructure)) {
-            resultCell = calculateStructuredCell(resultMesh.coordinates[rel]);
-            for (std::size_t axis = 0; axis < 3; ++axis) {
-                resultCoordinates[rel][axis] = resultCell[axis];
-            }
-        } else {
-            resultCoordinates[rel] = resultMesh.coordinates[rel];
-        }
-    }
-
-    for(std::size_t rel=0; rel < resultMesh.coordinates.size(); ++rel) {
-        for(std::size_t axis=0; axis < 3; ++axis) {
-            resultMesh.coordinates[rel][axis] = resultCoordinates[rel][axis];
-        }
-    }
-}
-}
-}
