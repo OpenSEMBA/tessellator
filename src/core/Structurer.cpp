@@ -77,21 +77,32 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
         }
         
     }
-
+    
     auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
-
+    
     for (const auto& [cell, coords] : cellCoordMap) {
-            if (cellSet.find(cell) == cellSet.end()) {
-                for (const auto* coord : coords) {
-                    mesh_.coordinates.push_back(*coord);
+        
+        for (const auto* coord : coords) {
+            bool shouldInsert = true;
+            auto touchingCells = GridTools::getTouchingCells(*coord);
+            
+            for (const auto& touchingCell : touchingCells) {
+                if (cellSet.find(touchingCell) != cellSet.end()) {
+                    shouldInsert = false;
+                    // break;  
                 }
             }
+            
+            if (shouldInsert) {
+                mesh_.coordinates.push_back(*coord);
+            }
         }
+    }
+    
+    // RedundancyCleaner::fuseCoords(mesh_);
+    // RedundancyCleaner::removeDegenerateElements(mesh_);
+    // RedundancyCleaner::cleanCoords(mesh_);
 
-
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
 
     return mesh_;
 }
