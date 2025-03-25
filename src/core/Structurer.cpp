@@ -45,6 +45,8 @@ Mesh Structurer::getMesh(){
 }
 
 Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
+    auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
+
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -53,10 +55,8 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
 
         auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
-        for (const auto& cell : cellSet) {
-            auto it = cellElemMap.find(cell);
-            if (it != cellElemMap.end()) {
-                const std::vector<const Element*>& elements = it->second;
+        for (const auto& [cell, elements] : cellElemMap) {
+            if (cellSet.find(cell) != cellSet.end()) {
                 for (const auto* element : elements) {  
                     if (element->isLine()) {  
                         this->processLineAndAddToGroup(*element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
@@ -66,45 +66,42 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
                     }
                 }
             }
-        }
-        
-        for (const auto& [cell, elements] : cellElemMap) {
-            if (cellSet.find(cell) == cellSet.end()) {  
+            else {
                 for (const auto* element : elements) {
                     meshGroup.elements.push_back(*element);  
                 }
-            }
-        }
-        
-    }
-    
-    auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
-    
-    for (const auto& [cell, coords] : cellCoordMap) {
-        
-        for (const auto* coord : coords) {
-            bool shouldInsert = true;
-            auto touchingCells = GridTools::getTouchingCells(*coord);
-            
-            for (const auto& touchingCell : touchingCells) {
-                if (cellSet.find(touchingCell) != cellSet.end()) {
-                    shouldInsert = false;
-                    // break;  
-                }
-            }
-            
-            if (shouldInsert) {
-                auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), *coord);
-                if (it == mesh_.coordinates.end()) {
-                    mesh_.coordinates.push_back(*coord);
+
+                for (const auto& [cell, coords] : cellCoordMap) {
+                    if (cellElemMap.find(cell) != cellElemMap.end()) {
+                        for (const auto* coord : coords) {
+                            bool shouldInsert = true;
+                            auto touchingCells = GridTools::getTouchingCells(*coord);
+                            
+                            for (const auto& touchingCell : touchingCells) {
+                                if (cellSet.find(touchingCell) != cellSet.end()) {
+                                    shouldInsert = false;
+                                    // break;  
+                                }
+                            }
+                            
+                            if (shouldInsert) {
+                                auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), *coord);
+                                if (it == mesh_.coordinates.end()) {
+                                    mesh_.coordinates.push_back(*coord);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+              
     }
     
-    // RedundancyCleaner::fuseCoords(mesh_);
-    // RedundancyCleaner::removeDegenerateElements(mesh_);
-    // RedundancyCleaner::cleanCoords(mesh_);
+    
+    RedundancyCleaner::fuseCoords(mesh_);
+    RedundancyCleaner::removeDegenerateElements(mesh_);
+    RedundancyCleaner::cleanCoords(mesh_);
 
 
     return mesh_;
