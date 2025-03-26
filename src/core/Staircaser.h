@@ -7,7 +7,7 @@ namespace core {
 
 class Staircaser : public utils::GridTools {
 public:
-    Structurer(const Mesh&);
+    Staircaser(const Mesh&);
     Mesh getMesh();
     Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 

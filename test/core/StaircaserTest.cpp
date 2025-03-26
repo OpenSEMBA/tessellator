@@ -2032,7 +2032,7 @@ TEST_F(StaircaserTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
     }
 }
 
-TEST_F(StructurerTest, selectiveStructurerWithEmptySetOfCells)
+TEST_F(StaircaserTest, selectiveStructurerWithEmptySetOfCells)
 {
 
     // *-------------*-------------*          *-------------*-------------* 
@@ -2078,7 +2078,7 @@ TEST_F(StructurerTest, selectiveStructurerWithEmptySetOfCells)
             Element({1, 2}, Element::Type::Line),
     };
 
-    auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
@@ -2105,7 +2105,7 @@ TEST_F(StructurerTest, selectiveStructurerWithEmptySetOfCells)
 }
 
 
-TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
+TEST_F(StaircaserTest, modifyCoordinateOfASpecificCell)
 {
 
     // *-------------*-------------*          *---------------*---------------* 
@@ -2152,7 +2152,7 @@ TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
             Element({1, 2}, Element::Type::Line),
     };
 
-    auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
@@ -2178,7 +2178,7 @@ TEST_F(StructurerTest, modifyCoordinateOfASpecificCell)
 
 }
 
-TEST_F(StructurerTest, structureMoreThanOneCell) 
+TEST_F(StaircaserTest, structureMoreThanOneCell) 
 {
     // *-------------*-------------*          *---------------*---------------4 
     // |             |             |          |               |               ║ 
@@ -2240,7 +2240,7 @@ TEST_F(StructurerTest, structureMoreThanOneCell)
             Element({3, 4}, Element::Type::Line),
     };
 
-    auto resultMesh = Structurer{ mesh }.getSelectiveMesh(cellSet);
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(cellSet.size(), 2);
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());

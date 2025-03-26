@@ -2,7 +2,7 @@
 #include "MeshFixtures.h"
 
 #include "meshers/StructuredMesher.h"
-#include "Structurer.h"
+#include "Staircaser.h"
 
 #include "core/Slicer.h"
 
@@ -240,8 +240,8 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
         }
     }
 
-    auto resultMesh = meshlib::core::Structurer{ slicedMesh }.getSelectiveMesh(cellSet);
-    // auto resultMesh = meshlib::core::Structurer{ slicedMesh }.getMesh();
+    auto resultMesh = meshlib::core::Staircaser{ slicedMesh }.getSelectiveMesh(cellSet);
+    // auto resultMesh = meshlib::core::Staircaser{ slicedMesh }.getMesh();
 
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);

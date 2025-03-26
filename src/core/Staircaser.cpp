@@ -20,7 +20,7 @@ Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid)
 
 }
 
-Mesh Structurer::getMesh(){
+Mesh Staircaser::getMesh(){
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -44,7 +44,7 @@ Mesh Structurer::getMesh(){
     return mesh_;
 }
 
-Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
+Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
     auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
     Cell cell;
 
