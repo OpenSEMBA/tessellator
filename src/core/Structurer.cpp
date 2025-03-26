@@ -71,28 +71,28 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
                     meshGroup.elements.push_back(*element);  
                 }
 
-                for (const auto& [cell, coords] : cellCoordMap) {
-                    if (cellElemMap.find(cell) != cellElemMap.end()) {
-                        for (const auto* coord : coords) {
-                            bool shouldInsert = true;
-                            auto touchingCells = GridTools::getTouchingCells(*coord);
-                            
-                            for (const auto& touchingCell : touchingCells) {
-                                if (cellSet.find(touchingCell) != cellSet.end()) {
-                                    shouldInsert = false;
-                                    // break;  
-                                }
+                auto it = cellCoordMap.find(cell);
+                if (it != cellCoordMap.end()) { 
+                    for (const auto* coord : it->second) {
+                        bool shouldInsert = true;
+                        auto touchingCells = GridTools::getTouchingCells(*coord);
+                        
+                        for (const auto& touchingCell : touchingCells) {
+                            if (cellSet.find(touchingCell) != cellSet.end()) {
+                                shouldInsert = false;
+                                // break;  
                             }
-                            
-                            if (shouldInsert) {
-                                auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), *coord);
-                                if (it == mesh_.coordinates.end()) {
-                                    mesh_.coordinates.push_back(*coord);
-                                }
+                        }
+                        
+                        if (shouldInsert) {
+                            auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), *coord);
+                            if (it == mesh_.coordinates.end()) {
+                                mesh_.coordinates.push_back(*coord);
                             }
                         }
                     }
                 }
+                
             }
         }
               
@@ -711,4 +711,6 @@ bool Structurer::isEdgePartOfCellSurface(const Element& edge, const RelativeIds&
     }
 
     return true;
+}
+}
 }
