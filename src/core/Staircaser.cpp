@@ -1,4 +1,4 @@
-#include "Structurer.h"
+#include "Staircaser.h"
 
 #include "utils/RedundancyCleaner.h"
 
@@ -8,7 +8,7 @@ namespace meshlib {
 namespace core {
 using namespace utils;
 
-Structurer::Structurer(const Mesh& inputMesh) : GridTools(inputMesh.grid)
+Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid)
 {
     inputMesh_ = inputMesh;
 
@@ -111,7 +111,7 @@ Mesh Structurer::getSelectiveMesh(const std::set<Cell>& cellSet){
     return mesh_;
 }
 
-void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group){
+void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group){
     Group edges;
 
     edges.elements = {
@@ -282,7 +282,7 @@ void Structurer::processTriangleAndAddToGroup(const Element& triangle, const Rel
     }
 }
 
-bool Structurer::isRelativeInCellsVector(const Relative& relative, const std::vector<Cell> & cells) const {
+bool Staircaser::isRelativeInCellsVector(const Relative& relative, const std::vector<Cell> & cells) const {
     Cell convertedCell = toCell(relative);
 
     for (auto& listCell : cells) {
@@ -294,18 +294,18 @@ bool Structurer::isRelativeInCellsVector(const Relative& relative, const std::ve
     return false;
 }
 
-void Structurer::filterSurfacesFromRelativeIds(
+void Staircaser::filterSurfacesFromRelativeIds(
     const RelativeIds& triangleVertices,
     int pureDiagonalIndex,
     const Relatives& originalRelatives,
     const std::map<Surfel, IdSet>& idSetByCellSurface,
-    Relatives& structuredRelatives,
+    Relatives& staircasedRelatives,
     std::map<Surfel, RelativeIds> & relativeIdsByCellSurface
 ) {
-    std::vector<Cell> structuredOriginalVertexCells;
-    structuredOriginalVertexCells.reserve(3);
+    std::vector<Cell> staircasedOriginalVertexCells;
+    staircasedOriginalVertexCells.reserve(3);
     for (RelativeId v : triangleVertices) {
-        structuredOriginalVertexCells.push_back(calculateStructuredCell(originalRelatives[v]));
+        staircasedOriginalVertexCells.push_back(calculateStaircasedCell(originalRelatives[v]));
     }
 
     auto cellSurfaceIt = idSetByCellSurface.begin();
@@ -319,14 +319,14 @@ void Structurer::filterSurfacesFromRelativeIds(
         bool isCorrectSurface = false;
 
         if (pureDiagonalIndex >= 0 && numberOfSurfacePoints == 3) {
-            for (auto& cell : structuredOriginalVertexCells) {
+            for (auto& cell : staircasedOriginalVertexCells) {
                 projectedCells.push_back(cell);
                 projectedCells.back()[plane.second] = plane.first[plane.second];
             }
 
             isCorrectSurface = true;
             for (auto vertexIdIterator = idSet.begin(); isCorrectSurface && vertexIdIterator != idSet.end(); ++vertexIdIterator) {
-                auto& surfaceRelative = structuredRelatives[*vertexIdIterator];
+                auto& surfaceRelative = staircasedRelatives[*vertexIdIterator];
                 isCorrectSurface = isRelativeInCellsVector(surfaceRelative, projectedCells);
             }
         }
@@ -340,7 +340,7 @@ void Structurer::filterSurfacesFromRelativeIds(
             auto& surfaceIds = relativeIdsByCellSurface[plane];
             Cell missingCell = projectedCells[pureDiagonalIndex];
             for (auto relativeId : surfaceIds) {
-                Cell surfaceCell = toCell(structuredRelatives[relativeId]);
+                Cell surfaceCell = toCell(staircasedRelatives[relativeId]);
                 auto differentAxes = calculateDifferentAxesBetweenCells(projectedCells[pureDiagonalIndex], surfaceCell);
                 if (differentAxes.size() == 1) {
                     Axis axisToChange = X;
@@ -354,12 +354,12 @@ void Structurer::filterSurfacesFromRelativeIds(
                 }
             }
             for (auto relativeIt = surfaceIds.begin(); relativeIt != surfaceIds.end(); ++relativeIt) {
-                Relative surfaceRelative = structuredRelatives[*relativeIt];
+                Relative surfaceRelative = staircasedRelatives[*relativeIt];
 
                 if (projectedCells[pureDiagonalIndex] == toCell(surfaceRelative)) {
                     auto positionToInsert = relativeIt + 1;
-                    RelativeId missingRelativeId = structuredRelatives.size();
-                    structuredRelatives.push_back(toRelative(missingCell));
+                    RelativeId missingRelativeId = staircasedRelatives.size();
+                    staircasedRelatives.push_back(toRelative(missingCell));
                     surfaceIds.insert(positionToInsert, missingRelativeId);
                     break;
                 }
@@ -370,7 +370,7 @@ void Structurer::filterSurfacesFromRelativeIds(
     }
 }
 
-void Structurer::addNewRelativeToGroupUsingBarycentre(const RelativeIds &triangleVertices, const Relatives &originalRelatives, Relatives &structuredRelatives, Group &group)
+void Staircaser::addNewRelativeToGroupUsingBarycentre(const RelativeIds &triangleVertices, const Relatives &originalRelatives, Relatives &staircasedRelatives, Group &group)
 {
     auto & firstTriangleVertex = originalRelatives[triangleVertices[0]];
     auto & secondTriangleVertex = originalRelatives[triangleVertices[1]];
@@ -389,8 +389,8 @@ void Structurer::addNewRelativeToGroupUsingBarycentre(const RelativeIds &triangl
         std::numeric_limits<CellDir>::max()
         });
 
-    for(auto& structuredRelative: structuredRelatives){
-        auto cell = toCell(structuredRelative);
+    for(auto& staircasedRelative: staircasedRelatives){
+        auto cell = toCell(staircasedRelative);
 
         for(Axis axis = X; axis <= Z; ++axis){
             minCell[axis] = std::min(minCell[axis], cell[axis]);
@@ -425,11 +425,11 @@ void Structurer::addNewRelativeToGroupUsingBarycentre(const RelativeIds &triangl
         newPoint = secondPoint;
     }
 
-    RelativeId newId = structuredRelatives.size();
-    structuredRelatives.push_back(newPoint);
+    RelativeId newId = staircasedRelatives.size();
+    staircasedRelatives.push_back(newPoint);
 }
 
-void Structurer::processLineAndAddToGroup(const Element& line, const Relatives& originalRelatives, Relatives& resultRelatives, Group& group) {
+void Staircaser::processLineAndAddToGroup(const Element& line, const Relatives& originalRelatives, Relatives& resultRelatives, Group& group) {
     auto startRelative = originalRelatives[line.vertices[0]];
     auto endRelative = originalRelatives[line.vertices[1]];
 
@@ -457,20 +457,20 @@ void Structurer::processLineAndAddToGroup(const Element& line, const Relatives& 
     }
 }
 
-std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme) {
+std:: vector<Cell> Staircaser::calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme) {
     // TODO: Compare with integers as substitute for floating point numbers with three decimals.
 
-    auto startCell = this->calculateStructuredCell(startExtreme);
-    auto endCell = this->calculateStructuredCell(endExtreme);
-    auto startStructured = this->toRelative(startCell);
-    auto endStructured = this->toRelative(endCell);
+    auto startCell = this->calculateStaircasedCell(startExtreme);
+    auto endCell = this->calculateStaircasedCell(endExtreme);
+    auto startStaircased = this->toRelative(startCell);
+    auto endStaircased = this->toRelative(endCell);
 
     std::vector<Cell> cells;
     cells.reserve(4);
     cells.push_back(startCell);
     
 
-    Relative centerVector = startStructured + (endStructured - startStructured) / 2.0;
+    Relative centerVector = startStaircased + (endStaircased - startStaircased) / 2.0;
     Relative distanceVector = endExtreme - startExtreme;
     Relative scaleVector;
 
@@ -507,8 +507,8 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoRelatives(Relative&
                 Axis firstAxis = currentAxis;
                 Axis secondAxis = (firstAxis + 1) % 3;
 
-                if (!approxDir(centerVector[firstAxis], startStructured[firstAxis]) && !approxDir(centerVector[firstAxis], endStructured[firstAxis])
-                    && !approxDir(centerVector[secondAxis], startStructured[secondAxis]) && !approxDir(centerVector[secondAxis], endStructured[secondAxis])
+                if (!approxDir(centerVector[firstAxis], startStaircased[firstAxis]) && !approxDir(centerVector[firstAxis], endStaircased[firstAxis])
+                    && !approxDir(centerVector[secondAxis], startStaircased[secondAxis]) && !approxDir(centerVector[secondAxis], endStaircased[secondAxis])
                     && approxDir(centerVector[firstAxis], point[firstAxis]) && approxDir(centerVector[secondAxis], point[secondAxis])) {
 
                     if (endExtreme[firstAxis] < startExtreme[firstAxis]) {
@@ -553,7 +553,7 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoRelatives(Relative&
                 Relative& nextPoint = nextIntersectionIt->second;
 
                 Relative middlePoint = (point + nextPoint) / 2;
-                Cell middleCell = calculateStructuredCell(middlePoint);
+                Cell middleCell = calculateStaircasedCell(middlePoint);
                 cells.push_back(middleCell);
             }
 
@@ -571,7 +571,7 @@ std:: vector<Cell> Structurer::calculateMiddleCellsBetweenTwoRelatives(Relative&
     return cells;
 }
 
-Cell Structurer::calculateStructuredCell(const Relative& relative) const
+Cell Staircaser::calculateStaircasedCell(const Relative& relative) const
 {
     auto resultCell = this->toCell(relative);
 
@@ -586,7 +586,7 @@ Cell Structurer::calculateStructuredCell(const Relative& relative) const
     return resultCell;
 }
 
-std::size_t Structurer::calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell) {
+std::size_t Staircaser::calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell) {
     short difference = 0;
 
     for (std::size_t axis = 0; axis < 3; ++axis) {
@@ -598,7 +598,7 @@ std::size_t Structurer::calculateDifferenceBetweenCells(const Cell& firstCell, c
 
 }
 
-std::vector<Axis> Structurer::calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell) {
+std::vector<Axis> Staircaser::calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell) {
     std::vector<Axis> differentAxes;
     differentAxes.reserve(3);
 
@@ -610,7 +610,7 @@ std::vector<Axis> Structurer::calculateDifferentAxesBetweenCells(const Cell& fir
     return differentAxes;
 }
 
-std::vector<Axis> Structurer::calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell) {
+std::vector<Axis> Staircaser::calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell) {
     std::vector<Axis> equalAxes;
     equalAxes.reserve(3);
 
@@ -622,7 +622,7 @@ std::vector<Axis> Structurer::calculateEqualAxesBetweenCells(const Cell& firstCe
     return equalAxes;
 }
 
-void Structurer::calculateRelativeIdSetByCellSurface(const Relatives& relatives, std::map<Surfel, IdSet>& relativesByCellSurface) {
+void Staircaser::calculateRelativeIdSetByCellSurface(const Relatives& relatives, std::map<Surfel, IdSet>& relativesByCellSurface) {
     Cell minCell({
         std::numeric_limits<CellDir>::max(),
         std::numeric_limits<CellDir>::max(),
@@ -657,25 +657,25 @@ void Structurer::calculateRelativeIdSetByCellSurface(const Relatives& relatives,
     }
 }
 
-bool Structurer::isPureDiagonal(const Element& edge, const Relatives & relatives) {
+bool Staircaser::isPureDiagonal(const Element& edge, const Relatives & relatives) {
     if (!edge.isLine()) {
         return false;
     }
 
     const auto& startPoint = relatives[edge.vertices[0]];
     const auto& endPoint = relatives[edge.vertices[1]];
-    auto startCell = calculateStructuredCell(startPoint);
-    auto endCell = calculateStructuredCell(endPoint);
+    auto startCell = calculateStaircasedCell(startPoint);
+    auto endCell = calculateStaircasedCell(endPoint);
     std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);
 
     if (difference != 3) {
         return false;
     }
 
-    Relative startStructured = toRelative(startCell);
-    Relative endStructured = toRelative(endCell);
+    Relative startStaircased = toRelative(startCell);
+    Relative endStaircased = toRelative(endCell);
 
-    Relative centerVector = startStructured + (endStructured - startStructured) / 2.0;
+    Relative centerVector = startStaircased + (endStaircased - startStaircased) / 2.0;
     Relative distanceVector = endPoint - startPoint;
     Relative scaleVector;
     
@@ -695,7 +695,7 @@ bool Structurer::isPureDiagonal(const Element& edge, const Relatives & relatives
     return true;
 }
 
-bool Structurer::isEdgePartOfCellSurface(const Element& edge, const RelativeIds& surfaceRelativeIds) const {
+bool Staircaser::isEdgePartOfCellSurface(const Element& edge, const RelativeIds& surfaceRelativeIds) const {
     if (!edge.isLine()) {
         return false;
     }

@@ -5,13 +5,13 @@
 namespace meshlib {
 namespace core {
 
-class Structurer : public utils::GridTools {
+class Staircaser : public utils::GridTools {
 public:
     Structurer(const Mesh&);
     Mesh getMesh();
     Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 
-    Cell calculateStructuredCell(const Relative& relative) const;
+    Cell calculateStaircasedCell(const Relative& relative) const;
 
 
 private:
@@ -35,13 +35,13 @@ private:
         int pureDiagonalIndex,
         const Relatives& originalRelatives,
         const std::map<Surfel, IdSet>& idSetByCellSurface,
-        Relatives& structuredRelatives,
+        Relatives& staircasedRelatives,
         std::map<Surfel, RelativeIds>& relativeIdsByCellSurface
     );
     void addNewRelativeToGroupUsingBarycentre(
         const RelativeIds& triangleVertices,
         const Relatives& originalRelatives,
-        Relatives& structuredRelatives,
+        Relatives& staircasedRelatives,
         Group& group);
     std::size_t calculateDifferenceBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Axis> calculateDifferentAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
