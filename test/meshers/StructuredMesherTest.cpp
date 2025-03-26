@@ -2,9 +2,16 @@
 #include "MeshFixtures.h"
 
 #include "meshers/StructuredMesher.h"
+#include "Structurer.h"
+
+#include "core/Slicer.h"
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
+#include "utils/MeshTools.h"
+#include "utils/RedundancyCleaner.h"
+
+#include "app/vtkIO.h"
 
 namespace meshlib::meshers {
 
@@ -199,6 +206,57 @@ TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
     EXPECT_EQ(4, countMeshElementsIf(out, isQuad));
     EXPECT_EQ(2, countMeshElementsIf(out, isLine));
     EXPECT_EQ(0, countMeshElementsIf(out, isNode));
+}
+
+// FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
+
+TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
+{
+    // Input
+    const std::string inputFilename = "testData/cases/cone/cone.stl";
+    auto inputMesh = vtkIO::readInputMesh(inputFilename);
+
+    inputMesh.grid[X] = utils::GridTools::linspace(-2.0,  2.0,  41); 
+    inputMesh.grid[Y] = utils::GridTools::linspace(-2.0,  2.0,  41); 
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.0, 11.0, 121);
+
+    // SurfaceMesh
+
+    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(inputMesh, meshlib::utils::meshTools::isNotTetrahedron);
+
+    // Slicer
+
+    auto slicedMesh = meshlib::core::Slicer{surfaceMesh}.getMesh();
+
+    // Selection the specific cells to structure and generate the result Mesh
+
+    std::set<Cell> cellSet;
+
+    for (int x = 0; x < 41; ++x) {
+        for (int y = 0; y < 41; ++y) {
+            for (int z = 0; z < 41; ++z) {  
+                cellSet.insert(Cell{x, y, z});
+            }
+        }
+    }
+
+    auto resultMesh = meshlib::core::Structurer{ slicedMesh }.getSelectiveMesh(cellSet);
+    // auto resultMesh = meshlib::core::Structurer{ slicedMesh }.getMesh();
+
+    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
+
+    // EXPECT_TRUE(meshTools::isAClosedTopology(inputMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(surfaceMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));
+
+
+
+    std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
+    auto basename = meshlib::vtkIO::getBasename(inputFilename);
+    meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
+    meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
 
