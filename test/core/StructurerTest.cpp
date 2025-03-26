@@ -9,7 +9,6 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 
-#include <iostream>
 
 using namespace meshlib;
 using namespace core;
