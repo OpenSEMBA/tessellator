@@ -5,7 +5,7 @@
 
 #include "core/Slicer.h"
 #include "core/Collapser.h"
-#include "core/Structurer.h"
+#include "core/Staircaser.h"
 
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
@@ -58,8 +58,8 @@ void StructuredMesher::process(Mesh& mesh) const
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     
-    log("Structuring.", 1);
-    mesh = Structurer(mesh).getMesh();
+    log("Staircasing.", 1);
+    mesh = Staircaser(mesh).getMesh();
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

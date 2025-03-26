@@ -5,6 +5,7 @@
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
+#include "app/vtkIO.h"
 
 namespace meshlib::meshers {
 
@@ -15,11 +16,11 @@ using namespace meshTools;
 
 class StructuredMesherTest : public ::testing::Test {
 public:
-    static std::size_t countRepeatedElements(const Mesh& m)
+    static std::size_t countRepeatedElements(const Mesh& mesh)
     {
         std::set<std::set<CoordinateId>> verticesSets;
         std::set<CoordinateIds> lineVerticesSets;
-        for (auto const& g : m.groups) {
+        for (auto const& g : mesh.groups) {
             for (auto const& e : g.elements) {
                 if (e.isLine()) {
                     lineVerticesSets.insert(e.vertices);
@@ -29,7 +30,7 @@ public:
                 }
             }
         }
-        return m.countElems() - verticesSets.size() - lineVerticesSets.size();
+        return mesh.countElems() - verticesSets.size() - lineVerticesSets.size();
     }
 
     static void assertMeshEqual(const Mesh& leftMesh, const Mesh& rightMesh) {
@@ -232,6 +233,39 @@ TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
     EXPECT_EQ(10, countMeshElementsIf(resultMesh, isQuad));
     EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine)); 
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
+}
+
+TEST_F(StructuredMesherTest, preserves_topological_closedness_for_alhambra)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+    
+    mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    mesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+}
+
+TEST_F(StructuredMesherTest, preserves_topological_closedness_for_sphere)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        mesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+
+    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(structuredMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", structuredMesh);
+
+	// auto contourMesh = meshTools::buildMeshFromContours(structuredMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
 }

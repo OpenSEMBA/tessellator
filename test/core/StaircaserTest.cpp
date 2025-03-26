@@ -4,7 +4,7 @@
 
 #include "MeshFixtures.h"
 
-#include "Structurer.h"
+#include "Staircaser.h"
 #include "utils/Tools.h"
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
@@ -16,11 +16,11 @@ using namespace meshFixtures;
 
 namespace meshlib::core {
 
-class StructurerTest : public ::testing::Test {
+class StaircaserTest : public ::testing::Test {
 protected:
 };
 
-TEST_F(StructurerTest, calculateStructuredRelativeInExactSteps)
+TEST_F(StaircaserTest, calculateStaircasedRelativeInExactSteps)
 {
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -30,8 +30,8 @@ TEST_F(StructurerTest, calculateStructuredRelativeInExactSteps)
 
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
-    Structurer structurer{ mesh };
-    ASSERT_NO_THROW(structurer.grid());
+    Staircaser staircaser{ mesh };
+    ASSERT_NO_THROW(staircaser.grid());
 
     for (CellDir i = 0; i < mesh.grid[X].size(); ++i) {
         RelativeDir xDirection = RelativeDir(i);
@@ -45,7 +45,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeInExactSteps)
                 Relative relative({ xDirection, yDirection, zDirection });
                 Cell expectedCell({ i, j, k });
 
-                auto resultCell = structurer.calculateStructuredCell(relative);
+                auto resultCell = staircaser.calculateStaircasedCell(relative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
                     EXPECT_EQ(resultCell[axis], expectedCell[axis]);
@@ -55,7 +55,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeInExactSteps)
     }
 }
 
-TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
+TEST_F(StaircaserTest, calculateStaircasedRelativeBetweenSteps)
 {
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -69,8 +69,8 @@ TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
 
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
-    Structurer structurer{ mesh };
-    ASSERT_NO_THROW(structurer.grid());
+    Staircaser staircaser{ mesh };
+    ASSERT_NO_THROW(staircaser.grid());
 
     for (CellDir i = 0; i < mesh.grid[X].size() - 1; ++i) {
         for (CellDir j = 0; j < mesh.grid[Y].size() - 1; ++j) {
@@ -88,7 +88,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
                     newRelative[axis] = relativeBase[axis] + quarterStep;
                 }
 
-                auto resultCell = structurer.calculateStructuredCell(newRelative);
+                auto resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
                     EXPECT_EQ(resultCell[axis], expectedLowerCell[axis]);
@@ -98,7 +98,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
                     newRelative[axis] = relativeBase[axis] + halfStep;
                 }
 
-                resultCell = structurer.calculateStructuredCell(newRelative);
+                resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
                     EXPECT_EQ(resultCell[axis], expectedUpperCell[axis]);
@@ -108,7 +108,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
                     newRelative[axis] = relativeBase[axis] + threeQuarterStep;
                 }
 
-                resultCell = structurer.calculateStructuredCell(newRelative);
+                resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
                     EXPECT_EQ(resultCell[axis], expectedUpperCell[axis]);
@@ -118,7 +118,7 @@ TEST_F(StructurerTest, calculateStructuredRelativeBetweenSteps)
     }
 }
 
-TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsIntoSingleStaircasedElements)
 {
 
     // *---------*      2---------*
@@ -166,7 +166,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
         Element({0, 3}, Element::Type::Line)
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -192,7 +192,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoSingleStructuredElements)
     }
 }
 
-TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsIntoTwoStaircasedElements)
 {
 
     // *-----------*  {0.5->1}======{1->2}     *-----------*       *----------{3->2}
@@ -279,7 +279,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -314,7 +314,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoTwoStructuredElements)
 
 
 
-TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoTwoStaircasedElements)
 {
 
     // y                y                       y               y
@@ -474,7 +474,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -505,7 +505,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoTwoStructuredEle
 }
 
 
-TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsIntoThreeStaircasedElements)
 {
 
     //     *-------------*               *----------{1->3}  
@@ -584,7 +584,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -619,7 +619,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoThreeStructuredElements)
 }
 
 
-TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedElements)
 {
 
     //     *-------------*               *----------{1->3}  
@@ -732,7 +732,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -766,7 +766,7 @@ TEST_F(StructurerTest, transformSingleSegmentsWithinDiagonalIntoThreeStructuredE
 }
 
 
-TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStructuredElements)
+TEST_F(StaircaserTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStaircasedElements)
 {
 
     //     *----------1--*          {0.67->2}======={1->3}  
@@ -867,7 +867,7 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -902,7 +902,7 @@ TEST_F(StructurerTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStruc
 
 
 
-TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
+TEST_F(StaircaserTest, transformSingleSegmentsIntoNodes)
 {
 
     // *-------------*-------------*          *---------{2|3->1}----------* 
@@ -965,7 +965,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1000,7 +1000,7 @@ TEST_F(StructurerTest, transformSingleSegmentsIntoNodes)
 
 
 
-TEST_F(StructurerTest, transformGroupsWithMultipleLines)
+TEST_F(StaircaserTest, transformGroupsWithMultipleLines)
 {
 
     // *-------------*-------------*          *-------------*----------{2->3} 
@@ -1046,7 +1046,7 @@ TEST_F(StructurerTest, transformGroupsWithMultipleLines)
             Element({2, 3}, Element::Type::Line),
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
@@ -1074,7 +1074,7 @@ TEST_F(StructurerTest, transformGroupsWithMultipleLines)
 
 
 
-TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
+TEST_F(StaircaserTest, transformTriangleIntoStaircasedSurface)
 {
 
     // y                y                         y                y
@@ -1118,7 +1118,7 @@ TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1152,7 +1152,7 @@ TEST_F(StructurerTest, transformTriangleIntoStructuredSurface)
 
 
 
-TEST_F(StructurerTest, transformTriangleIntoNode)
+TEST_F(StaircaserTest, transformTriangleIntoNode)
 {
 
     //     *-------------*               *-------------*
@@ -1197,7 +1197,7 @@ TEST_F(StructurerTest, transformTriangleIntoNode)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1230,7 +1230,7 @@ TEST_F(StructurerTest, transformTriangleIntoNode)
 
 
 
-TEST_F(StructurerTest, transformTriangleIntoLines)
+TEST_F(StaircaserTest, transformTriangleIntoLines)
 {
     //     *-------------*                2-------------*           *-------------*              {4->2}----------*        
     //    /|            /|               /⦀            /|          /|            /|               /⦀           /⎹        
@@ -1288,7 +1288,7 @@ TEST_F(StructurerTest, transformTriangleIntoLines)
         }
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1320,7 +1320,7 @@ TEST_F(StructurerTest, transformTriangleIntoLines)
     }
 }
 
-TEST_F(StructurerTest, transformTriangleIntoSurfacesAndLines)
+TEST_F(StaircaserTest, transformTriangleIntoSurfacesAndLines)
 {
     //     *-------------*                 *-----------{2->3}         *-------------*                 *-------------{1->3}
     //    /|            /|                /|            ⫽║           /|            / ⎸               /|             / ⦀
@@ -1376,7 +1376,7 @@ TEST_F(StructurerTest, transformTriangleIntoSurfacesAndLines)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1415,7 +1415,7 @@ TEST_F(StructurerTest, transformTriangleIntoSurfacesAndLines)
     }
 }
 
-TEST_F(StructurerTest, transformTriangleIntoTwoSurfaces)
+TEST_F(StaircaserTest, transformTriangleIntoTwoSurfaces)
 {
     //     *--------------*                *-----------{2->3}                *---------------*                *---------------0    
     //    /|             /|                /⎹             ⫽║                /|              /|               /|              ⫽║      
@@ -1466,7 +1466,7 @@ TEST_F(StructurerTest, transformTriangleIntoTwoSurfaces)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1503,7 +1503,7 @@ TEST_F(StructurerTest, transformTriangleIntoTwoSurfaces)
     }
 }
 
-TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
+TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
 {
     // T0   *-------------1                  *-----------{1->0}          T2      2-------------*               {2->3}-----------*
     //     /|            ⫽║                 /|             /║                   /║\           /|                /║             /|
@@ -1773,7 +1773,7 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
@@ -1849,7 +1849,7 @@ TEST_F(StructurerTest, transformTriangleWithEquidistantEdges)
 
 }
 
-TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
+TEST_F(StaircaserTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
 {
     //                                              
     // T0   *-{2}---------*               {2->4}========={0.33->1} 
@@ -1993,7 +1993,7 @@ TEST_F(StructurerTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
         },
     };
 
-    auto resultMesh = Structurer{ mesh }.getMesh();
+    auto resultMesh = Staircaser{ mesh }.getMesh();
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
