@@ -5,6 +5,7 @@
 #include "Staircaser.h"
 
 #include "core/Slicer.h"
+#include "core/Collapser.h"
 
 #include "utils/Geometry.h"
 #include "utils/GridTools.h"
@@ -228,22 +229,27 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
 
     auto slicedMesh = meshlib::core::Slicer{surfaceMesh}.getMesh();
 
+    // Collapser
+
+    auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
+
     // Selection the specific cells to structure and generate the result Mesh
 
     std::set<Cell> cellSet;
 
-    for (int x = 0; x < 41; ++x) {
-        for (int y = 0; y < 41; ++y) {
-            for (int z = 0; z < 41; ++z) {  
-                cellSet.insert(Cell{x, y, z});
-            }
-        }
-    }
+    // for (int x = 0; x < 41; ++x) {
+    //     for (int y = 0; y < 41; ++y) {
+    //         for (int z = 0; z < 61; ++z) {  
+    //             cellSet.insert(Cell{x, y, z});
+    //         }
+    //     }
+    // }
 
-    auto resultMesh = meshlib::core::Staircaser{ slicedMesh }.getSelectiveMesh(cellSet);
-    // auto resultMesh = meshlib::core::Staircaser{ slicedMesh }.getMesh();
+    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
+    // ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
 
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    utils::meshTools::reduceGrid(resultMesh, inputMesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
 
     // EXPECT_TRUE(meshTools::isAClosedTopology(inputMesh.groups[0].elements));
