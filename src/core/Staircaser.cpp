@@ -45,8 +45,6 @@ Mesh Staircaser::getMesh(){
 }
 
 Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
-    auto cellCoordMap = buildCellCoordMap(inputMesh_.coordinates);
-    Cell cell;
 
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
@@ -57,7 +55,8 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
         auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
         for (auto & element : inputGroup.elements) {
-
+            Cell cell;
+            
             for (const auto& [c, elements] : cellElemMap) {
                 if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
                     cell = c; 
@@ -66,37 +65,49 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
             }
 
             if (cellSet.find(cell) != cellSet.end()) {
+                // std::cout << "Celda a estructurar: " << cell[0] << cell[1] << cell[2] << std::endl;
                 if (element.isLine()) {  
                     this->processLineAndAddToGroup(element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
                 }
                 else if (element.isTriangle()) {
                     this->processTriangleAndAddToGroup(element, inputMesh_.coordinates, meshGroup);
                 }
-            }
-            else {
-                meshGroup.elements.push_back(element);  
-
+            } else {
+                
                 for (const auto& vertexIndex : element.vertices) {
                     const auto& vertexCoord = inputMesh_.coordinates[vertexIndex];
-
+                    
                     bool shouldAdd = true;
                     auto touchingCells = GridTools::getTouchingCells(vertexCoord);
-
+                    
                     for (const auto& touchingCell : touchingCells) {
                         if (cellSet.find(touchingCell) != cellSet.end()) {
                             shouldAdd = false; 
                             break;
                         }
                     }
-
+                    
                     if (shouldAdd) {
                         auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), vertexCoord);
-                            if (it == mesh_.coordinates.end()) {
-                                mesh_.coordinates.push_back(vertexCoord);
+                        if (it == mesh_.coordinates.end()) {
+                            std::size_t originalIndex = vertexIndex;  
+
+                            if (originalIndex >= mesh_.coordinates.size()) {
+                                mesh_.coordinates.push_back(vertexCoord);  
+                            } else {
+                                mesh_.coordinates.insert(mesh_.coordinates.begin() + originalIndex, vertexCoord);
                             }
+                        }
                     }
                 }
                 
+                std::size_t originalIndex = std::distance(inputGroup.elements.begin(), std::find(inputGroup.elements.begin(), inputGroup.elements.end(), element));
+
+                if (originalIndex >= meshGroup.elements.size()) {
+                    meshGroup.elements.push_back(element);
+                } else {
+                    meshGroup.elements.insert(meshGroup.elements.begin() + originalIndex, element);
+                }
             }
         }
               
