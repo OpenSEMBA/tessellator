@@ -2336,6 +2336,8 @@ TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
 
     ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
     ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
 
     for (std::size_t e = 0; e < expectedElements.size(); ++e) {
         auto& resultElement = resultMesh.groups[0].elements[e];
@@ -2345,4 +2347,84 @@ TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
             EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
         }
     }
+}
+
+TEST_F(StaircaserTest, structureSpecificTriangles)
+{
+    // *-------------*-------------*          4===============3_--------------* 
+    // |     4-------3-_           |          ║///////////////║ ‾-_           | 
+    // |     |      /║  ‾-_        |          ║///////////////║    ‾-_        | 
+    // |     |    /  ║     ‾--_2   |  ->      ║///////////////║       ‾--_2   | 
+    // |     |  /    ║     _-‾     |          ║///////////////║       _-‾     | 
+    // |     |/      ║  _-‾        |          ║///////////////║    _-‾        | 
+    // |     0-------1-‾           |          ║///////////////║ _-‾           | 
+    // *-------------*-------------*          0===============1‾--------------*
+    //
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({0, 0, 0}));
+    
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Relative({ 0.4, 0.1, 0.7 }), // 0 First Segment, First Point
+        Relative({ 1.0, 0.1, 0.7 }), // 1 First Segment, Second Point
+        Relative({ 1.8, 0.5, 0.7 }), // 2 Second Segment, Third Point
+        Relative({ 1.0, 0.9, 0.7 }), // 3 Third Segment, Fourth Point
+        Relative({ 0.4, 0.9, 0.7 }), // 4 Fourth Segment, Final Point
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 3}, Element::Type::Surface),
+        Element({1, 2, 3}, Element::Type::Surface),
+        Element({0, 3, 4}, Element::Type::Surface),
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 0.0, 0.0, 1.0 }), // 0 First Segment, First Point
+        Relative({ 1.0, 0.0, 1.0 }), // 1 First Segment, Final Point, Second Segment, First Point
+        Relative({ 1.8, 0.5, 0.7 }), // 2 Second Segment, Final Point, Third Segment, First Point
+        Relative({ 1.0, 1.0, 1.0 }), // 3 Third Segment, Final Point, Fourth Segment, First point
+        Relative({ 0.0, 1.0, 1.0 }), // 4 Fourth Segment, Final Point
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2, 3}, Element::Type::Surface),
+            Element({3, 4}, Element::Type::Line),
+            Element({4, 0}, Element::Type::Line),
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+    // ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
+
+    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[1].isTriangle());
+    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
+
+    // for (std::size_t e = 0; e < expectedElements.size(); ++e) {
+    //     auto& resultElement = resultMesh.groups[0].elements[e];
+    //     auto& expectedElement = expectedElements[e];
+
+    //     for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+    //         EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+    //     }
+    // }
 }
