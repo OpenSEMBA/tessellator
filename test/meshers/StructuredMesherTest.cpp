@@ -237,13 +237,13 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
 
     std::set<Cell> cellSet;
 
-    // for (int x = 0; x < 41; ++x) {
-    //     for (int y = 0; y < 41; ++y) {
-    //         for (int z = 0; z < 61; ++z) {  
-    //             cellSet.insert(Cell{x, y, z});
-    //         }
-    //     }
-    // }
+    for (int x = 0; x < 41; ++x) {
+        for (int y = 0; y < 41; ++y) {
+            for (int z = 0; z < 61; ++z) {  
+                cellSet.insert(Cell{x, y, z});
+            }
+        }
+    }
 
     auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
     // ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
