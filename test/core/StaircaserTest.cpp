@@ -2180,17 +2180,17 @@ TEST_F(StaircaserTest, modifyCoordinateOfASpecificCell)
 
 TEST_F(StaircaserTest, structureMoreThanOneCell) 
 {
-    // *-------------*-------------*          *---------------*---------------4 
+    // *-------------*-------------*          *---------------*-------------(4->3) 
     // |             |             |          |               |               ║ 
     // |             |             |          |               |               ║ 
     // |             |         4   |  ->      |               |               ║ 
     // |             |         |   |          |               |               ║ 
     // |             |         |   |          |               |               ║ 
     // |             |         |   |          |               |               ║ 
-    // *-------------*---------3---*          *---------------*---------------3
+    // *-------------*---------3---*          *---------------*-------------(3->2)
     // |             |         |   |          |               |               ║ 
     // |             |         |   |          |               |             |‾| 
-    // |             |        _2   |  ->      |               |          _2‾  | 
+    // |             |        _2   |  ->      |               |         (2->4)| 
     // |             |     _-‾     |          |               |       _-‾     | 
     // |             |  _-‾        |          |               |    _-‾        | 
     // |     0-------1-‾           |          |               | _-‾           | 
@@ -2228,16 +2228,16 @@ TEST_F(StaircaserTest, structureMoreThanOneCell)
     Relatives expectedRelatives = {
         Relative({ 0.0, 0.0, 1.0 }), // 0 First Segment, First Point
         Relative({ 1.0, 0.0, 1.0 }), // 1 First Segment, Final Point, Second Segment, First Point
-        Relative({ 1.8, 0.6, 0.7 }), // 2 Second Segment, Final Point
-        Relative({ 2.0, 1.0, 1.0 }), // 3 Third Segment, Fourth Point
-        Relative({ 2.0, 2.0, 1.0 }), // 4 Fourth Segment, Fifth Point
+        Relative({ 2.0, 1.0, 1.0 }), // (3->2) Third Segment, Fourth Point
+        Relative({ 2.0, 2.0, 1.0 }), // (4->3) Fourth Segment, Fifth Point
+        Relative({ 1.8, 0.6, 0.7 }), // (2->4) Second Segment, Final Point
     };
 
     Elements expectedElements = {
             Element({0, 1}, Element::Type::Line),
-            Element({1, 2}, Element::Type::Line),
             Element({2, 3}, Element::Type::Line),
-            Element({3, 4}, Element::Type::Line),
+            Element({1, 4}, Element::Type::Line),
+            Element({4, 2}, Element::Type::Line),
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
@@ -2270,11 +2270,11 @@ TEST_F(StaircaserTest, structureMoreThanOneCell)
 
 TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
 {
-    // *-------------*-------------*          4===============3_--------------* 
+    // *-------------*-------------*        (4->3)==========(3->2)-------------* 
     // |     4-------3-_           |          |               | ‾-_           | 
     // |             |  ‾-_        |          |               |    ‾-_        | 
-    // |             |     ‾--_2   |  ->      |               |       ‾--_2   | 
-    // |             |     _-‾     |          |               |       _-‾     | 
+    // |             |     ‾--_2   |  ->      |               |       ‾(2->4) | 
+    // |             |     _-‾     |          |               |       _-      | 
     // |             |  _-‾        |          |               |    _-‾        | 
     // |     0-------1-‾           |          |               | _-‾           | 
     // *-------------*-------------*          0===============1‾--------------*
@@ -2310,16 +2310,16 @@ TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
     Relatives expectedRelatives = {
         Relative({ 0.0, 0.0, 1.0 }), // 0 First Segment, First Point
         Relative({ 1.0, 0.0, 1.0 }), // 1 First Segment, Final Point, Second Segment, First Point
-        Relative({ 1.8, 0.6, 0.7 }), // 2 Second Segment, Final Point, Third Segment, First Point
-        Relative({ 1.0, 1.0, 1.0 }), // 3 Third Segment, Final Point, Fourth Segment, First point
-        Relative({ 0.0, 1.0, 1.0 }), // 4 Fourth Segment, Final Point
+        Relative({ 1.0, 1.0, 1.0 }), // (3->2) Third Segment, Final Point, Fourth Segment, First point
+        Relative({ 0.0, 1.0, 1.0 }), // (4->3) Fourth Segment, Final Point
+        Relative({ 1.8, 0.6, 0.7 }), // (2->4) Second Segment, Final Point, Third Segment, First Point
     };
 
     Elements expectedElements = {
             Element({0, 1}, Element::Type::Line),
-            Element({1, 2}, Element::Type::Line),
             Element({2, 3}, Element::Type::Line),
-            Element({3, 4}, Element::Type::Line),
+            Element({1, 4}, Element::Type::Line),
+            Element({4, 2}, Element::Type::Line),
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
@@ -2351,11 +2351,11 @@ TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
 
 TEST_F(StaircaserTest, structureSpecificTriangles)
 {
-    // *-------------*-------------*          4===============3_--------------* 
+    // *-------------*-------------*       (4->3)==========(3->2)-------------* 
     // |     4-------3-_           |          ║///////////////║ ‾-_           | 
     // |     |      /║  ‾-_        |          ║///////////////║    ‾-_        | 
-    // |     |    /  ║     ‾--_2   |  ->      ║///////////////║       ‾--_2   | 
-    // |     |  /    ║     _-‾     |          ║///////////////║       _-‾     | 
+    // |     |    /  ║     ‾--_2   |  ->      ║///////////////║       ‾(2->4) |
+    // |     |  /    ║     _-‾     |          ║///////////////║       _-      | 
     // |     |/      ║  _-‾        |          ║///////////////║    _-‾        | 
     // |     0-------1-‾           |          ║///////////////║ _-‾           | 
     // *-------------*-------------*          0===============1‾--------------*
@@ -2390,23 +2390,25 @@ TEST_F(StaircaserTest, structureSpecificTriangles)
     Relatives expectedRelatives = {
         Relative({ 0.0, 0.0, 1.0 }), // 0 First Segment, First Point
         Relative({ 1.0, 0.0, 1.0 }), // 1 First Segment, Final Point, Second Segment, First Point
-        Relative({ 1.8, 0.5, 0.7 }), // 2 Second Segment, Final Point, Third Segment, First Point
-        Relative({ 1.0, 1.0, 1.0 }), // 3 Third Segment, Final Point, Fourth Segment, First point
-        Relative({ 0.0, 1.0, 1.0 }), // 4 Fourth Segment, Final Point
+        Relative({ 1.0, 1.0, 1.0 }), // (3->2) Third Segment, Final Point, Fourth Segment, First point
+        Relative({ 0.0, 1.0, 1.0 }), // (4->3) Fourth Segment, Final Point
+        Relative({ 1.8, 0.5, 0.7 }), // (2->4) Second Segment, Final Point, Third Segment, First Point
     };
 
     Elements expectedElements = {
             Element({0, 1}, Element::Type::Line),
-            Element({1, 2, 3}, Element::Type::Surface),
-            Element({3, 4}, Element::Type::Line),
-            Element({4, 0}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+            Element({0, 1, 2, 3}, Element::Type::Surface),
+            Element({1, 4, 2}, Element::Type::Surface),
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    // ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
     for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
@@ -2415,16 +2417,17 @@ TEST_F(StaircaserTest, structureSpecificTriangles)
     }
 
     ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isTriangle());
+    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
     ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
     ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[5].isTriangle());
 
-    // for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-    //     auto& resultElement = resultMesh.groups[0].elements[e];
-    //     auto& expectedElement = expectedElements[e];
+    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
+        auto& resultElement = resultMesh.groups[0].elements[e];
+        auto& expectedElement = expectedElements[e];
 
-    //     for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-    //         EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-    //     }
-    // }
+        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+        }
+    }
 }
