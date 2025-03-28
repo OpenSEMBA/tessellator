@@ -65,15 +65,39 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
             }
 
             if (cellSet.find(cell) != cellSet.end()) {
-                // std::cout << "Celda a estructurar: " << cell[0] << cell[1] << cell[2] << std::endl;
                 if (element.isLine()) {  
                     this->processLineAndAddToGroup(element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
                 }
                 else if (element.isTriangle()) {
                     this->processTriangleAndAddToGroup(element, inputMesh_.coordinates, meshGroup);
                 }
-            } else {
-                
+            }
+        } 
+            
+        for (auto & element : inputGroup.elements) {
+            Cell cell;
+            
+            for (const auto& [c, elements] : cellElemMap) {
+                if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
+                    cell = c; 
+                    break;    
+                }
+            }
+
+            if (cellSet.find(cell) == cellSet.end()) {
+                Element newElement;
+
+                if(element.isLine()) {
+                    newElement.type = Element::Type::Line;  
+                }
+                else if(element.isTriangle()) {
+                    newElement.type = Element::Type::Surface;  
+                }
+
+                newElement.vertices.resize(element.vertices.size()); 
+                int i = 0;
+
+
                 for (const auto& vertexIndex : element.vertices) {
                     const auto& vertexCoord = inputMesh_.coordinates[vertexIndex];
                     
@@ -82,35 +106,33 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
                     
                     for (const auto& touchingCell : touchingCells) {
                         if (cellSet.find(touchingCell) != cellSet.end()) {
-                            shouldAdd = false; 
+                            shouldAdd = false;
                             break;
                         }
                     }
                     
+                    std::size_t newIndex;
+                    
                     if (shouldAdd) {
                         auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), vertexCoord);
-                        if (it == mesh_.coordinates.end()) {
-                            std::size_t originalIndex = vertexIndex;  
-
-                            if (originalIndex >= mesh_.coordinates.size()) {
-                                mesh_.coordinates.push_back(vertexCoord);  
-                            } else {
-                                mesh_.coordinates.insert(mesh_.coordinates.begin() + originalIndex, vertexCoord);
+                            if (it == mesh_.coordinates.end()) {
+                                mesh_.coordinates.push_back(vertexCoord);
+                                newIndex = int (mesh_.coordinates.size() - 1);
+                            } 
+                            else if (it != mesh_.coordinates.end()) {
+                                newIndex = std::distance(mesh_.coordinates.begin(), it);
                             }
-                        }
+                    } else {
+                        auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), toRelative(calculateStaircasedCell(vertexCoord)));
+                        newIndex = std::distance(mesh_.coordinates.begin(), it);
                     }
-                }
-                
-                std::size_t originalIndex = std::distance(inputGroup.elements.begin(), std::find(inputGroup.elements.begin(), inputGroup.elements.end(), element));
 
-                if (originalIndex >= meshGroup.elements.size()) {
-                    meshGroup.elements.push_back(element);
-                } else {
-                    meshGroup.elements.insert(meshGroup.elements.begin() + originalIndex, element);
-                }
+                    newElement.vertices[i] = newIndex;
+                    i++;
+                }               
+                meshGroup.elements.push_back(newElement);
             }
-        }
-              
+        }     
     }
     
     
