@@ -1,15 +1,14 @@
 #include "MeshTools.h"
 
 #include "Tools.h"
-#include "Cleaner.h"
+#include "RedundancyCleaner.h"
 #include "GridTools.h"
 #include "ElemGraph.h"
+#include "CoordGraph.h"
 
 #include <sstream>
 
-namespace meshlib {
-namespace utils {
-namespace meshTools {
+namespace meshlib::utils::meshTools {
 
 std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter) {
     std::size_t res = 0;
@@ -56,10 +55,59 @@ Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
     return res;
 }
 
+Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh)
+{
+    Mesh res = mesh;
+
+    for (auto& g : res.groups) {
+        IdSet sharedBySingleVertex;
+        std::vector<IdSet> idSets;
+        auto disjointElementsGraphs = ElemGraph(g.elements, res.coordinates).split();
+        if (disjointElementsGraphs.size() == 1) {
+            continue;
+        }
+
+        for (const auto& disjointElementsGraph : disjointElementsGraphs) {
+            auto elementsInGraph = disjointElementsGraph.getAsElements(g.elements);
+            idSets.push_back(CoordGraph(elementsInGraph).getVertices());
+        }
+
+        for (auto i = 0; i < idSets.size(); i++) {
+            for (auto j = i+1; j < idSets.size(); j++) {
+                IdSet shared = intersectWithIdSet(idSets[i], idSets[j]);
+                sharedBySingleVertex.insert(shared.begin(), shared.end());
+            }
+        }
+        
+        for (auto i = 1; i < disjointElementsGraphs.size(); i++) {
+            std::map<CoordinateId, CoordinateId> remapedCoord;
+            for (auto& eId : disjointElementsGraphs[i].getVertices()) {
+                Element& e = g.elements[eId];
+                for (auto& vId : e.vertices) {
+                    if (sharedBySingleVertex.count(vId) == 0) {
+                        continue;
+                    }
+                    if (remapedCoord.count(vId) == 0) {
+                        Coordinate newCoord = res.coordinates[vId];
+                        CoordinateId newVId = res.coordinates.size();
+                        res.coordinates.push_back(newCoord);
+                        remapedCoord.emplace(vId, newVId);
+                        vId = newVId;
+                    } else {
+                        vId = remapedCoord[vId];
+                    }
+                }
+            }
+        }
+    }
+        
+    return res;
+}
+
 Grid getEnlargedGridIncludingAllElements(const Mesh& m)
 {
     VecD bbMin, bbMax;
-    std::tie(bbMin, bbMax) = getBoundingBox(m);
+    std::tie(bbMin, bbMax) = getElementsBoundingBox(m);
 
     Grid res = m.grid;
     for (std::size_t d = 0; d < 3; d++) {
@@ -74,7 +122,7 @@ Grid getEnlargedGridIncludingAllElements(const Mesh& m)
     return res;
 }
 
-std::pair<VecD, VecD> getBoundingBox(const Mesh& m)
+std::pair<VecD, VecD> getElementsBoundingBox(const Mesh& m)
 {
     VecD minBB(std::numeric_limits<double>::max());
     VecD maxBB(std::numeric_limits<double>::lowest());
@@ -114,7 +162,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         
     m.grid = nG;
 
-    Cleaner::removeElementsWithCondition(m, [&](const Element&e) {
+    RedundancyCleaner::removeElementsWithCondition(m, [&](const Element&e) {
         for (auto& vId : e.vertices) {
             Coordinate& c = m.coordinates[vId];
             for (std::size_t d = 0; d < 3; d++) {
@@ -128,7 +176,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         return false;
     });
 
-	Cleaner::cleanCoords(m);
+	RedundancyCleaner::cleanCoords(m);
     for (auto& c : m.coordinates) {
         c -= offset;
     }
@@ -140,32 +188,6 @@ Mesh reduceGrid(const Mesh& m, const Grid& g)
     Mesh r{m};
     reduceGrid(r, g);
     return r;
-}
-
-Mesh setGrid(const Mesh& m, const Grid& g)
-{
-    Mesh aux;
-    {
-        Grid reducedGrid;
-        for (const auto& x : { X, Y, Z }) {
-            std::copy_if(
-                m.grid[x].begin(), m.grid[x].end(),
-                std::back_inserter(reducedGrid[x]),
-                [&](const auto& v) {
-                    return v >= g[x].front() && v <= g[x].back();
-                }
-            );
-        }
-        aux = reduceGrid(m, reducedGrid);
-    }
-    
-    return Mesh{
-        g,
-        GridTools{ g }.absoluteToRelative(
-            GridTools{ aux.grid }.relativeToAbsolute(
-                aux.coordinates)),
-        aux.groups
-    };
 }
 
 void checkNoCellsAreCrossed(const Mesh& m)
@@ -283,6 +305,43 @@ Mesh buildMeshFilteringElements(
     return r;
 }
 
+Mesh buildMeshFromSelectedCells(
+    const Mesh& in, const std::set<Cell>& selectedCells)
+{
+    Mesh r;
+    r.grid = in.grid;
+    r.coordinates = in.coordinates;
+    r.groups.resize(in.groups.size());
+    for (auto gId{ 0 }; gId < in.groups.size(); gId++) {
+        const auto cellMap = GridTools{ in.grid }.buildCellElemMap(in.groups[gId].elements, in.coordinates);
+        for (const auto& cell : selectedCells) {
+            if (cellMap.count(cell) == 0) {
+                continue;
+            }
+            for (const auto& e : cellMap.at(cell)) {
+                r.groups[gId].elements.push_back(*e);
+            }
+        }
+    }
+
+    return r;
+}
+
+Mesh buildMeshFromContours(const Mesh& in)
+{
+    Mesh m = in;
+    m.grid = in.grid;
+    m.coordinates = in.coordinates;
+    m.groups.resize(in.groups.size());
+
+    for (auto gId{ 0 }; gId < in.groups.size(); gId++) {
+        auto cG = CoordGraph{in.groups[gId].elements}.getBoundaryGraph();
+        m.groups[gId].elements = cG.getEdgesAsLines();
+    }
+
+    return m;
+}
+
 void mergeGroup(Group& lG, const Group& rG, const CoordinateId& coordCount)
 {
     auto& lElems{ lG.elements };
@@ -335,6 +394,10 @@ std::string info(const Element& e, const Mesh& m)
     return r.str();
 }
 
+
+bool isAClosedTopology(const Elements& es)
+{
+	return CoordGraph(es).getBoundaryGraph().getVertices().size() == 0;
 }
-}
+
 }

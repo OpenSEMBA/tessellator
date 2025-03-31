@@ -1,0 +1,10 @@
+{
+    "grid": {
+        "numberOfCells": [40, 40, 120],
+        "boundingBox": [
+            [-2, -2, -1],
+            [ 2,  2, 11]
+        ]
+    },
+    "object": {"filename": "cone.stl"}
+}

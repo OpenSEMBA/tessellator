@@ -1,8 +1,15 @@
 {
   "dependencies": [
-    "gtest",
-    "boost-graph",
-    "eigen3",
-    "cgal"
-  ]
+    "boost-graph", 
+    "boost-program-options", 
+    { "name": "vtk", "default-features": false, "platform": "windows"},
+    "nlohmann-json",
+    "gtest"
+  ],
+  "features": {
+    "cgal": {
+      "description": "Enables CGAL features: Offgrid mesher, manifolding, repairer, etc.",
+      "dependencies": ["cgal", "eigen3"]
+    }
+  }
 }

@@ -34,49 +34,6 @@ public:
 	}
 };
 
-TEST_F(DelaunatorTest, DISABLED_mesh_with_repeated_ids)
-{
-	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
-
-	{
-		auto tris = delaunator.mesh({}, { {0, 1, 2, 0} });
-		EXPECT_EQ(1, tris.size());
-		for (auto const& tri : tris) {
-			EXPECT_TRUE(tri.isTriangle());
-			EXPECT_EQ(CoordinateIds({ 1, 0, 2 }), tri.vertices);
-		}
-	}
-
-	{
-		auto tris = delaunator.mesh({}, { {0, 1, 2, 2} });
-		EXPECT_EQ(1, tris.size());
-		for (auto const& tri : tris) {
-			EXPECT_TRUE(tri.isTriangle());
-			EXPECT_EQ(CoordinateIds({ 1, 0, 2 }), tri.vertices);
-		}
-	}
-
-	{
-		auto tris = delaunator.mesh({}, { {0, 1, 2, 1, 2} });
-		EXPECT_EQ(1, tris.size());
-		for (auto const& tri : tris) {
-			EXPECT_TRUE(tri.isTriangle());
-			EXPECT_EQ(CoordinateIds({ 1, 0, 2 }), tri.vertices);
-		}
-	}
-
-	{
-		auto tris = delaunator.mesh({}, { {0, 1, 2, 3, 6, 2} });
-		ASSERT_EQ(2, tris.size());
-		for (auto const& tri : tris) {
-			EXPECT_TRUE(tri.isTriangle());
-		}
-		EXPECT_EQ(CoordinateIds({ 6, 3, 2 }), tris[0].vertices);
-		EXPECT_EQ(CoordinateIds({ 0, 2, 1 }), tris[1].vertices);
-	}
-}
-
 TEST_F(DelaunatorTest, mesh_one_triangle_with_constraining_polygon)
 {
 	auto coords = buildCoordinates();
@@ -261,13 +218,6 @@ TEST_F(DelaunatorTest, throw_when_coordinateId_is_out_of_range)
 	Delaunator delaunator(&coords);
 
 	EXPECT_ANY_THROW(delaunator.mesh({ 0, 1, 2, 350 }));
-}
-
-TEST_F(DelaunatorTest, DISABLED_mesh_repeating_ids)
-{
-	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
-	EXPECT_ANY_THROW(delaunator.mesh({}, { { 0, 1, 5, 2, 3 } } ));
 }
 
 }

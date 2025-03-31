@@ -22,8 +22,8 @@ bool isCellCrossedByTriangle(const Triangle2& t, const ArrayIndex& idx)
 		return false;
 	}
 	if (CGAL::do_intersect(cF, t)) {
-		auto iP{ *CGAL::intersection(cF, t) };
-		if (!boost::get<Point2 >(&iP)) {
+		const auto iP{ CGAL::intersection(cF, t) };
+		if (iP && !std::get_if<Point2>(&*iP)) {
 			return true;
 		}
 	}

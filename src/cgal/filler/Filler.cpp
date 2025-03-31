@@ -11,7 +11,7 @@
 #include "utils/MeshTools.h"
 
 #include <CGAL/AABB_tree.h>
-#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_traits_3.h>
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 #include <CGAL/Polygon_mesh_slicer.h>
 
@@ -25,12 +25,12 @@ using namespace tools;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 using Primitive = CGAL::AABB_face_graph_triangle_primitive<Polyhedron>;
-using Traits = CGAL::AABB_traits<K, Primitive>;
+using Traits = CGAL::AABB_traits_3<K, Primitive>;
 using LineIntersectionsTree = CGAL::AABB_tree<Traits> ;
 using LineE3_intersection = boost::optional< LineIntersectionsTree::Intersection_and_primitive_id<Line3>::Type > ;
 
 using HGSP = CGAL::AABB_halfedge_graph_segment_primitive<Polyhedron>;
-using AABB_traits = CGAL::AABB_traits<K, HGSP>;
+using AABB_traits = CGAL::AABB_traits_3<K, HGSP>;
 using PMSlicerTree = CGAL::AABB_tree<AABB_traits>;
 using PMSlicer = CGAL::Polygon_mesh_slicer<Polyhedron, K>;
 
@@ -297,7 +297,7 @@ Segments1 convertToSegments1(const std::list<LineE3_intersection>& inters, const
 
 	std::set<Segment1> segs;
 	for (auto it = inters.begin(); it != inters.end(); ++it) {		
-		if (const auto& e = boost::get<Segment3>(&((*it)->first))) {
+		if (const auto& e = std::get_if<Segment3>(&((*it)->first))) {
 			segs.insert(
 				Segment1{ 
 					Point1{(*e)[0][(int)x]},

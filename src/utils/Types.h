@@ -22,12 +22,18 @@ const Axis X{ 0 };
 const Axis Y{ 1 };
 const Axis Z{ 2 };
 
+using Side = std::size_t;
+const Side L{ 0 };
+const Side U{ 1 };
+
 using Cell = Vector<int>;
 using Relative = Coordinate;
 using Relatives = std::vector<Relative>;
 
 using CellDir = Cell::Type;
 using RelativeDir = Relative::Type;
+using RelativeId = CoordinateId;
+using RelativeIds = std::vector<RelativeId>;
 
 using Plane = std::pair<CellDir, Axis>;
 

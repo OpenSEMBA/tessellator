@@ -1,6 +1,6 @@
 #pragma once
-namespace meshlib {
-namespace core {
+
+namespace meshlib::core {
 
 struct SnapperOptions {
 	double forbiddenLength{ 0.0 };
@@ -8,5 +8,4 @@ struct SnapperOptions {
 };
 
 
-}
 }

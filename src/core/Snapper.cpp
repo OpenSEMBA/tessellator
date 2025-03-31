@@ -1,7 +1,7 @@
 #include "Snapper.h"
 
 #include "utils/Geometry.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "Collapser.h"
 
@@ -14,12 +14,12 @@ Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :
     opts_{ opts }
 {
     if (opts.forbiddenLength > 0.5) {
-        throw std::logic_error("Invalid relaxed length");
+        throw std::logic_error("Invalid forbidden length");
     }
     snap();
     
     mesh_ = Collapser{mesh_, 4}.getMesh();
-    
+
     utils::meshTools::checkNoCellsAreCrossed(mesh_);
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
@@ -87,7 +87,7 @@ bool edgeIsCandidate(
     const Relative& rel,
     const utils::GridTools& gT)
 {
-    if (gT.isRelativeOnCellFace(rel)) {
+    if (gT.isRelativeInCellFace(rel)) {
         const Axis& axis = gT.getCellFaceAxis(rel).second;
         return !(edge[0][axis] == 1 || edge[1][axis] == 1);
     }
@@ -108,7 +108,7 @@ void Snapper::snap()
 
     for (std::size_t i = 0; i < r.size(); i++) {
         Relative rel = r[i];
-        if (gT.isRelativeOnCellEdge(rel)) {
+        if (gT.isRelativeInCellEdge(rel)) {
             Coordinate closest, solverPoint;
             std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
 
@@ -125,7 +125,7 @@ void Snapper::snap()
 
     for (std::size_t i = 0; i < r.size(); i++) {
         Relative rel = r[i];
-        if (!gT.isRelativeOnCellEdge(rel) && !gT.isRelativeOnCellCorner(rel)) {
+        if (!gT.isRelativeInCellEdge(rel) && !gT.isRelativeInCellCorner(rel)) {
             Coordinate closest, solverPoint;
             std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
 

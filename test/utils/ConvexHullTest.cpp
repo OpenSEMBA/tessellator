@@ -4,7 +4,7 @@
 
 namespace meshlib::utils {
 
-class ConvexHullTest_meshlib : public ::testing::Test {
+class ConvexHullTest : public ::testing::Test {
 public:
 	static Coordinates buildCoordinates()
 	{
@@ -21,7 +21,7 @@ public:
 };
 
 
-TEST_F(ConvexHullTest_meshlib, single_point)
+TEST_F(ConvexHullTest, single_point)
 {
 	auto coords{ buildCoordinates() };
 	const VecD zVec({ 0.0, 0.0, 1.0 });
@@ -31,7 +31,7 @@ TEST_F(ConvexHullTest_meshlib, single_point)
 	EXPECT_EQ(CoordinateIds({ 0 }), hull);
 }
 //
-TEST_F(ConvexHullTest_meshlib, two_points)
+TEST_F(ConvexHullTest, two_points)
 {
 	auto coords{ buildCoordinates() };
 	const VecD zVec({ 0.0, 0.0, 1.0 });
@@ -41,7 +41,7 @@ TEST_F(ConvexHullTest_meshlib, two_points)
 	EXPECT_EQ(CoordinateIds({ 0, 1 }), hull);
 }
 
-TEST_F(ConvexHullTest_meshlib, three_points)
+TEST_F(ConvexHullTest, three_points)
 {
 	auto coords{ buildCoordinates() };
 	const VecD zVec({ 0.0, 0.0, 1.0 });
@@ -51,7 +51,7 @@ TEST_F(ConvexHullTest_meshlib, three_points)
 	EXPECT_EQ(CoordinateIds({ 0, 2, 1 }), hull);
 }
 
-TEST_F(ConvexHullTest_meshlib, in_plane_points)
+TEST_F(ConvexHullTest, in_plane_points)
 {
 	auto coords{ buildCoordinates() };
 	const VecD zVec({ 0.0, 0.0, 1.0 });
@@ -61,7 +61,7 @@ TEST_F(ConvexHullTest_meshlib, in_plane_points)
 	EXPECT_EQ(CoordinateIds({ 0, 3, 2, 1 }), hull);
 }
 
-TEST_F(ConvexHullTest_meshlib, coords_in_diag_plane)
+TEST_F(ConvexHullTest, coords_in_diag_plane)
 {
 	Coordinates coords{
 			Coordinate({2.6938780000000002, 2.6938780000000002, 2.6938780000000002}),
@@ -75,7 +75,7 @@ TEST_F(ConvexHullTest_meshlib, coords_in_diag_plane)
 	EXPECT_EQ(CoordinateIds({ 0, 1, 2 }), hull);
 }
 
-TEST_F(ConvexHullTest_meshlib, out_of_plane)
+TEST_F(ConvexHullTest, out_of_plane)
 {
 	auto coords{ buildCoordinates() };
 	const VecD zVec({ 0.0, 0.0, 1.0 });

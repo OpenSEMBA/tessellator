@@ -2,8 +2,12 @@
 #include "gtest/gtest.h"
 
 #include "Slicer.h"
+#include "Collapser.h"
 #include "Geometry.h"
 #include "MeshTools.h"
+#include "app/vtkIO.h"
+#include "utils/RedundancyCleaner.h"
+#include "utils/CoordGraph.h"
 
 namespace meshlib::core {
 
@@ -14,9 +18,6 @@ using namespace meshTools;
 class SlicerTest : public ::testing::Test {
 public:
 protected:
-    const std::size_t X = 0;
-    const std::size_t Y = 1;
-    const std::size_t Z = 2;
 
     static bool containsDegenerateTriangles(const Mesh& out)
     {
@@ -30,8 +31,16 @@ protected:
         }
         return false;
     }
-};
 
+    static std::size_t countContours(const Mesh& m)
+    {
+        std::size_t res = 0;
+        for (const auto& g : m.groups) {
+            res += CoordGraph{g.elements}.getBoundaryGraph().split().size();
+        }
+        return res;
+    }
+};
 
 
 TEST_F(SlicerTest, buildTrianglesFromPath_1)
@@ -71,26 +80,25 @@ TEST_F(SlicerTest, buildTrianglesFromPath_2)
 
 TEST_F(SlicerTest, tri45_size1_grid) 
 {
-    Mesh in = buildTri45Mesh(1.0);
+    Mesh m = buildTri45Mesh(1.0);
     
 
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{in}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(1, countMeshElementsIf(out, isTriangle));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, tri45_2_size1_grid)
 {
     Mesh m;
-        m.grid = utils::GridTools::buildCartesianGrid(0.0, 3.0, 4);
-
+    m.grid = utils::GridTools::buildCartesianGrid(0.0, 3.0, 4);
     m.coordinates = {
         Coordinate({ 3.00, 0.00, 0.50 }),
         Coordinate({ 0.00, 3.00, 1.00 }),
         Coordinate({ 0.00, 3.00, 0.00 })
     };
-
     m.groups = { Group() };
     m.groups[0].elements = {
         Element({0, 1, 2}, Element::Type::Surface)
@@ -100,6 +108,7 @@ TEST_F(SlicerTest, tri45_2_size1_grid)
     ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(5, countMeshElementsIf(out, isTriangle));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, tri45_3_size1_grid)
@@ -125,76 +134,85 @@ TEST_F(SlicerTest, tri45_3_size1_grid)
     ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(5, countMeshElementsIf(out, isTriangle));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, tri45_size05_grid) 
 {
+    Mesh m = buildTri45Mesh(0.5);
+    
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{ buildTri45Mesh(0.5) }.getMesh());
+    ASSERT_NO_THROW(out = Slicer{ m }.getMesh());
 
     EXPECT_EQ(3, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, tri45_size025_grid) 
 {
+    auto m = buildTri45Mesh(0.25);
+    
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{ buildTri45Mesh(0.25) }.getMesh());
+    ASSERT_NO_THROW(out = Slicer{ m }.getMesh());
 
     ASSERT_EQ(1, out.groups.size());
     EXPECT_EQ(countMeshElementsIf(out, isTriangle), out.groups[0].elements.size());
     EXPECT_EQ(10, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, cube1x1x1_size1_grid)
 {
-    Mesh in = buildCubeSurfaceMesh(1.0);
+    Mesh m = buildCubeSurfaceMesh(1.0);
     
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{in}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, cube1x1x1_size05_grid)
 {
-    Mesh in = buildCubeSurfaceMesh(0.5);
+    Mesh m = buildCubeSurfaceMesh(0.5);
         
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{in}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(48, countMeshElementsIf(out, isTriangle));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, cube1x1x1_size3_grid)
 {
-    Mesh in = buildCubeSurfaceMesh(3.0);
-    
-
+    Mesh m = buildCubeSurfaceMesh(3.0);
     
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{in}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
     ASSERT_NO_THROW(meshTools::checkNoNullAreasExist(out));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, tri_less45_size025_grid)
 {
-    Mesh in = buildTri45Mesh(0.25);
-    in.coordinates[0] = { 1.45000000e+00, 1.00000000e+00, 1.4500000e+00 };
+    Mesh m = buildTri45Mesh(0.25);
+    m.coordinates[0] = Coordinate({ 1.45000000e+00, 1.00000000e+00, 1.4500000e+00 });
 
     
     Mesh out;
-    ASSERT_NO_THROW(out = Slicer{in}.getMesh());
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
 
     EXPECT_EQ(11, countMeshElementsIf(out, isTriangle));
     ASSERT_NO_THROW(meshTools::checkNoNullAreasExist(out));
     EXPECT_FALSE(containsDegenerateTriangles(out));
+    EXPECT_EQ(countContours(m), countContours(out));
 }
 
 TEST_F(SlicerTest, meshTrisOnGridBoundaries)
@@ -305,7 +323,7 @@ TEST_F(SlicerTest, cell_faces_are_crossed_3)
     EXPECT_FALSE(containsDegenerateTriangles(out));
 }
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellsFromTheSamePlane)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellsFromTheSamePlane)
 {
 
     // y                                      y
@@ -430,7 +448,7 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellsFromTheSamePlane)
     }
 }
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellThatPassThoroughPoints)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellThatPassThoroughPoints)
 {
 
     // y                                          y
@@ -551,7 +569,7 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellThatPassThoroughPoints)
 
 
 
-TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
+TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
 {
  
     //              *-------------*-------------*                   *-------------*-------------*
@@ -646,6 +664,98 @@ TEST_F(SlicerTest, canSliceLinesInAdyacentCellsWithThreeDimensionalMovement)
             EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
         }
     }
+}
+
+
+
+
+TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+    
+    m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+    auto slicedMesh = Slicer{m}.getMesh();
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+}
+
+TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)
+{
+    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+
+    auto slicedMesh = Slicer{m}.getMesh();
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+
+    // //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+
+	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+}
+
+TEST_F(SlicerTest, sphere_case_patch_contour_check_1)
+{
+    Mesh m;
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+    m.coordinates = {
+        Coordinate({ 16.1734, -45.5077, 12.9410 }),
+        Coordinate({ 27.8515, -39.4566, 12.9410 }),
+        Coordinate({ 12.9214, -38.4466, 25.0000 }),
+    };
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface)
+    };
+
+    auto slicedMesh = Slicer{m}.getMesh();
+    
+    EXPECT_EQ(countContours(m), countContours(slicedMesh));
+
+    //For debugging.
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+
+	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+}
+
+TEST_F(SlicerTest, sphere_case_patch_contour_check_2)
+{
+    Mesh m;
+    for (auto x: {X,Y,Z}) {
+        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+    m.coordinates = {
+        Coordinate({ -2.95498, 43.20030, 25.0000}),
+        Coordinate({ -7.19326, 34.61580, 35.3553}),
+        Coordinate({  2.41273, 35.27290, 35.3553}),
+    };
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface)
+    };
+
+    auto slicedMesh = Slicer{m}.getMesh();
+    
+    EXPECT_EQ(countContours(m), countContours(slicedMesh));
+
+    // For debugging.
+	meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	vtkIO::exportMeshToVTU("sliced.vtk", slicedMesh);
+
+	auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	vtkIO::exportMeshToVTU("contour.vtk", contourMesh);
 }
 
 }

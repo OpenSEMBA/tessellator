@@ -1,44 +1,72 @@
 name: "Build and test"
 
 on:
-  push:
-    branches:
-      - master
-      - dev
   pull_request:
     branches:
+      - main
       - dev
     
-  workflow_dispatch:
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+  
 jobs:
   builds-and-tests:
     strategy:
       matrix:
-        os: [windows-latest]
+        preset: [
+          {"os": windows-latest, "name": "msbuild"},
+          {"os": ubuntu-latest, "name": "gnu"}
+        ]
+        build-type: ["Debug", "Release"]
         
-    name: ${{ matrix.os }}-${{ matrix.target }}
-
-    runs-on: ${{ matrix.os }}
+      fail-fast: false
+        
+    name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
+    runs-on: ${{ matrix.preset.os }}
 
     steps:
     - name: checkout repository
       uses: actions/checkout@v3
 
+    - name: setup ninja
+      uses: seanmiddleditch/gha-setup-ninja@master
+
     - name: getcmake
       uses: lukka/get-cmake@latest
 
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
+
+    # I am having issues installing vcpkg in ubuntu.
+    - name: Setup vtk in ubuntu
+      if: matrix.preset.os=='ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libvtk9-dev
+
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgJsonGlob: 'vcpkg.json'
- 
-    - name: Configure and build
+    
+    - name: Windows configure and build
+      if: matrix.preset.name=='msbuild'
       run: |
-        cmake --preset "msbuild-vcpkg" -S . -B build
-        cmake --build build --config Release -j
+        cmake --preset ${{matrix.preset.name}} -S . -B build
+        cmake --build build --config ${{matrix.build-type}} -j
 
-    - name: Run tests
-      run: build/bin/Release/tessellator_tests.exe
+    - name: Windows Run tests
+      if: matrix.preset.name=='msbuild'
+      run: build/bin/${{matrix.build-type}}/tessellator_tests.exe
+
+    - name: Ubuntu configure and build
+      if: matrix.preset.name=='gnu'
+      run: |
+        cmake --preset ${{matrix.preset.name}} -S . -B build
+        cmake --build build -j
+        
+    - name: Ubuntu Run tests
+      if: matrix.preset.name=='gnu'
+      run: build/bin/tessellator_tests
+
         
     

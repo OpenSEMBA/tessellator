@@ -1,5 +1,6 @@
 out/*
 build*/
+build/
 /obj/
 /bin/
 /doc/*/latex
@@ -15,3 +16,9 @@ src/*.json
 
 testData/*_out.stl
 *_out.stl
+tmp_*.vtp
+tmp_*.vtk
+tmp_*.vtu
+tmp_*.stl
+CMakeUserPresets.json
+*.Identifier

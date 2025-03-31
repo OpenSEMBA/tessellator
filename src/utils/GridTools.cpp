@@ -440,7 +440,7 @@ std::set<Cell> GridTools::getTouchingCells(const Relative& v) const
         }
     }
 
-    if (isRelativeOnCellEdge(v) || isRelativeOnCellCorner(v)) {
+    if (isRelativeInCellEdge(v) || isRelativeInCellCorner(v)) {
         for (std::size_t x = 0; x < 3; x++) {
             std::size_t y = (x + 1) % 3;
             if (neighInLB[x] && neighInLB[y]) {
@@ -470,7 +470,7 @@ std::set<Cell> GridTools::getTouchingCells(const Relative& v) const
         }
     }
     
-    if (isRelativeOnCellCorner(v)) {
+    if (isRelativeInCellCorner(v)) {
         const std::size_t x = 0, y = 1, z = 2;
         Cell aux = local;
         for (std::size_t d = 0; d < 3; d++) {
@@ -505,6 +505,7 @@ std::size_t GridTools::countIntersectingPlanes(const Relative& v) {
 
 bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2) 
 {
+    // This assumes that both relatives belong to the same cell.
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
@@ -525,6 +526,7 @@ bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2)
 }
 bool GridTools::areCoordOnSameEdge(const Relative& r1, const Relative& r2) 
 {
+    // This assumes that both relatives belong to the same cell.
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
@@ -548,14 +550,14 @@ bool GridTools::sameCellProperties(
     const Relative& r1, const Relative& r2) const { 
     
     return isRelativeInterior(    r1) == isRelativeInterior(    r2)
-        && isRelativeOnCellCorner(r1) == isRelativeOnCellCorner(r2)
-        && isRelativeOnCellEdge(  r1) == isRelativeOnCellEdge(  r2)
-        && isRelativeOnCellFace(  r1) == isRelativeOnCellFace(  r2);
+        && isRelativeInCellCorner(r1) == isRelativeInCellCorner(r2)
+        && isRelativeInCellEdge(  r1) == isRelativeInCellEdge(  r2)
+        && isRelativeInCellFace(  r1) == isRelativeInCellFace(  r2);
 }
 
 std::pair<bool,Axis> GridTools::getCellEdgeAxis(const Relative& r) 
 {
-    bool isOnEdge = isRelativeOnCellEdge(r);
+    bool isOnEdge = isRelativeInCellEdge(r);
     Axis resAxis;
     for (Axis x = 0; x < 3; x++) {
         Axis y = (x + 1) % 3;
@@ -571,7 +573,7 @@ std::pair<bool,Axis> GridTools::getCellEdgeAxis(const Relative& r)
 
 std::pair<bool, Axis> GridTools::getCellFaceAxis(const Relative& r) 
 {
-    bool isOnFace = isRelativeOnCellFace(r);
+    bool isOnFace = isRelativeInCellFace(r);
     Axis resAxis;
     for (Axis x = 0; x < 3; x++) {
         Axis y = (x + 1) % 3;
@@ -640,16 +642,32 @@ bool GridTools::isRelativeInterior(const Relative& v){
     return countIntersectingPlanes(v) == 0;
 }
 
-bool GridTools::isRelativeOnCellFace(const Relative& v){
+bool GridTools::isRelativeInCellFace(const Relative& v){
     return countIntersectingPlanes(v) == 1;
 }
 
-bool GridTools::isRelativeOnCellEdge(const Relative& v) {
+bool GridTools::isRelativeInCellEdge(const Relative& v) {
     return countIntersectingPlanes(v) == 2;
 }
 
-bool GridTools::isRelativeOnCellCorner(const Relative& v) {
+bool GridTools::isRelativeInCellCorner(const Relative& v) {
     return countIntersectingPlanes(v) == 3;
+}
+
+bool GridTools::isRelativeAtCellBound(
+    const Relative& v, 
+    const Cell& cell, 
+    const std::pair<Axis, Side>& bound) 
+{
+    if (isRelativeInterior(v)) {
+        return false;
+    }
+
+    if (bound.second == L) {
+        return approxDir(v(bound.first), cell(bound.first));
+    } else {
+        return approxDir(v(bound.first), cell(bound.first) + 1);
+    }
 }
 
 bool GridTools::isSegmentOnEdge(
@@ -660,20 +678,20 @@ bool GridTools::isSegmentOnEdge(
         return false;
     }
 
-    if ((isRelativeOnCellEdge(r1) && isRelativeOnCellEdge(r2)) && 
+    if ((isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2)) && 
         (getCellEdgeAxis(r1) == getCellEdgeAxis(r2)) &&
         (toCell(r1) == toCell(r2)))
     {
         return true;
     }
 
-    if (isRelativeOnCellCorner(r1) && isRelativeOnCellCorner(r2))
+    if (isRelativeInCellCorner(r1) && isRelativeInCellCorner(r2))
     {
         return true;
     }
 
-    if ((isRelativeOnCellEdge(r1) && isRelativeOnCellCorner(r2)) ||
-        (isRelativeOnCellCorner(r1) && isRelativeOnCellEdge(r2)) )
+    if ((isRelativeInCellEdge(r1) && isRelativeInCellCorner(r2)) ||
+        (isRelativeInCellCorner(r1) && isRelativeInCellEdge(r2)) )
     {
         return true;
     }
@@ -690,35 +708,35 @@ bool GridTools::isSegmentOnFace(
         return false;
     }
 
-    if (isRelativeOnCellFace(r1) && isRelativeOnCellFace(r2)) {
+    if (isRelativeInCellFace(r1) && isRelativeInCellFace(r2)) {
         return true;
     }
 
-    if ((isRelativeOnCellFace(r1) && isRelativeOnCellEdge(r2)) &&
-        (isRelativeOnCellEdge(r1) && isRelativeOnCellEdge(r2))) {
+    if ((isRelativeInCellFace(r1) && isRelativeInCellEdge(r2)) &&
+        (isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2))) {
         return true;
     }
 
-    if ((isRelativeOnCellEdge(r1) && isRelativeOnCellEdge(r2)) &&
+    if ((isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2)) &&
         (getCellEdgeAxis(r1) != getCellEdgeAxis(r2)))
     {
         return true;
     }
             
-    if ((isRelativeOnCellEdge(r1) && isRelativeOnCellEdge(r2)) &&
+    if ((isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2)) &&
         (getCellEdgeAxis(r1) == getCellEdgeAxis(r2)) &&
         (toCell(r1) != toCell(r2)))
     {
         return true;
     }
     
-    if (isRelativeOnCellCorner(r1) &&
-        (isRelativeOnCellCorner(r2) || isRelativeOnCellEdge(r2) || isRelativeOnCellFace(r2))) {
+    if (isRelativeInCellCorner(r1) &&
+        (isRelativeInCellCorner(r2) || isRelativeInCellEdge(r2) || isRelativeInCellFace(r2))) {
         return true;
     }
 
-    if (isRelativeOnCellCorner(r2) &&
-        (isRelativeOnCellCorner(r1) || isRelativeOnCellEdge(r1) || isRelativeOnCellFace(r1))) {
+    if (isRelativeInCellCorner(r2) &&
+        (isRelativeInCellCorner(r1) || isRelativeInCellEdge(r1) || isRelativeInCellFace(r1))) {
         return true;
     }
 
@@ -730,10 +748,10 @@ Axis GridTools::getSegmentAxisOnEdge(
     const Relative& r1,
     const Relative& r2) const {
 
-    if (isRelativeOnCellEdge(r1)) {
+    if (isRelativeInCellEdge(r1)) {
         return getCellEdgeAxis(r1).second;
     } 
-    else if (isRelativeOnCellEdge(r2)) {
+    else if (isRelativeInCellEdge(r2)) {
         return getCellEdgeAxis(r2).second;
     }
     else {
@@ -753,10 +771,10 @@ Axis GridTools::getSegmentAxisOnFace(
     const Relative& r1,
     const Relative& r2) const {
 
-    if (isRelativeOnCellFace(r1)) {
+    if (isRelativeInCellFace(r1)) {
         return getCellFaceAxis(r1).second;
     } 
-    else if (isRelativeOnCellFace(r2)) {
+    else if (isRelativeInCellFace(r2)) {
         return getCellFaceAxis(r2).second;
     }
     else {

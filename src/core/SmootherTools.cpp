@@ -2,11 +2,9 @@
 
 #include "utils/CoordGraph.h"
 #include "utils/ElemGraph.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
-
-#include "cgal/Delaunator.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -100,15 +98,15 @@ void SmootherTools::collapsePointsOnFeatureEdges(
 
     std::map<CoordinateId, Coordinate> toMove;
     for (auto const& i : validInterior) {
-        if (isRelativeOnCellCorner(coords[i])) {
+        if (isRelativeInCellCorner(coords[i])) {
             continue;
         }
 
         Coordinate closest = closestByDistance(coords, i, Point.getClosestVerticesInSet(i, validExterior));
-        if (isRelativeOnCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
+        if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
             continue;
         }
-        if (isRelativeOnCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
+        if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
             continue;
         }
         toMove[i] = closest;
@@ -180,9 +178,9 @@ void SmootherTools::collapsePointsOnCellEdges(
             vertices.begin(), vertices.end(),
             [&](const CoordinateId& cId) {
                 return
-                    isRelativeOnCellFace(coords[cId]) ||
-                    isRelativeOnCellEdge(coords[cId]) ||
-                    isRelativeOnCellCorner(coords[cId]);
+                    isRelativeInCellFace(coords[cId]) ||
+                    isRelativeInCellEdge(coords[cId]) ||
+                    isRelativeInCellCorner(coords[cId]);
             }
         )) {
             return;
@@ -206,14 +204,14 @@ void SmootherTools::collapsePointsOnCellEdges(
         
         std::map<CoordinateId, Coordinate> toMove;
         for (auto const& i : movable) {
-            if (isRelativeOnCellCorner(coords[i])) {
+            if (isRelativeInCellCorner(coords[i])) {
                 continue;
             }
             Coordinate closest = closestByDistance(coords, i, cG.getClosestVerticesInSet(i, validIds));
-            if (isRelativeOnCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
+            if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
                 continue;
             }
-            if (isRelativeOnCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
+            if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
                 continue;
             }
             toMove[i] = closest;
@@ -252,7 +250,7 @@ void SmootherTools::collapsePointsOnCellFaces(
             cycle,
             classifyIds(IdSet(cycle.begin(), cycle.end()),
                 [&](const CoordinateId& id) {
-                    return !isRelativeOnCellFace(coords[id]) || sIds.edgeIds().count(id) != 0;
+                    return !isRelativeInCellFace(coords[id]) || sIds.edgeIds().count(id) != 0;
                 })
         );
     }
@@ -330,11 +328,24 @@ void SmootherTools::remeshWithNoInteriorPoints(
     if (in.size() < 1) {
         return;
     }
-    CoordinateIds cPolygon = g.getBoundaryGraph().findCycles().front();
-    Elements remeshedEls = cgal::Delaunator(&cs).mesh({}, { cPolygon });
 
-    if (hasWrongOrientation(*patch[0], remeshedEls[0], cs)) {
-        reorient(remeshedEls);
+    auto cPolygons = g.getBoundaryGraph().findCycles();
+    Elements remeshedEls;
+    for (auto& cPolygon : cPolygons) {
+        for (std::size_t i = 0; i < cPolygon.size() - 2; i++) {
+            remeshedEls.push_back( Element({ 
+                cPolygon[0], 
+                cPolygon[i + 1], 
+                cPolygon[i + 2] 
+            }, 
+            Element::Type::Surface));
+        }
+    }
+    
+    for (auto & element: remeshedEls){
+        if (hasWrongOrientation(*patch[0], element, cs)) {
+            reorientSingleElement(element);
+        }
     }
 
     for (auto comp = remeshedEls.size(); comp < patch.size(); comp++) {
@@ -515,8 +526,8 @@ Elements SmootherTools::buildBoundaryContourAsLines(
     IdSet vertices = g.getVertices();
 
     IdSet contour = classifyIds(vertices, [&](auto i) {
-        return isRelativeOnCellCorner(coords[i])
-            || isRelativeOnCellEdge(coords[i]);
+        return isRelativeInCellCorner(coords[i])
+            || isRelativeInCellEdge(coords[i]);
         }).first;
 
     Elements lines;
@@ -553,5 +564,13 @@ void SmootherTools::reorient(
         e.vertices[1] = c;
     }
 }
+
+
+void SmootherTools::reorientSingleElement(
+    Element& element)
+{
+    std::swap(element.vertices[0], element.vertices[1]);
+}
+
 }
 }

@@ -13,6 +13,7 @@ public:
 
 private:
 	Mesh mesh_;
+	void collapseDegenerateElements(Mesh& m, const double& areaThreshold);
 };
 
 }

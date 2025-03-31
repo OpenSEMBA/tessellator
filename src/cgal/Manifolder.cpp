@@ -2,7 +2,7 @@
 
 #include "utils/Types.h"
 #include "utils/CoordGraph.h"
-#include "utils/Cleaner.h"
+#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
 namespace meshlib {
@@ -100,7 +100,7 @@ Mesh Manifolder::getSurfacesMesh() const
 {
 	Mesh m = getClosedSurfacesMesh();
 	utils::meshTools::mergeMesh(m, getOpenSurfacesMesh());
-	utils::Cleaner::cleanCoords(m);
+	utils::RedundancyCleaner::cleanCoords(m);
 	return m;
 }
 

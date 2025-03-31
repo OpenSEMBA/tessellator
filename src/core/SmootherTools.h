@@ -125,6 +125,9 @@ private:
     static void reorient(
         Elements& es);
 
+    static void reorientSingleElement(
+        Element& element);
+
     static bool patchIsPlanar(
         const Coordinates& cs,
         const ElementsView& patch);
