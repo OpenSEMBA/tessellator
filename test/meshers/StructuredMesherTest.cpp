@@ -331,4 +331,101 @@ TEST_F(StructuredMesherTest, preserves_topological_closedness_for_sphere)
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
+TEST_F(StructuredMesherTest, DISABLED_selectiveStructurer_preserves_topological_closedness_for_sphere)
+{
+    const std::string inputFilename = "testData/cases/sphere/sphere.stl";
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto x: {X,Y,Z}) {
+        mesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+    }
+
+    // SurfaceMesh
+
+    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(mesh, meshlib::utils::meshTools::isNotTetrahedron);
+
+    // Slicer
+
+    auto slicedMesh = meshlib::core::Slicer{surfaceMesh}.getMesh();
+
+    // Collapser
+
+    auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
+
+    // Selection the specific cells to structure and generate the result Mesh
+
+    std::set<Cell> cellSet;
+
+    for (int x = 0; x < 26; ++x) {
+        for (int y = 0; y < 26; ++y) {
+            for (int z = 0; z < 13; ++z) {  
+                cellSet.insert(Cell{x, y, z});
+            }
+        }
+    }
+
+    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
+
+    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    utils::meshTools::reduceGrid(resultMesh, mesh.grid);
+    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));   
+    
+    // // For debugging
+    // std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
+    // auto basename = meshlib::vtkIO::getBasename(inputFilename);
+    // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
+    // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
+}
+
+TEST_F(StructuredMesherTest, DISABLED_selectiveStructurer_preserves_topological_closedness_for_alhambra)
+{
+    const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
+    auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+    
+    mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    mesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+    
+    // SurfaceMesh
+
+    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(mesh, meshlib::utils::meshTools::isNotTetrahedron);
+
+    // Slicer
+
+    auto slicedMesh = meshlib::core::Slicer{surfaceMesh}.getMesh();
+
+    // Collapser
+
+    auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 2}.getMesh();
+
+    // Selection the specific cells to structure and generate the result Mesh
+
+    std::set<Cell> cellSet;
+
+    for (int x = 0; x < 31; ++x) {
+        for (int y = 0; y < 61; ++y) {
+            for (int z = 0; z < 8; ++z) {  
+                cellSet.insert(Cell{x, y, z});
+            }
+        }
+    }
+
+    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
+
+    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    utils::meshTools::reduceGrid(resultMesh, mesh.grid);
+    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
+    
+    EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));
+
+    // // For debugging
+    // std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
+    // auto basename = meshlib::vtkIO::getBasename(inputFilename);
+    // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
+    // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
+}
+
 }
