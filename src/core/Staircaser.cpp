@@ -132,13 +132,49 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
                 }               
                 meshGroup.elements.push_back(newElement);
             }
-        }     
+        }
+        
     }
-    
     
     RedundancyCleaner::fuseCoords(mesh_);
     RedundancyCleaner::removeDegenerateElements(mesh_);
     RedundancyCleaner::cleanCoords(mesh_);
+
+    for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
+
+        auto& meshGroup = mesh_.groups[g];
+        auto cellElemMap = buildCellElemMap(meshGroup.elements, mesh_.coordinates);
+        auto cellCoordMap = buildCellCoordMap(mesh_.coordinates);
+
+        for (auto & element : meshGroup.elements) {
+            if (element.isTriangle()) {
+                Cell cell;
+            
+                for (const auto& [c, elements] : cellElemMap) {
+                    if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
+                        cell = c; 
+                        break;    
+                    }
+                }
+
+                std::set<std::size_t> uniqueVertices;
+
+                for (const auto* elem : cellElemMap[cell]) {
+                    if (elem->isTriangle()) {
+                        for (const auto& vertex : elem->vertices) {
+                            uniqueVertices.insert(vertex);
+                        }
+                    }
+                }
+
+                if (!(cellCoordMap[cell].size() == uniqueVertices.size())) {
+                    // TO DO: Add the new triangle to the elements of the cell to fill the gaps 
+                }
+            }
+        }
+    }
+    
+    
 
 
     return mesh_;
