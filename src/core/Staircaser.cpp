@@ -20,7 +20,8 @@ Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid)
 
 }
 
-Mesh Staircaser::getMesh(){
+Mesh Staircaser::getMesh()
+{
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -44,8 +45,18 @@ Mesh Staircaser::getMesh(){
     return mesh_;
 }
 
-Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
+CoordinateMap buildCoordinateMap(const Coordinates& cs) 
+{
+    CoordinateMap res;
+    for (std::size_t c = 0; c < cs.size(); ++c) {
+        res[cs[c]] = c;       
+    }
+    return res;
+}
 
+
+Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
+{
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -54,125 +65,102 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellSet){
 
         auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
-        for (auto & element : inputGroup.elements) {
-            Cell cell;
-            
-            for (const auto& [c, elements] : cellElemMap) {
-                if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
-                    cell = c; 
-                    break;    
-                }
+        for (const auto& c : cellsToStructure) {
+            if (!cellElemMap.count(c)) {
+                continue;
             }
-
-            if (cellSet.find(cell) != cellSet.end()) {
-                if (element.isLine()) {  
-                    this->processLineAndAddToGroup(element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
+            for (const auto e:  cellElemMap.at(c)) {
+                if (e->isLine()) {  
+                    this->processLineAndAddToGroup(*e, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
                 }
-                else if (element.isTriangle()) {
-                    this->processTriangleAndAddToGroup(element, inputMesh_.coordinates, meshGroup);
+                else if (e->isTriangle()) {
+                    this->processTriangleAndAddToGroup(*e, inputMesh_.coordinates, meshGroup);
                 }
             }
         } 
-            
-        for (auto & element : inputGroup.elements) {
-            Cell cell;
-            
-            for (const auto& [c, elements] : cellElemMap) {
-                if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
-                    cell = c; 
-                    break;    
-                }
+
+        CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
+
+        meshGroup.elements.reserve(meshGroup.elements.size() + inputGroup.elements.size());
+        for (const auto& [cell, elements] : cellElemMap) {
+            if (cellsToStructure.count(cell) ) {
+                continue;
             }
-
-            if (cellSet.find(cell) == cellSet.end()) {
+            for (const auto e : elements) {
                 Element newElement;
-
-                if(element.isLine()) {
-                    newElement.type = Element::Type::Line;  
-                }
-                else if(element.isTriangle()) {
-                    newElement.type = Element::Type::Surface;  
-                }
-
-                newElement.vertices.resize(element.vertices.size()); 
-                int i = 0;
-
-
-                for (const auto& vertexIndex : element.vertices) {
+                newElement.type = e->type;
+                newElement.vertices.reserve(e->vertices.size()); 
+                for (const auto& vertexIndex : e->vertices) {
                     const auto& vertexCoord = inputMesh_.coordinates[vertexIndex];
                     
-                    bool shouldAdd = true;
+                    bool isOnCellBoundary = false;
                     auto touchingCells = GridTools::getTouchingCells(vertexCoord);
                     
                     for (const auto& touchingCell : touchingCells) {
-                        if (cellSet.find(touchingCell) != cellSet.end()) {
-                            shouldAdd = false;
+                        if (cellsToStructure.count(touchingCell)) {
+                            isOnCellBoundary = true;
                             break;
                         }
                     }
                     
                     std::size_t newIndex;
-                    
-                    if (shouldAdd) {
-                        auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), vertexCoord);
-                            if (it == mesh_.coordinates.end()) {
-                                mesh_.coordinates.push_back(vertexCoord);
-                                newIndex = int (mesh_.coordinates.size() - 1);
-                            } 
-                            else if (it != mesh_.coordinates.end()) {
-                                newIndex = std::distance(mesh_.coordinates.begin(), it);
-                            }
+                    if (isOnCellBoundary) {
+                        auto it = coordinateMap.find(toRelative(calculateStaircasedCell(vertexCoord)));
+                        newIndex = it->second;
                     } else {
-                        auto it = std::find(mesh_.coordinates.begin(), mesh_.coordinates.end(), toRelative(calculateStaircasedCell(vertexCoord)));
-                        newIndex = std::distance(mesh_.coordinates.begin(), it);
+                        auto it = coordinateMap.find(vertexCoord);
+                        if (it == coordinateMap.end()) {
+                            mesh_.coordinates.push_back(vertexCoord);
+                            newIndex = int (mesh_.coordinates.size() - 1);
+                            coordinateMap.emplace(vertexCoord, newIndex);
+                        } else {
+                            newIndex = it->second;
+                        }
                     }
-
-                    newElement.vertices[i] = newIndex;
-                    i++;
+                    newElement.vertices.push_back(newIndex);
                 }               
                 meshGroup.elements.push_back(newElement);
             }
         }
-        
     }
     
     RedundancyCleaner::fuseCoords(mesh_);
     RedundancyCleaner::removeDegenerateElements(mesh_);
     RedundancyCleaner::cleanCoords(mesh_);
 
-    for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
+    // for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
-        auto& meshGroup = mesh_.groups[g];
-        auto cellElemMap = buildCellElemMap(meshGroup.elements, mesh_.coordinates);
-        auto cellCoordMap = buildCellCoordMap(mesh_.coordinates);
+    //     auto& meshGroup = mesh_.groups[g];
+    //     auto cellElemMap = buildCellElemMap(meshGroup.elements, mesh_.coordinates);
+    //     auto cellCoordMap = buildCellCoordMap(mesh_.coordinates);
 
-        for (auto & element : meshGroup.elements) {
-            if (element.isTriangle()) {
-                Cell cell;
+    //     for (auto & element : meshGroup.elements) {
+    //         if (element.isTriangle()) {
+    //             Cell cell;
             
-                for (const auto& [c, elements] : cellElemMap) {
-                    if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
-                        cell = c; 
-                        break;    
-                    }
-                }
+    //             for (const auto& [c, elements] : cellElemMap) {
+    //                 if (std::find(elements.begin(), elements.end(), &element) != elements.end()) {
+    //                     cell = c; 
+    //                     break;    
+    //                 }
+    //             }
 
-                std::set<std::size_t> uniqueVertices;
+    //             std::set<std::size_t> uniqueVertices;
 
-                for (const auto* elem : cellElemMap[cell]) {
-                    if (elem->isTriangle()) {
-                        for (const auto& vertex : elem->vertices) {
-                            uniqueVertices.insert(vertex);
-                        }
-                    }
-                }
+    //             for (const auto* elem : cellElemMap[cell]) {
+    //                 if (elem->isTriangle()) {
+    //                     for (const auto& vertex : elem->vertices) {
+    //                         uniqueVertices.insert(vertex);
+    //                     }
+    //                 }
+    //             }
 
-                if (!(cellCoordMap[cell].size() == uniqueVertices.size())) {
-                    // TO DO: Add the new triangle to the elements of the cell to fill the gaps 
-                }
-            }
-        }
-    }
+    //             if (!(cellCoordMap[cell].size() == uniqueVertices.size())) {
+    //                 // TO DO: Add the new triangle to the elements of the cell to fill the gaps 
+    //             }
+    //         }
+    //     }
+    // }
     
     
 
