@@ -2498,7 +2498,7 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier)
             Element({2, 4, 3, 1}, Element::Type::Surface),
             Element({0, 1, 3, 5}, Element::Type::Surface),
             Element({2, 6, 0}, Element::Type::Surface),
-            Element({2, 1, 0}, Element::Type::Surface),
+            Element({0, 2, 1}, Element::Type::Surface),
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
