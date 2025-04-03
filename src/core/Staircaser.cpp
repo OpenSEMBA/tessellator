@@ -203,12 +203,11 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 
                 if (!isAllCoordinatesOnCellBoundary) {
                     meshGroup.elements.push_back(newElement);
-                }
-                
-
-                for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
-                    for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
-                        boundaryCoordinatePairs.emplace(boundaryCoordinates[i], boundaryCoordinates[j]);
+    
+                    for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
+                        for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
+                            boundaryCoordinatePairs.emplace(boundaryCoordinates[i], boundaryCoordinates[j]);
+                        }
                     }
                 }
             }
@@ -221,8 +220,13 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 
     for (auto it = boundaryCoordinatePairs.begin(); it != boundaryCoordinatePairs.end();) {
         const auto& [coord1, coord2] = *it;
-    
-        if (coord1[0] == coord2[0] || coord1[1] == coord2[1]) {
+        
+        bool alignedInXY = (coord1[2] == coord2[2]) && (coord1[0] == coord2[0] || coord1[1] == coord2[1]);
+        bool alignedInXZ = (coord1[1] == coord2[1]) && (coord1[0] == coord2[0] || coord1[2] == coord2[2]);
+        bool alignedInYZ = (coord1[0] == coord2[0]) && (coord1[1] == coord2[1] || coord1[2] == coord2[2]);
+
+
+        if (alignedInXY || alignedInXZ || alignedInYZ) {
             it = boundaryCoordinatePairs.erase(it);
         } else {
             ++it;
@@ -250,10 +254,19 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
             std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
 
             if (uniqueElements.insert(triangle.vertices).second) {
-                mesh_.groups[0].elements.push_back(triangle);
+                Element newTriangle;
+                newTriangle.type = Element::Type::Surface;
+                newTriangle.vertices = {
+                    coordinateMap.at(coord1),
+                    coordinateMap.at(coord2),
+                    coordinateMap.at(neighborCoord)
+                };
+                mesh_.groups[0].elements.push_back(newTriangle);
             }
         }
     }
+
+    RedundancyCleaner::removeDegenerateElements(mesh_);
     
 
     return mesh_;
