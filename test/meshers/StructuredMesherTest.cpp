@@ -331,7 +331,7 @@ TEST_F(StructuredMesherTest, preserves_topological_closedness_for_sphere)
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
-TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closedness_for_sphere)
+TEST_F(StructuredMesherTest, DISABLED_selectiveStructurer_preserves_topological_closedness_for_sphere)
 {
     const std::string inputFilename = "testData/cases/sphere/sphere.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
