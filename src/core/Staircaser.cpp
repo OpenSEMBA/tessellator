@@ -54,6 +54,63 @@ CoordinateMap buildCoordinateMap(const Coordinates& cs)
     return res;
 }
 
+std::set<Coordinate> findCommonNeighborsCoordinates(const Coordinate& coord1, const Coordinate& coord2, const Mesh& mesh)
+{
+    std::set<Coordinate> commonNeighborsCoordinates;
+
+    GridTools gridTools;
+    auto cellElemMap = gridTools.buildCellElemMap(mesh.groups[0].elements, mesh.coordinates);
+    CoordinateMap coordinateMap = buildCoordinateMap(mesh.coordinates);
+
+    auto cellsCoord1 = gridTools.getTouchingCells(coord1);
+    auto cellsCoord2 = gridTools.getTouchingCells(coord2);
+
+    std::size_t idx1 = coordinateMap.find(coord1)->second;
+    std::size_t idx2 = coordinateMap.find(coord2)->second;
+
+    std::set<std::size_t> neighborsOfIdx1;
+    std::set<std::size_t> neighborsOfIdx2;
+
+    for (const auto& c : cellsCoord1) {
+        for (const auto& e : cellElemMap.at(c)) {
+            const auto& elementVertices = e->vertices;
+            auto it = std::find(elementVertices.begin(), elementVertices.end(), idx1);
+
+            if (it != elementVertices.end()) {
+                std::size_t pos = std::distance(elementVertices.begin(), it);
+                std::size_t n = elementVertices.size();
+
+                neighborsOfIdx1.insert(elementVertices[(pos + n - 1) % n]); 
+                neighborsOfIdx1.insert(elementVertices[(pos + 1) % n]); 
+            }        
+        }
+    }
+
+    for (const auto& c : cellsCoord2) {
+        for (const auto& e : cellElemMap.at(c)) {
+            const auto& elementVertices = e->vertices;
+            auto it = std::find(elementVertices.begin(), elementVertices.end(), idx2);
+
+            if (it != elementVertices.end()) {
+                std::size_t pos = std::distance(elementVertices.begin(), it);
+                std::size_t n = elementVertices.size();
+
+                neighborsOfIdx2.insert(elementVertices[(pos + n - 1) % n]); 
+                neighborsOfIdx2.insert(elementVertices[(pos + 1) % n]); 
+            }
+        }
+    }
+
+    for (std::size_t v : neighborsOfIdx1) {
+        if (neighborsOfIdx2.count(v)) {
+            auto neighborCoord = mesh.coordinates[v];
+            commonNeighborsCoordinates.insert(neighborCoord);
+        }
+    }
+
+    return commonNeighborsCoordinates;
+}
+
 
 Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 {
@@ -147,6 +204,7 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
                 if (!isAllCoordinatesOnCellBoundary) {
                     meshGroup.elements.push_back(newElement);
                 }
+                
 
                 for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
                     for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
@@ -170,73 +228,34 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
             ++it;
         }
     }
-    
-    auto cellCoordMap = GridTools::buildCellCoordMap(mesh_.coordinates);
-    auto cellElemMap = GridTools::buildCellElemMap(mesh_.groups[0].elements, mesh_.coordinates);
+
+    std::set<std::vector<std::size_t>> uniqueElements;
+    for (const auto& element : mesh_.groups[0].elements) {
+        uniqueElements.insert(element.vertices);
+    }
+
     CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
     for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
-        std::set<Cell> commonCells;
-    
-        for (const auto& [cell, coordList] : cellCoordMap) {
-            bool hasCoord1 = false, hasCoord2 = false;
-    
-            for (const auto* coordPtr : coordList) {
-                if (*coordPtr == coord1) hasCoord1 = true;
-                if (*coordPtr == coord2) hasCoord2 = true;
-            }
-    
-            if (hasCoord1 && hasCoord2) {
-                commonCells.insert(cell);
-            }
-        }
-    
-        for (const auto& cell : commonCells) {
-            if (cellsToStructure.count(cell)) {
+        auto commonNeighbors = findCommonNeighborsCoordinates(coord1, coord2, mesh_);
 
-                std::size_t idx1 = coordinateMap.find(coord1)->second;
-                std::size_t idx2 = coordinateMap.find(coord2)->second;
+        for (const auto& neighborCoord : commonNeighbors) {
+            Element triangle;
+            triangle.type = Element::Type::Surface;
+            triangle.vertices = {
+                coordinateMap.at(coord1),
+                coordinateMap.at(coord2),
+                coordinateMap.at(neighborCoord)
+            };
+            auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
+            std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
 
-                std::set<std::size_t> neighborsOfIdx1;
-                std::set<std::size_t> neighborsOfIdx2;
-
-                for (const auto& e : cellElemMap.at(cell)) {
-                    std::set<std::size_t> vertices(e->vertices.begin(), e->vertices.end());
-
-                    if (vertices.count(idx1)) {
-                        for (std::size_t v : vertices) {
-                            if (v != idx1) {
-                                neighborsOfIdx1.insert(v);
-                            }
-                        }
-                    }
-
-                    if (vertices.count(idx2)) {
-                        for (std::size_t v : vertices) {
-                            if (v != idx2) {
-                                neighborsOfIdx2.insert(v);
-                            }
-                        }
-                    }
-                }
-
-                for (std::size_t v : neighborsOfIdx1) {
-                    if (neighborsOfIdx2.count(v)) {
-                        auto neighborCoord = mesh_.coordinates[v]; 
-                        Element triangle;
-                        triangle.type = Element::Type::Surface;
-                        triangle.vertices = {
-                            coordinateMap.at(coord2),
-                            coordinateMap.at(coord1),
-                            coordinateMap.at(neighborCoord)
-                        };
-                        mesh_.groups[0].elements.push_back(triangle);
-                        break;
-                    }
-                }
-
+            if (uniqueElements.insert(triangle.vertices).second) {
+                mesh_.groups[0].elements.push_back(triangle);
             }
         }
     }
+    
+
     return mesh_;
 }
 
