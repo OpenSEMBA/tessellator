@@ -2475,7 +2475,7 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier)
         Element({0, 1, 2}, Element::Type::Surface),
         Element({1, 3, 2}, Element::Type::Surface),
         Element({0, 2, 4}, Element::Type::Surface),
-        Element({0, 1, 5}, Element::Type::Surface),
+        Element({0, 5, 1}, Element::Type::Surface),
     };
 
     Relatives expectedRelatives = {
@@ -2497,7 +2497,7 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier)
             Element({1, 0}, Element::Type::Line),
             Element({2, 4, 3, 1}, Element::Type::Surface),
             Element({0, 1, 3, 5}, Element::Type::Surface),
-            Element({0, 2, 6}, Element::Type::Surface),
+            Element({0, 6, 2}, Element::Type::Surface),
             Element({0, 2, 1}, Element::Type::Surface),
     };
 

@@ -111,6 +111,21 @@ std::set<Coordinate> findCommonNeighborsCoordinates(const Coordinate& coord1, co
     return commonNeighborsCoordinates;
 }
 
+std::vector<const Element*> findTrianglesWithEdge(const Mesh& mesh, std::size_t v1, std::size_t v2) {
+    std::vector<const Element*> foundTriangles;
+
+    for (const auto& element : mesh.groups[0].elements) {
+        if (element.vertices.size() == 3) {
+            auto it1 = std::find(element.vertices.begin(), element.vertices.end(), v1);
+            auto it2 = std::find(element.vertices.begin(), element.vertices.end(), v2);
+
+            if (it1 != element.vertices.end() && it2 != element.vertices.end()) {
+                foundTriangles.push_back(&element);
+            }
+        }
+    }
+    return foundTriangles;
+}
 
 Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 {
@@ -241,27 +256,58 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
     CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
     for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
         auto commonNeighbors = findCommonNeighborsCoordinates(coord1, coord2, mesh_);
+        std::size_t v1 = coordinateMap.at(coord1);
+        std::size_t v2 = coordinateMap.at(coord2);
+
+        auto triangles = findTrianglesWithEdge(mesh_, v1, v2);
+        bool correctOrientation;
+
+        if (!triangles.empty()) {
+            for (const auto& elem : triangles) {
+                std::size_t thirdVertex = -1;
+
+                const auto& verts = elem->vertices; 
+                auto it1 = std::find(verts.begin(), verts.end(), v1);
+                auto it2 = std::find(verts.begin(), verts.end(), v2);
+
+                int idx1 = std::distance(verts.begin(), it1);
+                int idx2 = std::distance(verts.begin(), it2);
+
+                int nextIdx1 = (idx1 + 1) % 3;
+                int prevIdx1 = (idx1 + 2) % 3;
+
+                if (idx2 == nextIdx1) {
+                    thirdVertex = verts[(idx2 + 1) % 3];
+                    correctOrientation = true;
+                } else if (idx2 == prevIdx1) {
+                    thirdVertex = verts[(idx1 + 1) % 3];
+                    correctOrientation = false;
+                }
+            }
+        }
 
         for (const auto& neighborCoord : commonNeighbors) {
             Element triangle;
             triangle.type = Element::Type::Surface;
-            triangle.vertices = {
-                coordinateMap.at(coord1),
-                coordinateMap.at(coord2),
-                coordinateMap.at(neighborCoord)
-            };
-            auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
-            std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
-
-            if (uniqueElements.insert(triangle.vertices).second) {
-                Element newTriangle;
-                newTriangle.type = Element::Type::Surface;
-                newTriangle.vertices = {
+            if(correctOrientation) {
+                triangle.vertices = {
                     coordinateMap.at(coord1),
                     coordinateMap.at(coord2),
                     coordinateMap.at(neighborCoord)
                 };
-                mesh_.groups[0].elements.push_back(newTriangle);
+            } else {
+                triangle.vertices = {
+                    coordinateMap.at(coord2),
+                    coordinateMap.at(coord1),
+                    coordinateMap.at(neighborCoord)
+                };
+            }
+            auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
+            std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
+
+            if (uniqueElements.insert(triangle.vertices).second) {
+                std::swap(triangle.vertices[1], triangle.vertices[2]);
+                mesh_.groups[0].elements.push_back(triangle);
             }
         }
     }
