@@ -54,34 +54,31 @@ CoordinateMap buildCoordinateMap(const Coordinates& cs)
     return res;
 }
 
-std::set<Coordinate> findCommonNeighborsCoordinates(const Coordinate& coord1, const Coordinate& coord2, const Mesh& mesh)
+IdSet findCommonNeighborsVertices(const CoordinateId& vertex1, const CoordinateId& vertex2, const Mesh& mesh)
 {
-    std::set<Coordinate> commonNeighborsCoordinates;
+    IdSet commonNeighborsVertices;
 
     GridTools gridTools;
     auto cellElemMap = gridTools.buildCellElemMap(mesh.groups[0].elements, mesh.coordinates);
     CoordinateMap coordinateMap = buildCoordinateMap(mesh.coordinates);
 
-    auto cellsCoord1 = gridTools.getTouchingCells(coord1);
-    auto cellsCoord2 = gridTools.getTouchingCells(coord2);
+    auto cellsCoord1 = gridTools.getTouchingCells(mesh.coordinates[vertex1]);
+    auto cellsCoord2 = gridTools.getTouchingCells(mesh.coordinates[vertex2]);
 
-    std::size_t idx1 = coordinateMap.find(coord1)->second;
-    std::size_t idx2 = coordinateMap.find(coord2)->second;
-
-    std::set<std::size_t> neighborsOfIdx1;
-    std::set<std::size_t> neighborsOfIdx2;
+    IdSet neighborsOfVertex1;
+    IdSet neighborsOfVertex2;
 
     for (const auto& c : cellsCoord1) {
         for (const auto& e : cellElemMap.at(c)) {
             const auto& elementVertices = e->vertices;
-            auto it = std::find(elementVertices.begin(), elementVertices.end(), idx1);
+            auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex1);
 
             if (it != elementVertices.end()) {
-                std::size_t pos = std::distance(elementVertices.begin(), it);
-                std::size_t n = elementVertices.size();
+                auto pos = std::distance(elementVertices.begin(), it);
+                auto n = elementVertices.size();
 
-                neighborsOfIdx1.insert(elementVertices[(pos + n - 1) % n]); 
-                neighborsOfIdx1.insert(elementVertices[(pos + 1) % n]); 
+                neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]); 
+                neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]); 
             }        
         }
     }
@@ -89,30 +86,29 @@ std::set<Coordinate> findCommonNeighborsCoordinates(const Coordinate& coord1, co
     for (const auto& c : cellsCoord2) {
         for (const auto& e : cellElemMap.at(c)) {
             const auto& elementVertices = e->vertices;
-            auto it = std::find(elementVertices.begin(), elementVertices.end(), idx2);
+            auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
 
             if (it != elementVertices.end()) {
-                std::size_t pos = std::distance(elementVertices.begin(), it);
-                std::size_t n = elementVertices.size();
+                auto pos = std::distance(elementVertices.begin(), it);
+                auto n = elementVertices.size();
 
-                neighborsOfIdx2.insert(elementVertices[(pos + n - 1) % n]); 
-                neighborsOfIdx2.insert(elementVertices[(pos + 1) % n]); 
+                neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]); 
+                neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]); 
             }
         }
     }
 
-    for (std::size_t v : neighborsOfIdx1) {
-        if (neighborsOfIdx2.count(v)) {
-            auto neighborCoord = mesh.coordinates[v];
-            commonNeighborsCoordinates.insert(neighborCoord);
+    for (const auto& v : neighborsOfVertex1) {
+        if (neighborsOfVertex2.count(v)) {
+            commonNeighborsVertices.insert(v);
         }
     }
 
-    return commonNeighborsCoordinates;
+    return commonNeighborsVertices;
 }
 
-std::vector<const Element*> findTrianglesWithEdge(const Mesh& mesh, std::size_t v1, std::size_t v2) {
-    std::vector<const Element*> foundTriangles;
+Elements findTrianglesWithEdge(const Mesh& mesh, std::size_t v1, std::size_t v2) {
+    Elements foundTriangles;
 
     for (const auto& element : mesh.groups[0].elements) {
         if (element.vertices.size() == 3) {
@@ -120,16 +116,18 @@ std::vector<const Element*> findTrianglesWithEdge(const Mesh& mesh, std::size_t 
             auto it2 = std::find(element.vertices.begin(), element.vertices.end(), v2);
 
             if (it1 != element.vertices.end() && it2 != element.vertices.end()) {
-                foundTriangles.push_back(&element);
+                foundTriangles.push_back(element);
             }
         }
     }
     return foundTriangles;
 }
 
+using RelativePairSet = std::set<std::pair<Relative, Relative>>;
+
 Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 {
-    std::set<std::pair<Relative, Relative>> boundaryCoordinatePairs;
+    RelativePairSet boundaryCoordinatePairs;
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -164,7 +162,8 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
                 newElement.type = e->type;
                 newElement.vertices.reserve(e->vertices.size());
 
-                std::vector<Relative> boundaryCoordinates;
+                Relatives boundaryCoordinates;
+
                 for (const auto& vertexIndex : e->vertices) {
                     const auto& vertexCoord = inputMesh_.coordinates[vertexIndex];
                     
@@ -178,7 +177,7 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
                         }
                     }
                     
-                    std::size_t newIndex;
+                    CoordinateId newIndex;
                     if (isOnCellBoundary) {
                         auto it = coordinateMap.find(toRelative(calculateStaircasedCell(vertexCoord)));
                         newIndex = it->second;
@@ -248,25 +247,26 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
         }
     }
 
-    std::set<std::vector<std::size_t>> uniqueElements;
+    std::set<std::vector<ElementId>> uniqueElements;
     for (const auto& element : mesh_.groups[0].elements) {
         uniqueElements.insert(element.vertices);
     }
 
     CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
     for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
-        auto commonNeighbors = findCommonNeighborsCoordinates(coord1, coord2, mesh_);
-        std::size_t v1 = coordinateMap.at(coord1);
-        std::size_t v2 = coordinateMap.at(coord2);
+        auto v1 = coordinateMap.at(coord1);
+        auto v2 = coordinateMap.at(coord2);
+
+        auto commonNeighbors = findCommonNeighborsVertices(v1, v2, mesh_);
 
         auto triangles = findTrianglesWithEdge(mesh_, v1, v2);
         bool correctOrientation;
 
         if (!triangles.empty()) {
             for (const auto& elem : triangles) {
-                std::size_t thirdVertex = -1;
+                auto thirdVertex = -1;
 
-                const auto& verts = elem->vertices; 
+                const auto& verts = elem.vertices; 
                 auto it1 = std::find(verts.begin(), verts.end(), v1);
                 auto it2 = std::find(verts.begin(), verts.end(), v2);
 
@@ -286,22 +286,15 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
             }
         }
 
-        for (const auto& neighborCoord : commonNeighbors) {
+        for (const auto& neighborVertex : commonNeighbors) {
             Element triangle;
             triangle.type = Element::Type::Surface;
-            if(correctOrientation) {
-                triangle.vertices = {
-                    coordinateMap.at(coord1),
-                    coordinateMap.at(coord2),
-                    coordinateMap.at(neighborCoord)
-                };
-            } else {
-                triangle.vertices = {
-                    coordinateMap.at(coord2),
-                    coordinateMap.at(coord1),
-                    coordinateMap.at(neighborCoord)
-                };
-            }
+            triangle.vertices = { v1, v2, neighborVertex};
+
+            if(!correctOrientation) {
+                std::swap(triangle.vertices[1], triangle.vertices[2]);
+            } 
+
             auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
             std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
 
