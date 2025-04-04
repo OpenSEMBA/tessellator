@@ -8,12 +8,16 @@ namespace core {
 class Staircaser : public utils::GridTools {
 public:
     Staircaser(const Mesh&);
-    Mesh getMesh() const { return mesh_; };
+    Mesh getMesh();
+    Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 
     Cell calculateStaircasedCell(const Relative& relative) const;
 
+
 private:
     Mesh mesh_;
+
+    Mesh inputMesh_;
 
     void processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group);
     void processLineAndAddToGroup(
@@ -25,6 +29,7 @@ private:
     bool isEdgePartOfCellSurface(const Element& edge, const RelativeIds &surfaceRelativeIds) const;
     bool isPureDiagonal(const Element& edge, const Relatives& relatives);
     bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;
+    bool isRelativeInCell(const Relative& relative, const Cell& cell) const;
     void filterSurfacesFromRelativeIds(
         const RelativeIds& triangleVertices,
         int pureDiagonalIndex,
