@@ -2432,23 +2432,129 @@ TEST_F(StaircaserTest, structureSpecificTriangles)
     }
 }
 
-TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier)
+TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Split)
 {
-    //         4=============2               5=============3   
-    //        ⫽|            /║              ⫽\\\\\\\\\\\\\⫽║     
-    //       ⫽ |           / ║             ⫽\\\\\\\\\\\\\⫽/║       
-    //      ⫽  |          /  ║            ⫽\\\\\\\\\\\\\⫽//║       
-    //     0---┼---------*   ║           0=============1///║ 
-    //    /|⟍  |        /|   ║          /|   |        /║///║
-    //   / |  ⟍*-------╱-┼---3         / |   *-------╱-║///4 
-    //  /  |  /  ⟍    ╱  |  ⫽         /  |  /       ╱  ║//⫽  
-    // *---┼--------⟍*   | ⫽         *---┼---------*   ║/⫽  
-    // |   |/        | ⟍ |⫽          |   |/        |   ║⫽    
-    // |   *---------┼---1           |   *---------┼---2   
-    // |  /          |  /            |  /          |  /     
-    // | /           | /             | /           | /      
-    // |/            |/              |/            |/       
-    // 5-------------*               6-------------*
+    //         4==========_-=2               5=============3   
+    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽║     
+    //       ⫽ |  __-‾     / ║             ⫽\\\\\\\\\\\\\⫽/║       
+    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽//║       
+    //     0=‾-┼---------*  |║           0=============1////║ 
+    //    /║⟍  |        /| | ║          /║   |       ⫽/║///║
+    //   / ║  ⟍*-------╱-┼-┼-3         / ║   *------╱╱-║///4 
+    //  / ||  /  ⟍    ╱  || ⫽         / ||  /     ╱ ╱  ║//⫽  
+    // *--┼┼--------⟍*   ||⫽         *--┼┼------⌿-*   ║/⫽  
+    // | | |/        | ⟍ ║⫽          | | |/   ╱    |   ║⫽    
+    // | | *---------┼-_=1           | | *--╱------┼-_=2   
+    // || /       _-‾|‾ /            || / ╱     _-‾|‾ /     
+    // ||/    __-‾   | /             ||/╱   __-‾   | /      
+    // ║/ __-‾       |/              ║⫽ __-‾       |/       
+    // 5=‾-----------*               6=‾-----------*
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({0, 0, 1}));
+    
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Relative({ 0.0, 1.0, 1.0 }), 
+        Relative({ 1.0, 0.0, 1.0 }), 
+        Relative({ 1.0, 1.0, 2.0 }), 
+        Relative({ 1.0, 0.0, 2.0 }), 
+        Relative({ 0.0, 1.0, 2.0 }),
+        Relative({ 0.0, 0.0, 0.0 }), 
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface),
+        Element({1, 3, 2}, Element::Type::Surface),
+        Element({0, 2, 4}, Element::Type::Surface),
+        Element({0, 5, 1}, Element::Type::Surface),
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 0.0, 1.0, 1.0 }),
+        Relative({ 1.0, 1.0, 1.0 }),
+        Relative({ 1.0, 0.0, 1.0 }), 
+        Relative({ 1.0, 1.0, 2.0 }), 
+        Relative({ 1.0, 0.0, 2.0 }), 
+        Relative({ 0.0, 1.0, 2.0 }),
+        Relative({ 0.0, 0.0, 0.0 }), 
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 3}, Element::Type::Line),
+            Element({3, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+            Element({2, 4, 3, 1}, Element::Type::Surface),
+            Element({0, 1, 3, 5}, Element::Type::Surface),
+            Element({0, 6, 1}, Element::Type::Surface),
+            Element({1, 6, 2}, Element::Type::Surface),
+    };
+
+    Staircaser staircaser{ mesh };
+
+    staircaser.setFillerType("split");
+    auto resultMesh = staircaser.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
+
+    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
+    ASSERT_TRUE(resultMesh.groups[0].elements[5].isLine());
+
+    ASSERT_TRUE(resultMesh.groups[0].elements[6].isQuad());
+    ASSERT_TRUE(resultMesh.groups[0].elements[7].isQuad());
+
+    ASSERT_TRUE(resultMesh.groups[0].elements[8].isTriangle());
+    ASSERT_TRUE(resultMesh.groups[0].elements[9].isTriangle());
+
+    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
+        auto& resultElement = resultMesh.groups[0].elements[e];
+        auto& expectedElement = expectedElements[e];
+
+        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
+            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+        }
+    }
+}
+
+TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Insert)
+{
+    //         4==========_-=2               5=============3   
+    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽║     
+    //       ⫽ |  __-‾     / ║             ⫽\\\\\\\\\\\\\⫽/║       
+    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽//║       
+    //     0=‾-┼---------*  |║           0=============1////║ 
+    //    /║⟍  |        /| | ║          /║⟍  |        /║///║
+    //   / ║  ⟍*-------╱-┼-┼-3         / ║  ⟍*-------╱-║///4 
+    //  / ||  /  ⟍    ╱  || ⫽         / ||  /  ⟍    ╱  ║//⫽  
+    // *--┼┼--------⟍*   ||⫽         *--┼┼--------⟍*   ║/⫽  
+    // | | |/        | ⟍ ║⫽          | | |/        | ⟍ ║⫽    
+    // | | *---------┼-_=1           | | *---------┼-_=2   
+    // || /       _-‾|‾ /            || /       _-‾|‾ /     
+    // ||/    __-‾   | /             ||/    __-‾   | /      
+    // ║/ __-‾       |/              ║/ __-‾       |/       
+    // 5=‾-----------*               6=‾-----------*
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -2501,7 +2607,10 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier)
             Element({0, 2, 1}, Element::Type::Surface),
     };
 
-    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+    Staircaser staircaser{ mesh };
+
+    staircaser.setFillerType("insert");
+    auto resultMesh = staircaser.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
