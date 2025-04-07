@@ -61,5 +61,7 @@ using HexIds = std::array<CoordinateId, 8>;
 
 using UpdateMap = std::array<std::array<std::array<int, 4>, 2>, 2>;
 
+using RelativePairSet = std::set<std::pair<Relative, Relative>>;
+
 }
 
