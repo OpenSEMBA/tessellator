@@ -54,9 +54,12 @@ CoordinateMap buildCoordinateMap(const Coordinates& cs)
     return res;
 }
 
-IdSet findCommonNeighborsVertices(const CoordinateId& vertex1, const CoordinateId& vertex2, const Mesh& mesh)
+IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId, CoordinateId>& edge)
 {
     IdSet commonNeighborsVertices;
+
+    auto vertex1 = edge.first;
+    auto vertex2 = edge.second;
 
     GridTools gridTools;
     auto cellElemMap = gridTools.buildCellElemMap(mesh.groups[0].elements, mesh.coordinates);
@@ -107,8 +110,10 @@ IdSet findCommonNeighborsVertices(const CoordinateId& vertex1, const CoordinateI
     return commonNeighborsVertices;
 }
 
-Elements findTrianglesWithEdge(const Mesh& mesh, std::size_t v1, std::size_t v2) {
+Elements findTrianglesWithEdge(const Mesh& mesh, const std::pair<CoordinateId, CoordinateId>& edge) {
     Elements foundTriangles;
+    auto v1 = edge.first;
+    auto v2 = edge.second;
 
     for (const auto& element : mesh.groups[0].elements) {
         if (element.vertices.size() == 3) {
@@ -264,10 +269,11 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
     for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
         auto v1 = coordinateMap.at(coord1);
         auto v2 = coordinateMap.at(coord2);
+        std::pair<CoordinateId, CoordinateId> edge = std::make_pair(v1, v2);
 
-        auto commonNeighbors = findCommonNeighborsVertices(v1, v2, mesh_);
+        auto commonNeighbors = findCommonNeighborsVertices(mesh_, edge);
 
-        auto triangles = findTrianglesWithEdge(mesh_, v1, v2);
+        auto triangles = findTrianglesWithEdge(mesh_, edge);
         bool correctOrientation;
         ElementId thirdVertex;
 

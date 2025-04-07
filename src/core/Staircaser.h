@@ -22,6 +22,8 @@ private:
 
     std::string fillerType_;
 
+    using RelativePairSet = std::set<std::pair<Relative, Relative>>;
+
     void processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group);
     void processLineAndAddToGroup(
         const Element& line,
