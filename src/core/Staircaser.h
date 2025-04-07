@@ -12,12 +12,15 @@ public:
     Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 
     Cell calculateStaircasedCell(const Relative& relative) const;
+    void setFillerType(const std::string& type);
 
 
 private:
     Mesh mesh_;
 
     Mesh inputMesh_;
+
+    std::string fillerType_;
 
     void processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group);
     void processLineAndAddToGroup(
@@ -48,6 +51,7 @@ private:
     std::vector<Axis> calculateEqualAxesBetweenCells(const Cell& firstCell, const Cell& secondCell);
     std::vector<Cell> calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme);
     void calculateRelativeIdSetByCellSurface(const Relatives& relatives, std::map<Surfel, IdSet>& relativesByCellSurface);
+    void fillGaps(const RelativePairSet boundaryCoordinatePairs);
 };
 
 

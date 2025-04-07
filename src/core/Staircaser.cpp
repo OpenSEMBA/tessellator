@@ -123,8 +123,6 @@ Elements findTrianglesWithEdge(const Mesh& mesh, std::size_t v1, std::size_t v2)
     return foundTriangles;
 }
 
-using RelativePairSet = std::set<std::pair<Relative, Relative>>;
-
 Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
 {
     RelativePairSet boundaryCoordinatePairs;
@@ -247,6 +245,16 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
         }
     }
 
+    fillGaps(boundaryCoordinatePairs);   
+
+    return mesh_;
+}
+
+void Staircaser::setFillerType(const std::string& type) {
+    fillerType_ = type;
+}
+
+void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
     std::set<std::vector<ElementId>> uniqueElementsByVertices;
     for (const auto& element : mesh_.groups[0].elements) {
         uniqueElementsByVertices.insert(element.vertices);
@@ -287,102 +295,99 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
             }
         }
 
-        for (const auto& neighborVertex : commonNeighbors) {
-            Element triangle;
-            triangle.type = Element::Type::Surface;
-            triangle.vertices = { v1, v2, neighborVertex};
+        if (fillerType_ == "insert") {
+            for (const auto& neighborVertex : commonNeighbors) {
+                Element triangle;
+                triangle.type = Element::Type::Surface;
+                triangle.vertices = { v1, v2, neighborVertex };
 
-            if(!correctOrientation) {
-                std::swap(triangle.vertices[1], triangle.vertices[2]);
-            } 
+                if (!correctOrientation) {
+                    std::swap(triangle.vertices[1], triangle.vertices[2]);
+                }
 
-            auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
-            std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
+                auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
+                std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
 
-            bool elementAlreadyExists = false;
+                bool elementAlreadyExists = false;
 
-            for (const auto& existing : uniqueElementsByVertices) {
-                auto existingVerts = existing;
-                auto minItExisting = std::min_element(existingVerts.begin(), existingVerts.end());
-                std::rotate(existingVerts.begin(), minItExisting, existingVerts.end());
+                for (const auto& existing : uniqueElementsByVertices) {
+                    auto existingVerts = existing;
+                    auto minItExisting = std::min_element(existingVerts.begin(), existingVerts.end());
+                    std::rotate(existingVerts.begin(), minItExisting, existingVerts.end());
 
-                if (existingVerts == triangle.vertices) {
-                    elementAlreadyExists = true;
-                    break;
+                    if (existingVerts == triangle.vertices) {
+                        elementAlreadyExists = true;
+                        break;
+                    }
+                }
+
+                if (!elementAlreadyExists) {
+                    std::swap(triangle.vertices[1], triangle.vertices[2]);
+                    mesh_.groups[0].elements.push_back(triangle);
+                    uniqueElementsByVertices.insert(triangle.vertices);
                 }
             }
+        } else if (fillerType_ == "split") {
+            for (const auto& neighborVertex : commonNeighbors) {
+                if (neighborVertex != thirdVertex) {
+                    Element triangleToRemove;
+                    triangleToRemove.type = Element::Type::Surface;
+                    triangleToRemove.vertices = { v1, v2, thirdVertex };
 
-            if (!elementAlreadyExists) {
-                std::swap(triangle.vertices[1], triangle.vertices[2]);  
-                mesh_.groups[0].elements.push_back(triangle);
-                uniqueElementsByVertices.insert(triangle.vertices);  
+                    Element triangle1;
+                    triangle1.type = Element::Type::Surface;
+                    triangle1.vertices = { v1, neighborVertex, thirdVertex };
+
+                    Element triangle2;
+                    triangle2.type = Element::Type::Surface;
+                    triangle2.vertices = { neighborVertex, v2, thirdVertex };
+
+                    if (!correctOrientation) {
+                        std::swap(triangleToRemove.vertices[1], triangleToRemove.vertices[2]);
+                        std::swap(triangle1.vertices[1], triangle1.vertices[2]);
+                        std::swap(triangle2.vertices[1], triangle2.vertices[2]);
+                    }
+
+                    auto minIt = std::min_element(triangleToRemove.vertices.begin(), triangleToRemove.vertices.end());
+                    std::rotate(triangleToRemove.vertices.begin(), minIt, triangleToRemove.vertices.end());
+
+                    auto minIt1 = std::min_element(triangle1.vertices.begin(), triangle1.vertices.end());
+                    std::rotate(triangle1.vertices.begin(), minIt1, triangle1.vertices.end());
+
+                    auto minIt2 = std::min_element(triangle2.vertices.begin(), triangle2.vertices.end());
+                    std::rotate(triangle2.vertices.begin(), minIt2, triangle2.vertices.end());
+
+                    mesh_.groups[0].elements.push_back(triangle1);
+                    mesh_.groups[0].elements.push_back(triangle2);
+
+                    std::vector<IdSet> toRemove(mesh_.groups.size());
+                    for (GroupId g = 0; g < mesh_.groups.size(); ++g) {
+                        const auto& elements = mesh_.groups[g].elements;
+                        for (std::size_t i = 0; i < elements.size(); ++i) {
+                            if (elements[i].type != Element::Type::Surface) {
+                                continue;
+                            }
+
+                            auto verts = elements[i].vertices;
+                            auto minIt = std::min_element(verts.begin(), verts.end());
+                            std::rotate(verts.begin(), minIt, verts.end());
+
+                            if (verts == triangleToRemove.vertices) {
+                                toRemove[g].insert(i);
+                            }
+                        }
+                    }
+
+                    RedundancyCleaner::removeElements(mesh_, toRemove);
+                }
             }
+        } else {
+            break;
         }
-
-
-        // for (const auto& neighborVertex : commonNeighbors) {
-        //     if (neighborVertex != thirdVertex) {
-
-        //         Element triangleToRemove;
-        //         triangleToRemove.type = Element::Type::Surface;
-        //         triangleToRemove.vertices = { v1, v2, thirdVertex};
-        
-        //         Element triangle1;
-        //         triangle1.type = Element::Type::Surface;
-        //         triangle1.vertices = { v1, neighborVertex, thirdVertex};
-        
-        //         Element triangle2;
-        //         triangle2.type = Element::Type::Surface;
-        //         triangle2.vertices = { neighborVertex, v2, thirdVertex};
-        
-        //         if(!correctOrientation) {
-        //             std::swap(triangleToRemove.vertices[1], triangleToRemove.vertices[2]);
-        //             std::swap(triangle1.vertices[1], triangle1.vertices[2]);
-        //             std::swap(triangle2.vertices[1], triangle2.vertices[2]);
-        //         } 
-        
-        //         auto minIt = std::min_element(triangleToRemove.vertices.begin(), triangleToRemove.vertices.end());
-        //         std::rotate(triangleToRemove.vertices.begin(), minIt, triangleToRemove.vertices.end());
-        
-        //         auto minIt1 = std::min_element(triangle1.vertices.begin(), triangle1.vertices.end());
-        //         std::rotate(triangle1.vertices.begin(), minIt1, triangle1.vertices.end());
-        
-        //         auto minIt2 = std::min_element(triangle2.vertices.begin(), triangle2.vertices.end());
-        //         std::rotate(triangle2.vertices.begin(), minIt2, triangle2.vertices.end());
-                
-        //         mesh_.groups[0].elements.push_back(triangle1);
-        //         mesh_.groups[0].elements.push_back(triangle2);
-        
-        //         std::vector<IdSet> toRemove(mesh_.groups.size());
-        //         for (GroupId g = 0; g < mesh_.groups.size(); ++g) {
-        //             const auto& elements = mesh_.groups[g].elements;
-        //             for (std::size_t i = 0; i < elements.size(); ++i) {
-        //                 if (elements[i].type != Element::Type::Surface) {
-        //                     continue;
-        //                 }
-
-        //                 auto verts = elements[i].vertices;
-        //                 auto minIt = std::min_element(verts.begin(), verts.end());
-        //                 std::rotate(verts.begin(), minIt, verts.end());
-                
-        //                 if (verts == triangleToRemove.vertices) {
-        //                     toRemove[g].insert(i);
-        //                 }
-        //             }
-        //         }
-        
-        //         RedundancyCleaner::removeElements(mesh_, toRemove);
-        //     }
-        // }
-            
     }
 
     RedundancyCleaner::removeDegenerateElements(mesh_);
-    
-
-    return mesh_;
 }
-
 
 void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group){
     Group edges;
