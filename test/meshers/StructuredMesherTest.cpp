@@ -363,7 +363,10 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
         }
     }
 
-    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
+    meshlib::core::Staircaser staircaser{ collapsedMesh };
+    staircaser.setFillerType("split");
+
+    auto resultMesh = staircaser.getSelectiveMesh(cellSet);
 
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, mesh.grid);
