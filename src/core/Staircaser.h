@@ -12,15 +12,20 @@ public:
     Mesh getSelectiveMesh(const std::set<Cell>& cellSet);
 
     Cell calculateStaircasedCell(const Relative& relative) const;
-    void setFillerType(const std::string& type);
-
+    
+    enum class GapsFillingType {
+        Insert,
+        Split
+    };
+    
+    void setFillerType(const GapsFillingType& type);
 
 private:
     Mesh mesh_;
 
     Mesh inputMesh_;
 
-    std::string fillerType_;
+    GapsFillingType fillerType_;
 
     using RelativePairSet = std::set<std::pair<Relative, Relative>>;
 

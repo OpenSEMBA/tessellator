@@ -2503,7 +2503,7 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Split)
 
     Staircaser staircaser{ mesh };
 
-    staircaser.setFillerType("split");
+    staircaser.setFillerType(Staircaser::GapsFillingType::Split);
     auto resultMesh = staircaser.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
@@ -2609,7 +2609,7 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Insert)
 
     Staircaser staircaser{ mesh };
 
-    staircaser.setFillerType("insert");
+    staircaser.setFillerType(Staircaser::GapsFillingType::Insert);
     auto resultMesh = staircaser.getSelectiveMesh(cellSet);
 
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());

@@ -255,7 +255,7 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
     return mesh_;
 }
 
-void Staircaser::setFillerType(const std::string& type) {
+void Staircaser::setFillerType(const GapsFillingType& type) {
     fillerType_ = type;
 }
 
@@ -301,7 +301,7 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
             }
         }
 
-        if (fillerType_ == "insert") {
+        if (fillerType_ == GapsFillingType::Insert) {
             for (const auto& neighborVertex : commonNeighbors) {
                 Element triangle;
                 triangle.type = Element::Type::Surface;
@@ -333,7 +333,7 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
                     uniqueElementsByVertices.insert(triangle.vertices);
                 }
             }
-        } else if (fillerType_ == "split") {
+        } else if (fillerType_ == GapsFillingType::Split) {
             for (const auto& neighborVertex : commonNeighbors) {
                 if (neighborVertex != thirdVertex) {
                     Element triangleToRemove;
