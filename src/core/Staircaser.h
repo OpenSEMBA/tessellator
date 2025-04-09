@@ -14,7 +14,12 @@ public:
     Cell calculateStaircasedCell(const Relative& relative) const;
     
     enum class GapsFillingType {
+        // Insert: Fills each gap by creating a triangle with its three bounding nodes.
         Insert,
+
+        // Split: Finds the triangle adjacent to the gap (shares two nodes), 
+        // then builds new triangles of the form {vertex1/2, neighborVertex, vertex3}, 
+        // where vertex1/2 are the shared nodes and neighborVertex is a common neighbor.
         Split
     };
     
