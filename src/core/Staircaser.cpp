@@ -58,8 +58,8 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
 {
     IdSet commonNeighborsVertices;
 
-    auto vertex1 = edge.first;
-    auto vertex2 = edge.second;
+    const auto& vertex1 = edge.first;
+    const auto& vertex2 = edge.second;
 
     GridTools gridTools;
     auto cellElemMap = gridTools.buildCellElemMap(mesh.groups[0].elements, mesh.coordinates);
@@ -112,8 +112,8 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
 
 Elements findTrianglesWithEdge(const Mesh& mesh, const std::pair<CoordinateId, CoordinateId>& edge) {
     Elements foundTriangles;
-    auto v1 = edge.first;
-    auto v2 = edge.second;
+    const auto& v1 = edge.first;
+    const auto& v2 = edge.second;
 
     for (const auto& element : mesh.groups[0].elements) {
         if (element.vertices.size() == 3) {
