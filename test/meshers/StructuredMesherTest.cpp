@@ -364,9 +364,8 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
     }
 
     meshlib::core::Staircaser staircaser{ collapsedMesh };
-    staircaser.setFillerType(meshlib::core::Staircaser::GapsFillingType::Insert);
 
-    auto resultMesh = staircaser.getSelectiveMesh(cellSet);
+    auto resultMesh = staircaser.getSelectiveMesh(cellSet, meshlib::core::Staircaser::GapsFillingType::Insert);
 
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, mesh.grid);

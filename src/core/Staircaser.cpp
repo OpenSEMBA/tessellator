@@ -128,8 +128,10 @@ Elements findTrianglesWithEdge(const Mesh& mesh, const std::pair<CoordinateId, C
     return foundTriangles;
 }
 
-Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
+Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFillingType type)
 {
+    fillerType_ = type;
+
     RelativePairSet boundaryCoordinatePairs;
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
@@ -253,10 +255,6 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure)
     fillGaps(boundaryCoordinatePairs);   
 
     return mesh_;
-}
-
-void Staircaser::setFillerType(const GapsFillingType& type) {
-    fillerType_ = type;
 }
 
 void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
