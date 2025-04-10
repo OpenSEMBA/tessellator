@@ -22,3 +22,7 @@ tmp_*.vtu
 tmp_*.stl
 CMakeUserPresets.json
 *.Identifier
+sliced.vtk
+contour.vtk
+
+testData/
