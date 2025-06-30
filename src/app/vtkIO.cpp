@@ -73,15 +73,37 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
 Element vtkCellToElement(vtkCell* cell)
 {
     Element elem;
-    if (cell->GetCellType() == VTK_TRIANGLE) {
-        vtkTriangle* triangle = vtkTriangle::SafeDownCast(cell);
+    vtkVertex* vertex = nullptr;
+    vtkLine* line = nullptr;
+    vtkTriangle* triangle = nullptr;
+
+    switch (cell->GetCellType()) {
+    case VTK_VERTEX:
+        vertex = vtkVertex::SafeDownCast(cell);
+        elem.vertices = { CoordinateId(vertex->GetPointIds()->GetId(0)) };
+        elem.type = meshlib::Element::Type::Node;
+        break;
+    
+    case VTK_LINE:
+        line = vtkLine::SafeDownCast(cell);
+        elem.vertices = {
+            CoordinateId(line->GetPointIds()->GetId(0)),
+            CoordinateId(line->GetPointIds()->GetId(1))
+        };
+        elem.type = meshlib::Element::Type::Line;
+        break;
+
+    case VTK_TRIANGLE:
+        triangle = vtkTriangle::SafeDownCast(cell);
         elem.vertices = {
             CoordinateId(triangle->GetPointIds()->GetId(0)),
             CoordinateId(triangle->GetPointIds()->GetId(1)),
             CoordinateId(triangle->GetPointIds()->GetId(2))
         };
         elem.type = meshlib::Element::Type::Surface;
+        break;
     }
+    
     return elem;
 }
 
