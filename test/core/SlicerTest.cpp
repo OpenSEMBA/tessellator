@@ -569,6 +569,84 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellThatPassThoroughPoints)
 
 
 
+TEST_F(SlicerTest, keepsNodesIntact)
+{
+
+    // z
+    // *-------------*-------------*
+    // |             |             |
+    // |             |             |
+    // |             |       2     |
+    // |             |             |
+    // |             |             |
+    // |             |             |
+    // *-------------*-------------*
+    // |             |             |
+    // |             |             |
+    // |             |             |
+    // |      3      |             |
+    // |             |             |  
+    // |             |             |  
+    // *---0---------*--------1----* x
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -4.5, -5.0, -5.0 }),   // 0 First Segment, First Point
+        Coordinate({ +4.5, -5.0, -5.0 }),   // 1 First Segment, Final Point
+        Coordinate({ +3.0, -5.0, +3.0 }),   // 2 Second Segment, First Point
+        Coordinate({ -3.0, -5.0, -3.0 }),   // 3 Second Segment, Final Point
+    };
+    m.groups.resize(2);
+    m.groups[0].elements = {
+        Element{ {0}, Element::Type::Node },
+        Element{ {1}, Element::Type::Node }
+    };
+    m.groups[1].elements = {
+        Element{ {2}, Element::Type::Node },
+        Element{ {3}, Element::Type::Node }
+    };
+    GridTools tools(m.grid);
+
+    Coordinate intersectionPointFirstSegment = Coordinate({ 0.0, -5.0, -5.0 });
+    Coordinate intersectionPointSecondSegment = Coordinate({ 0.0, -5.0, 0.0 });
+
+    Mesh resultMesh;
+    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+
+    ASSERT_EQ(resultMesh.coordinates.size(), m.coordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), m.groups.size());
+
+
+    Relatives expectedRelatives = tools.absoluteToRelative(m.coordinates);
+
+    for (std::size_t i = 0; i < m.coordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+        }
+    }
+
+    for (std::size_t g = 0; g < m.groups.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = m.groups[g];
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+
+        for (std::size_t e = 0; e < expectedGroup.elements.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup.elements[e];
+
+            ASSERT_TRUE(resultElement.isNode());
+            ASSERT_EQ(resultElement.vertices[0], expectedElement.vertices[0]);
+        }
+    }
+}
+
 TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
 {
  
