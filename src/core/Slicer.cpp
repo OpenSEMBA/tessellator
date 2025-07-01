@@ -78,6 +78,11 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
 
                     elements = { sliceLine(sCoords, lineV) };
                 }
+                else if (e.isNode()) {
+                    auto& coordinate = collapsed.coordinates[e.vertices[0]];
+                    sCoords.push_back(getRelative(coordinate));
+                    elements = { e };
+                }
                 else {
                     return;
                 }
@@ -91,7 +96,7 @@ Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) :
         );
     }
 
-    RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine()); });
+    RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
     RedundancyCleaner::fuseCoords(mesh_);
     RedundancyCleaner::removeDegenerateElements(mesh_);
 
