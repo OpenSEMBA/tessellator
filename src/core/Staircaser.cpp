@@ -29,7 +29,10 @@ Mesh Staircaser::getMesh()
         meshGroup.elements.reserve(inputGroup.elements.size() * 2);
 
         for (auto & element : inputGroup.elements) {
-            if (element.isLine()) {
+            if (element.isNode()) {
+                this->processNodeAndAddToGroup(element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
+            }
+            else if (element.isLine()) {
                 this->processLineAndAddToGroup(element, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
             }
             else if (element.isTriangle()) {
@@ -737,6 +740,18 @@ void Staircaser::processLineAndAddToGroup(const Element& line, const Relatives& 
         std::swap(startRelativePosition, endRelativePosition);
         ++startIndex;
     }
+}
+
+void Staircaser::processNodeAndAddToGroup(const Element& node, const Relatives& originalRelatives, Relatives& resultRelatives, Group& group) {
+    auto relative = originalRelatives[node.vertices[0]];
+
+    auto cell = calculateStaircasedCell(relative);
+    auto cellRelativePosition = this->toRelative(cell);
+    RelativeId index = resultRelatives.size();
+
+    resultRelatives.push_back(cellRelativePosition);
+    group.elements.push_back(Element({ index }, Element::Type::Node));
+    return;
 }
 
 std:: vector<Cell> Staircaser::calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme) {
