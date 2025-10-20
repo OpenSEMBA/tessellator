@@ -1,0 +1,105 @@
+name: "Build and test"
+
+on:
+  push:
+    branches:
+      - main
+      - release-process
+    
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+  
+jobs:
+  builds-and-tests:
+    strategy:
+      matrix:
+        preset: [
+          {"os": windows-latest, "name": "msbuild", "filename": "windows-x64"},
+          {"os": ubuntu-latest, "name": "gnu", "filename": "linux"}
+        ]
+        build-type: ["Release"]
+        
+      fail-fast: false
+        
+    name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
+    runs-on: ${{ matrix.preset.os }}
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v3
+
+    - name: setup ninja
+      uses: seanmiddleditch/gha-setup-ninja@master
+
+    - name: getcmake
+      uses: lukka/get-cmake@latest
+
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
+
+    # I am having issues installing vcpkg in ubuntu.
+    - name: Setup vtk in ubuntu
+      if: matrix.preset.os=='ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libvtk9-dev
+
+    - name: Setup vcpkg 
+      uses: lukka/run-vcpkg@v11
+    
+    - name: Windows configure and build
+      if: matrix.preset.name=='msbuild'
+      run: |
+        cmake --preset ${{matrix.preset.name}} -S . -B build
+        cmake --build build --config ${{matrix.build-type}} -j
+
+    - name: Windows Run tests
+      if: matrix.preset.name=='msbuild'
+      run: build/bin/${{matrix.build-type}}/tessellator_tests.exe
+
+    - name: Ubuntu configure and build
+      if: matrix.preset.name=='gnu'
+      run: |
+        cmake --preset ${{matrix.preset.name}} -S . -B build
+        cmake --build build -j
+        
+    - name: Ubuntu Run tests
+      if: matrix.preset.name=='gnu'
+      run: build/bin/tessellator_tests
+
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+    - name: Create linux .tar file
+      if: matrix.preset.name=='gnu'
+      run: |
+        cd build/bin && tar --exclude="*test*" -czvf opensemba-tessellator-${{matrix.preset.filename}}.tar.gz *
+
+    - name: Create windows .tar file
+      if: matrix.preset.name=='msbuild'
+      run: |
+        cd build/bin/${{matrix.build-type}} && tar --exclude="*test*" -czvf opensemba-tessellator-${{matrix.preset.filename}}.tar.gz *
+
+    - name: Generating linux release
+      if: matrix.preset.name=='gnu'
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ steps.date.outputs.date }}-${{matrix.preset.filename}}-opensemba-tessellator"
+        prerelease: True
+        title: "${{ steps.date.outputs.date }} ${{matrix.preset.filename}} OpenSemba Tessellator release"
+        files: |
+          build/bin/opensemba-tessellator-${{matrix.preset.filename}}.tar.gz
+
+    - name: Generating windows release
+      if: matrix.preset.name=='msbuild'
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ steps.date.outputs.date }}-${{matrix.preset.filename}}-opensemba-tessellator"
+        prerelease: True
+        title: "${{ steps.date.outputs.date }} ${{matrix.preset.filename}} OpenSemba Tessellator release"
+        files: |
+          build/bin/${{matrix.build-type}}/opensemba-tessellator-${{matrix.preset.filename}}.tar.gz
