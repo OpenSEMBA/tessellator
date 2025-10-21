@@ -5,10 +5,12 @@
 #include "core/Collapser.h"
 #include "core/Smoother.h" 
 #include "core/Snapper.h"
+#include "core/Staircaser.h"
 
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 #include "utils/CoordGraph.h"
+#include "utils/RedundancyCleaner.h"
 
 namespace meshlib::meshers {
 
@@ -193,9 +195,17 @@ Mesh ConformalMesher::mesh() const
     log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
 
     // Calls structurer to mesh only those cells.
-    
+    log("Structuring non-conformal cells.", 1);
+    res = Staircaser{ res }.getSelectiveMesh(nonConformalCells,Staircaser::GapsFillingType::Split);
+    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+
+    // Find cells which break conformal FDTD rules after selective structuring.
+    nonConformalCells = findNonConformalCells(res);
+    log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
+
+
     // Merges triangles which are on same cell face.
-    
     
     reduceGrid(res, originalGrid_);
     
