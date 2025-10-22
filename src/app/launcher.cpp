@@ -88,9 +88,6 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
     if (j["mesher"].contains("options")) {
         res.snapperOptions.edgePoints = j["mesher"]["options"]["edgePoints"];
         res.snapperOptions.forbiddenLength = j["mesher"]["options"]["forbiddenLength"];
-    } else {
-        res.snapperOptions.edgePoints = 4;
-        res.snapperOptions.forbiddenLength = 0;
     }
     return res;
 }
