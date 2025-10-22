@@ -1,0 +1,17 @@
+{
+    "grid": {
+        "numberOfCells": [50, 50, 50],
+        "boundingBox": [
+            [-100.0, -100.0, -100.0],
+            [ 100.0,  100.0,  100.0]
+        ]
+    },
+    "object": {"filename": "sphere.stl"},
+    "mesher": {
+      "type" : "conformal",
+      "options" : {
+        "edgePoints" : 4,
+        "forbiddenLength" : 0.25
+      }
+    }
+}
