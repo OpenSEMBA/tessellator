@@ -8,8 +8,8 @@ on:
 env:
   WINDOWS_RELEASE_TAG: windows-x64-opensemba-tessellator-draft
   LINUX_RELEASE_TAG: linux-opensemba-tessellator-draft
-  WINDOWS_FILENAME: "opensemba-tessellator-windows-x64.tar.gz"
-  LINUX_FILENAME: "opensemba-tessellator-linux.tar.gz"
+  WINDOWS_FILENAME: opensemba-tessellator-windows-x64.tar.gz
+  LINUX_FILENAME: opensemba-tessellator-linux.tar.gz
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -24,9 +24,9 @@ jobs:
           {"os": ubuntu-latest, "name": "gnu", "filename": "linux"}
         ]
         build-type: ["Release"]
-        
+
       fail-fast: false
-        
+
     name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
     runs-on: ${{ matrix.preset.os }}
 
@@ -50,9 +50,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libvtk9-dev
 
-    - name: Setup vcpkg 
+    - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
-    
+
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'
       run: |
@@ -68,7 +68,7 @@ jobs:
       run: |
         cmake --preset ${{matrix.preset.name}} -S . -B build
         cmake --build build -j
-        
+
     - name: Ubuntu Run tests
       if: matrix.preset.name=='gnu'
       run: build/bin/tessellator_tests
@@ -76,14 +76,12 @@ jobs:
     - name: Create linux .tar file
       if: matrix.preset.name=='gnu'
       run: |
-        cd build/bin
-        tar --exclude="*test*" -czvf ${{ env.LINUX_FILENAME }} *
+        cd build/bin && tar --exclude="*test*" -czvf ${{ env.LINUX_FILENAME }} *
 
     - name: Create windows .tar file
       if: matrix.preset.name=='msbuild'
       run: |
-        cd build/bin/${{matrix.build-type}}
-        tar --exclude="*test*" --exclude="*.gz" -czvf ${{ env.WINDOWS_FILENAME }} *
+        cd build/bin/${{matrix.build-type}} && tar --exclude="*test*" --exclude="*.gz" -czvf "${{ env.WINDOWS_FILENAME }}" *
 
     - name: Generating linux pre-release
       if: matrix.preset.name=='gnu'
@@ -91,10 +89,10 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.LINUX_RELEASE_TAG }}"
-        draft: True
+        prerelease: true
         title: "${{matrix.preset.filename}} OpenSemba Tessellator draft release"
         files: |
-          build/bin/${{ env.LINUX_FILENAME }}
+          ./build/bin/${{ env.LINUX_FILENAME }}
 
     - name: Generating windows pre-release
       if: matrix.preset.name=='msbuild'
@@ -102,10 +100,10 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.WINDOWS_RELEASE_TAG }}"
-        draft: True
+        prerelease: true
         title: "${{matrix.preset.filename}} OpenSemba Tessellator draft release"
         files: |
-          build/bin/${{matrix.build-type}}/${{ env.WINDOWS_FILENAME }}
+          ./build/bin/${{matrix.build-type}}/${{ env.WINDOWS_FILENAME }}
 
   make-release:
     name: combine releases
@@ -118,14 +116,14 @@ jobs:
         with:
           repository: OpenSEMBA/tessellator
           tag: ${{env.WINDOWS_RELEASE_TAG}}
-          fileName: ${{env.WINDOWS_FILENAME}}
+          fileName: ${{ env.WINDOWS_FILENAME }}
 
       - name: download linux tar file
         uses: robinraju/release-downloader@v1
         with:
           repository: OpenSEMBA/tessellator
           tag: ${{env.LINUX_RELEASE_TAG}}
-          fileName: ${{env.LINUX_FILENAME}}
+          fileName: ${{ env.LINUX_FILENAME }}
 
       - name: Get current date
         id: date
@@ -135,16 +133,19 @@ jobs:
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{ steps.date.outputs.date }}-opensemba-tessellator"
-          pre-release: false
-          title: "${{matrix.preset.filename}} OpenSemba Tessellator release"
+          automatic_release_tag: "${{ steps.date.outputs.date }}-latest-opensemba-tessellator"
+          prerelease: false
+          title: "${{ matrix.preset.filename }} OpenSemba Tessellator release"
           files: |
-            ${{env.WINDOWS_FILENAME}}
-            ${{env.LINUX_FILENAME}}
+            ${{ env.WINDOWS_FILENAME }}
+            ${{ env.LINUX_FILENAME }}
 
       - name: Clean old pre-release
         uses: "sgpublic/delete-release-action@v1.2"
         with:
+          pre-release-drop: true
+          pre-release-keep-count: -1
+          pre-release-drop-tag: true
           draft-drop: true
           draft-keep-count: -1
           draft-drop-tag: true
