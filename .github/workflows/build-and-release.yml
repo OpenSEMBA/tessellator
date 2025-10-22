@@ -89,7 +89,7 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.LINUX_RELEASE_TAG }}"
-        pre-release: True
+        prerelease: true
         title: "${{matrix.preset.filename}} OpenSemba Tessellator draft release"
         files: |
           ./build/bin/${{ env.LINUX_FILENAME }}
@@ -100,7 +100,7 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "${{ env.WINDOWS_RELEASE_TAG }}"
-        pre-release: True
+        prerelease: true
         title: "${{matrix.preset.filename}} OpenSemba Tessellator draft release"
         files: |
           ./build/bin/${{matrix.build-type}}/${{ env.WINDOWS_FILENAME }}
@@ -134,7 +134,7 @@ jobs:
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.date.outputs.date }}-latest-opensemba-tessellator"
-          pre-release: false
+          prerelease: false
           title: "${{ matrix.preset.filename }} OpenSemba Tessellator release"
           files: |
             ${{ env.WINDOWS_FILENAME }}
