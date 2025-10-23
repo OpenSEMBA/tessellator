@@ -63,6 +63,7 @@ Mesh readMesh(const std::string &fn)
     return res;
 }
 
+
 std::string readMesherType(const std::string &fn)
 {
     nlohmann::json j;
@@ -74,6 +75,18 @@ std::string readMesherType(const std::string &fn)
         return j["mesher"]["type"];
     } else {
         return meshlib::app::structured_mesher;
+    }
+}
+
+std::string readExtension(const std::string &fn)
+{
+    auto mesherType = readMesherType(fn);
+    if (mesherType == meshlib::app::structured_mesher) {
+        return "str";
+    } else if (mesherType == meshlib::app::conformal_mesher) {
+        return "cmsh";
+    } else {
+        throw std::runtime_error("Unsupported mesher type");
     }
 }
 
@@ -133,7 +146,9 @@ int launcher(int argc, const char* argv[])
 
     std::filesystem::path outputFolder = getFolder(inputFilename);
     auto basename = getBasename(inputFilename);
-    exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtk"), resultMesh);
+    auto extension = readExtension(inputFilename);
+    
+    exportMeshToVTU(outputFolder / (basename + ".tessellator." + extension + ".vtk"), resultMesh);
     exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
 
     return EXIT_SUCCESS;
