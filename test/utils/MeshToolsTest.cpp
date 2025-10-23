@@ -113,6 +113,103 @@ TEST_F(MeshToolsTest, countElements)
 	ASSERT_EQ(38, countMeshElementsIf(inputMesh, isNotTetrahedron));
 }
 
+
+
+TEST_F(MeshToolsTest, canGetHighestDimensionByGroup)
+{
+	float lowerCoordinateValue = -0.5;
+	float upperCoordinateValue = 0.5;
+	int numberOfCells = 4;
+	float step = 0.25;
+	assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells) == step);
+
+	Mesh inputMesh;
+	inputMesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+	inputMesh.coordinates = {
+		Coordinate({-0.20, -0.20, -0.20}), // 0
+		Coordinate({-0.20,  0.20, -0.20}), // 1
+		Coordinate({ 0.20,  0.20, -0.20}), // 2
+		Coordinate({ 0.20, -0.20, -0.20}), // 3
+		Coordinate({-0.20, -0.20,  0.20}), // 4
+		Coordinate({-0.20,  0.20,  0.20}), // 5
+		Coordinate({ 0.20,  0.20,  0.20}), // 6
+		Coordinate({ 0.20, -0.20,  0.20}), // 7
+	};
+
+	inputMesh.groups.resize(11);
+	inputMesh.groups[0].elements = {
+		Element({0}, Element::Type::Node),
+	};
+	inputMesh.groups[1].elements = {
+		Element({1}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+	};
+	inputMesh.groups[2].elements = {
+		Element({2}, Element::Type::Node),
+		Element({1, 2}, Element::Type::Line),
+		Element({0, 1, 2}, Element::Type::Surface),
+	};
+	inputMesh.groups[3].elements = {
+		Element({3}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({1, 2, 3}, Element::Type::Surface),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+	};
+	inputMesh.groups[4].elements = {
+		Element({4}, Element::Type::Node),
+		Element({0, 4}, Element::Type::Line),
+		Element({0, 1, 4}, Element::Type::Surface),
+		Element({0, 1, 3, 4}, Element::Type::Volume),
+	};
+	inputMesh.groups[5].elements = {
+		Element({5}, Element::Type::Node),
+		Element({1, 5}, Element::Type::Line),
+		Element({1, 5, 4}, Element::Type::Surface),
+		Element({0, 1, 5, 4}, Element::Type::Surface),
+		Element({0, 1, 3, 4}, Element::Type::Volume),
+	};
+	inputMesh.groups[6].elements = {
+		Element({1, 3, 4, 6}, Element::Type::Volume),
+	};
+	inputMesh.groups[7].elements = {
+		Element({3, 6, 7, 4}, Element::Type::Volume),
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+		Element({0, 4, 7}, Element::Type::Surface),
+		Element({7, 4}, Element::Type::Line),
+		Element({7}, Element::Type::Node),
+	};
+	inputMesh.groups[8].elements = {
+		Element({3, 6, 7, 4}, Element::Type::Volume),
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+	};
+	inputMesh.groups[9].elements = {
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+		Element({0, 4, 7}, Element::Type::Surface),
+	};
+	// 43
+
+	std::vector<Element::Type> expectedList({
+		Element::Type::Node,
+		Element::Type::Line,
+		Element::Type::Surface,
+		Element::Type::Surface,
+		Element::Type::Volume,
+		Element::Type::Volume,
+		Element::Type::Volume,
+		Element::Type::Volume,
+		Element::Type::Volume,
+		Element::Type::Surface,
+		Element::Type::None,
+	});
+
+	auto highestDimensions = getHighestDimensionByGroup(inputMesh);
+
+	ASSERT_EQ(expectedList.size(), highestDimensions.size());
+	for (GroupId index = 0; index < expectedList.size(); ++index) {
+		ASSERT_EQ(expectedList[index], highestDimensions[index]) << "Current Group: #" << index << std::endl;
+	}
+}
+
 TEST_F(MeshToolsTest, checkNoCellsAreCrossed_tris_do_cross)
 {
 	
