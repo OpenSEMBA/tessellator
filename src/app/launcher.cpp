@@ -2,6 +2,7 @@
 #include "vtkIO.h"
 
 #include "meshers/StructuredMesher.h"
+#include "meshers/ConformalMesher.h"
 #include "utils/GridTools.h"
 
 #include <boost/program_options.hpp>
@@ -11,11 +12,12 @@
 #include <filesystem>
 #include <fstream>
 #include <array>
-
+#include <memory>
 
 namespace meshlib::app {
 
 using namespace vtkIO;
+
 
 namespace po = boost::program_options;
 
@@ -61,6 +63,59 @@ Mesh readMesh(const std::string &fn)
     return res;
 }
 
+
+std::string readMesherType(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    if (j["mesher"].contains("type")) {
+        return j["mesher"]["type"];
+    } else {
+        return meshlib::app::structured_mesher;
+    }
+}
+
+std::string readExtension(const std::string &fn)
+{
+    auto mesherType = readMesherType(fn);
+    if (mesherType == meshlib::app::structured_mesher) {
+        return "str";
+    } else if (mesherType == meshlib::app::conformal_mesher) {
+        return "cmsh";
+    } else {
+        throw std::runtime_error("Unsupported mesher type");
+    }
+}
+
+meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    meshlib::meshers::ConformalMesherOptions res;
+    if (j["mesher"].contains("options")) {
+        res.snapperOptions.edgePoints = j["mesher"]["options"]["edgePoints"];
+        res.snapperOptions.forbiddenLength = j["mesher"]["options"]["forbiddenLength"];
+    }
+    return res;
+}
+std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
+{
+    auto mesherType = readMesherType(fn);
+    if (mesherType == meshlib::app::structured_mesher) {
+        return std::make_unique<meshlib::meshers::StructuredMesher>(meshlib::meshers::StructuredMesher{in});
+    } else if (mesherType == meshlib::app::conformal_mesher) {
+        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
+    } else {
+        throw std::runtime_error("Unsupported mesher type");
+    }
+}
+
 int launcher(int argc, const char* argv[])
 {
     po::options_description desc("Allowed options");
@@ -84,13 +139,16 @@ int launcher(int argc, const char* argv[])
 
     Mesh mesh = readMesh(inputFilename);
 
+
     // Mesh
-    meshlib::meshers::StructuredMesher mesher{mesh};
-    Mesh resultMesh = mesher.mesh();
+    auto mesher = buildMesher(mesh, inputFilename);
+    Mesh resultMesh = mesher->mesh();
 
     std::filesystem::path outputFolder = getFolder(inputFilename);
     auto basename = getBasename(inputFilename);
-    exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtk"), resultMesh);
+    auto extension = readExtension(inputFilename);
+    
+    exportMeshToVTU(outputFolder / (basename + ".tessellator." + extension + ".vtk"), resultMesh);
     exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
 
     return EXIT_SUCCESS;
