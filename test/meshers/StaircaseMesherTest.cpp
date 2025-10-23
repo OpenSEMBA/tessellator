@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
-#include "meshers/StructuredMesher.h"
+#include "meshers/StaircaseMesher.h"
 #include "Staircaser.h"
 
 #include "core/Slicer.h"
@@ -21,7 +21,7 @@ using namespace utils;
 using namespace meshTools;
 
 
-class StructuredMesherTest : public ::testing::Test {
+class StaircaseMesherTest : public ::testing::Test {
 public:
     static std::size_t countRepeatedElements(const Mesh& mesh)
     {
@@ -82,7 +82,7 @@ public:
     }
 };
 
-TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
+TEST_F(StaircaseMesherTest, testStaircaseLinesWithUniformGrid)
 {
 
     const int numberOfCells = 4;
@@ -136,7 +136,7 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
@@ -144,7 +144,7 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
 }
 
 
-TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
+TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
 {
     Mesh inputMesh;
     inputMesh.grid = Grid(
@@ -190,17 +190,17 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
-TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
+TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
 {
     Mesh out;
-    ASSERT_NO_THROW(out = StructuredMesher(buildTriNonUniformGridMesh(), 4).mesh());
+    ASSERT_NO_THROW(out = StaircaseMesher(buildTriNonUniformGridMesh(), 4).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
     EXPECT_EQ(6, out.groups[0].elements.size());
@@ -211,7 +211,7 @@ TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
 
 // FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
 
-TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
+TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStructurerCone)
 {
     // Input
     const std::string inputFilename = "testData/cases/cone/cone.stl";
@@ -267,7 +267,7 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
 
 
 
-TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
+TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -289,7 +289,7 @@ TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(48, resultMesh.groups[0].elements.size());
@@ -298,40 +298,40 @@ TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
 }
 
-TEST_F(StructuredMesherTest, preserves_topological_closedness_for_alhambra)
+TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_alhambra)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
     
     mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));
 }
 
-TEST_F(StructuredMesherTest, preserves_topological_closedness_for_sphere)
+TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_sphere)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
     for (auto x: {X,Y,Z}) {
         mesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
     }
 
-    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));
 
     // //For debugging.
-	// meshTools::convertToAbsoluteCoordinates(structuredMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", structuredMesh);
+	// meshTools::convertToAbsoluteCoordinates(staircasedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", staircasedMesh);
 
-	// auto contourMesh = meshTools::buildMeshFromContours(structuredMesh);
+	// auto contourMesh = meshTools::buildMeshFromContours(staircasedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
-TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closedness_for_sphere)
+TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness_for_sphere)
 {
     const std::string inputFilename = "testData/cases/sphere/sphere.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -381,7 +381,7 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
-TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closedness_for_alhambra)
+TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness_for_alhambra)
 {
     const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
