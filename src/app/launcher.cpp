@@ -1,7 +1,7 @@
 #include "launcher.h"
 #include "vtkIO.h"
 
-#include "meshers/StructuredMesher.h"
+#include "meshers/StaircaseMesher.h"
 #include "utils/GridTools.h"
 
 #include <boost/program_options.hpp>
@@ -85,7 +85,7 @@ int launcher(int argc, const char* argv[])
     Mesh mesh = readMesh(inputFilename);
 
     // Mesh
-    meshlib::meshers::StructuredMesher mesher{mesh};
+    meshlib::meshers::StaircaseMesher mesher{mesh};
     Mesh resultMesh = mesher.mesh();
 
     std::filesystem::path outputFolder = getFolder(inputFilename);

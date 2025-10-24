@@ -732,7 +732,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedE
     // |   *--╱------┼-┼-*           |   *---------{0.67->2}    
     // |  / ╱        |  /            |  /          |  ⫽     
     // | /╱          | /             | /           | ⫽      
-    // |⌿0          |/              |/            |⫽
+    // |⌿0           |/              |/            |⫽
     // *-------------* x             0========={0.33->1} x
 
     float lowerRelativeValue = -5.0;

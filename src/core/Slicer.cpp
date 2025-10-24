@@ -39,14 +39,14 @@ void orient(const Coordinates& coords,
 }
 
 
-Slicer::Slicer(const Mesh& input, const SlicerOptions& opts) : 
+Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPolicy, const SlicerOptions& opts) :
     GridTools(input.grid),
     opts_(opts)
 {
     // Ensures that all coordinates have a fixed number of decimal places.
     Mesh collapsed = input;
     collapsed.coordinates = absoluteToRelative(collapsed.coordinates);
-    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces }.getMesh();
+    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces, dimensionPolicy }.getMesh();
     collapsed.coordinates = relativeToAbsolute(collapsed.coordinates);
 
     // Slices.

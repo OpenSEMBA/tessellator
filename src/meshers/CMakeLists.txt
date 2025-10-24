@@ -2,7 +2,7 @@ message(STATUS "Creating build system for tessellator-meshers")
 
 add_library(tessellator-meshers
     "MesherBase.cpp"
-    "StructuredMesher.cpp"
+    "StaircaseMesher.cpp"
     "OffgridMesher.cpp"
     "ConformalMesher.cpp"
 )

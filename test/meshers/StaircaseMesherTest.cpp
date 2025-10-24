@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
-#include "meshers/StructuredMesher.h"
+#include "meshers/StaircaseMesher.h"
 #include "Staircaser.h"
 
 #include "core/Slicer.h"
@@ -21,7 +21,7 @@ using namespace utils;
 using namespace meshTools;
 
 
-class StructuredMesherTest : public ::testing::Test {
+class StaircaseMesherTest : public ::testing::Test {
 public:
     static std::size_t countRepeatedElements(const Mesh& mesh)
     {
@@ -45,10 +45,12 @@ public:
             auto& leftGridAxisPlanes = leftMesh.grid[axis];
             auto& rightGridAxisPlanes = rightMesh.grid[axis];
 
-            EXPECT_EQ(leftGridAxisPlanes.size(), rightGridAxisPlanes.size());
+            EXPECT_EQ(leftGridAxisPlanes.size(), rightGridAxisPlanes.size()) << "Current Axis: #" << axis << std::endl;
 
             for (std::size_t plane = 0; plane != leftGridAxisPlanes.size(); ++plane) {
-                EXPECT_EQ(leftGridAxisPlanes[plane], rightGridAxisPlanes[plane]);
+                EXPECT_EQ(leftGridAxisPlanes[plane], rightGridAxisPlanes[plane])
+                    << "Current Axis: #" << axis << std::endl
+                    << "Current Plane: #" << plane << std::endl;
             }
         }
 
@@ -64,17 +66,22 @@ public:
 
         for (std::size_t g = 0; g < leftMesh.groups.size(); ++g) {
             auto& leftGroup = leftMesh.groups[g];
-            auto& rightGroup = leftMesh.groups[g];
+            auto& rightGroup = rightMesh.groups[g];
 
-            ASSERT_EQ(leftGroup.elements.size(), rightGroup.elements.size());
+            ASSERT_EQ(leftGroup.elements.size(), rightGroup.elements.size()) << "Current Group: #" << g << std::endl;
 
             for (std::size_t e = 0; e < leftGroup.elements.size(); ++e) {
                 auto& resultElement = leftGroup.elements[e];
                 auto& expectedElement = rightGroup.elements[e];
-                EXPECT_EQ(resultElement.type, expectedElement.type);
+                EXPECT_EQ(resultElement.type, expectedElement.type)
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl;
 
                 for (CoordinateId v = 0; v != resultElement.vertices.size(); ++v) {
-                    EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+                    EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                        << "Current Group: #" << g << std::endl
+                        << "Current Element: #" << e << std::endl
+                        << "Current Vertex: #" << v << std::endl;
                 }
 
             }
@@ -82,7 +89,7 @@ public:
     }
 };
 
-TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
+TEST_F(StaircaseMesherTest, testStaircaseLinesWithUniformGrid)
 {
 
     const int numberOfCells = 4;
@@ -100,7 +107,8 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
     };
     inputMesh.groups.resize(1);
     inputMesh.groups[0].elements = {
-        Element({0, 1}, Element::Type::Line)
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line)
     };
 
     Mesh expectedMesh;
@@ -122,21 +130,26 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
     }
     expectedMesh.groups.resize(1);
     expectedMesh.groups[0].elements = {
-        Element({0}, Element::Type::Node),
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
-        Element({2}, Element::Type::Node),
         Element({2, 3}, Element::Type::Line),
         Element({3, 4}, Element::Type::Line),
         Element({4, 5}, Element::Type::Line),
         Element({5, 6}, Element::Type::Line),
-        Element({6}, Element::Type::Node),
         Element({6, 7}, Element::Type::Line),
         Element({7, 8}, Element::Type::Line),
+        Element({8, 7}, Element::Type::Line),
+        Element({7, 6}, Element::Type::Line),
+        Element({6, 5}, Element::Type::Line),
+        Element({5, 4}, Element::Type::Line),
+        Element({4, 3}, Element::Type::Line),
+        Element({3, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
@@ -144,7 +157,7 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithUniformGrid)
 }
 
 
-TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
+TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
 {
     Mesh inputMesh;
     inputMesh.grid = Grid(
@@ -164,6 +177,8 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
     inputMesh.groups[0].elements = {
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
 
@@ -184,23 +199,27 @@ TEST_F(StructuredMesherTest, testStructuredLinesWithRectilinearGrid)
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
         Element({2, 3}, Element::Type::Line),
-        Element({3}, Element::Type::Node),
         Element({3, 4}, Element::Type::Line),
         Element({4, 5}, Element::Type::Line),
+        Element({5, 4}, Element::Type::Line),
+        Element({4, 3}, Element::Type::Line),
+        Element({3, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
-TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
+TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
 {
     Mesh out;
-    ASSERT_NO_THROW(out = StructuredMesher(buildTriNonUniformGridMesh(), 4).mesh());
+    ASSERT_NO_THROW(out = StaircaseMesher(buildTriNonUniformGridMesh(), 4).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
     EXPECT_EQ(6, out.groups[0].elements.size());
@@ -211,7 +230,7 @@ TEST_F(StructuredMesherTest, testTriNonUniformGridStructured)
 
 // FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
 
-TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
+TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
 {
     // Input
     const std::string inputFilename = "testData/cases/cone/cone.stl";
@@ -233,7 +252,7 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 
@@ -267,7 +286,7 @@ TEST_F(StructuredMesherTest, DISABLED_visualSelectiveStructurerCone)
 
 
 
-TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
+TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -289,7 +308,7 @@ TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StructuredMesher(inputMesh, 2).mesh());
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(48, resultMesh.groups[0].elements.size());
@@ -298,40 +317,40 @@ TEST_F(StructuredMesherTest, DISABLED_testStructuredTriangleWithUniformGrid)
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
 }
 
-TEST_F(StructuredMesherTest, preserves_topological_closedness_for_alhambra)
+TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_alhambra)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
     
     mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));
 }
 
-TEST_F(StructuredMesherTest, preserves_topological_closedness_for_sphere)
+TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_sphere)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
     for (auto x: {X,Y,Z}) {
         mesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
     }
 
-    auto structuredMesh = StructuredMesher{mesh}.mesh();
+    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(structuredMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));
 
     // //For debugging.
-	// meshTools::convertToAbsoluteCoordinates(structuredMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", structuredMesh);
+	// meshTools::convertToAbsoluteCoordinates(staircasedMesh);
+	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", staircasedMesh);
 
-	// auto contourMesh = meshTools::buildMeshFromContours(structuredMesh);
+	// auto contourMesh = meshTools::buildMeshFromContours(staircasedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
-TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closedness_for_sphere)
+TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness_for_sphere)
 {
     const std::string inputFilename = "testData/cases/sphere/sphere.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -351,7 +370,7 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 
@@ -381,7 +400,7 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
-TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closedness_for_alhambra)
+TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness_for_alhambra)
 {
     const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
@@ -402,7 +421,7 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 2}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 
@@ -430,4 +449,55 @@ TEST_F(StructuredMesherTest, selectiveStructurer_preserves_topological_closednes
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
+TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
+{
+    const std::string inputFilename = "testData/cases/longPolyline/longPolyline.vtu";
+    auto mesh = vtkIO::readInputMesh("testData/cases/longPolyline/longPolyline.vtu");
+
+    mesh.grid[X] = utils::GridTools::linspace(600, 1100.0, 20);
+    mesh.grid[Y] = utils::GridTools::linspace(600, 1100.0, 20);
+    mesh.grid[Z] = utils::GridTools::linspace(600, 1100.0, 20);
+
+    std::vector<Element::Type> dimensions = { Element::Type::Line };
+
+    // SurfaceMesh
+
+    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(mesh, meshlib::utils::meshTools::isNotTetrahedron);
+
+    // Slicer
+
+    auto slicedMesh = meshlib::core::Slicer{ surfaceMesh, dimensions }.getMesh();
+
+    // Collapser
+
+    auto collapsedMesh = meshlib::core::Collapser{ slicedMesh, 2, dimensions }.getMesh();
+
+    // Selection the specific cells to staircase and generate the result Mesh
+
+    std::set<Cell> cellSet;
+
+    for (int x = 0; x < 20; ++x) {
+        for (int y = 0; y < 20; ++y) {
+            for (int z = 0; z < 20; ++z) {
+                cellSet.insert(Cell{ x, y, z });
+            }
+        }
+    }
+
+    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getMesh();
+
+    RedundancyCleaner::removeOverlappedElementsByDimension(resultMesh, dimensions);
+    utils::meshTools::reduceGrid(resultMesh, mesh.grid);
+    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
+
+    assertMeshEqual(StaircaseMesher(mesh).mesh(), resultMesh);
+
+    // // For debugging
+    // std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
+    // auto basename = meshlib::vtkIO::getBasename(inputFilename);
+    // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
+    // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
+
+}
+

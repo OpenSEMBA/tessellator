@@ -22,7 +22,7 @@ public:
     typedef std::vector<PlaneAlignedPolyline> PlaneAlignedPolylines;
     typedef std::vector<Coordinate> PolylineV;
 
-    Slicer(const Mesh&, const SlicerOptions& opts = SlicerOptions());
+    Slicer(const Mesh&, const std::vector<Element::Type>& dimensionPolicy = {}, const SlicerOptions& opts = SlicerOptions());
     Mesh getMesh() const { return mesh_; };
 
 
@@ -31,6 +31,7 @@ public:
 private:
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
+
     Mesh mesh_;
     SlicerOptions opts_;
 
