@@ -45,10 +45,12 @@ public:
             auto& leftGridAxisPlanes = leftMesh.grid[axis];
             auto& rightGridAxisPlanes = rightMesh.grid[axis];
 
-            EXPECT_EQ(leftGridAxisPlanes.size(), rightGridAxisPlanes.size());
+            EXPECT_EQ(leftGridAxisPlanes.size(), rightGridAxisPlanes.size()) << "Current Axis: #" << axis << std::endl;
 
             for (std::size_t plane = 0; plane != leftGridAxisPlanes.size(); ++plane) {
-                EXPECT_EQ(leftGridAxisPlanes[plane], rightGridAxisPlanes[plane]);
+                EXPECT_EQ(leftGridAxisPlanes[plane], rightGridAxisPlanes[plane])
+                    << "Current Axis: #" << axis << std::endl
+                    << "Current Plane: #" << plane << std::endl;
             }
         }
 
@@ -64,17 +66,22 @@ public:
 
         for (std::size_t g = 0; g < leftMesh.groups.size(); ++g) {
             auto& leftGroup = leftMesh.groups[g];
-            auto& rightGroup = leftMesh.groups[g];
+            auto& rightGroup = rightMesh.groups[g];
 
-            ASSERT_EQ(leftGroup.elements.size(), rightGroup.elements.size());
+            ASSERT_EQ(leftGroup.elements.size(), rightGroup.elements.size()) << "Current Group: #" << g << std::endl;
 
             for (std::size_t e = 0; e < leftGroup.elements.size(); ++e) {
                 auto& resultElement = leftGroup.elements[e];
                 auto& expectedElement = rightGroup.elements[e];
-                EXPECT_EQ(resultElement.type, expectedElement.type);
+                EXPECT_EQ(resultElement.type, expectedElement.type)
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl;
 
                 for (CoordinateId v = 0; v != resultElement.vertices.size(); ++v) {
-                    EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+                    EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                        << "Current Group: #" << g << std::endl
+                        << "Current Element: #" << e << std::endl
+                        << "Current Vertex: #" << v << std::endl;
                 }
 
             }
@@ -100,7 +107,8 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithUniformGrid)
     };
     inputMesh.groups.resize(1);
     inputMesh.groups[0].elements = {
-        Element({0, 1}, Element::Type::Line)
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line)
     };
 
     Mesh expectedMesh;
@@ -122,17 +130,22 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithUniformGrid)
     }
     expectedMesh.groups.resize(1);
     expectedMesh.groups[0].elements = {
-        Element({0}, Element::Type::Node),
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
-        Element({2}, Element::Type::Node),
         Element({2, 3}, Element::Type::Line),
         Element({3, 4}, Element::Type::Line),
         Element({4, 5}, Element::Type::Line),
         Element({5, 6}, Element::Type::Line),
-        Element({6}, Element::Type::Node),
         Element({6, 7}, Element::Type::Line),
         Element({7, 8}, Element::Type::Line),
+        Element({8, 7}, Element::Type::Line),
+        Element({7, 6}, Element::Type::Line),
+        Element({6, 5}, Element::Type::Line),
+        Element({5, 4}, Element::Type::Line),
+        Element({4, 3}, Element::Type::Line),
+        Element({3, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
     Mesh resultMesh;
@@ -164,6 +177,8 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
     inputMesh.groups[0].elements = {
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
 
@@ -184,9 +199,13 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
         Element({0, 1}, Element::Type::Line),
         Element({1, 2}, Element::Type::Line),
         Element({2, 3}, Element::Type::Line),
-        Element({3}, Element::Type::Node),
         Element({3, 4}, Element::Type::Line),
         Element({4, 5}, Element::Type::Line),
+        Element({5, 4}, Element::Type::Line),
+        Element({4, 3}, Element::Type::Line),
+        Element({3, 2}, Element::Type::Line),
+        Element({2, 1}, Element::Type::Line),
+        Element({1, 0}, Element::Type::Line),
     };
 
     Mesh resultMesh;
@@ -211,7 +230,7 @@ TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
 
 // FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
 
-TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStructurerCone)
+TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
 {
     // Input
     const std::string inputFilename = "testData/cases/cone/cone.stl";
@@ -233,7 +252,7 @@ TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStructurerCone)
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 
@@ -331,7 +350,7 @@ TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_sphere)
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
-TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness_for_sphere)
+TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness_for_sphere)
 {
     const std::string inputFilename = "testData/cases/sphere/sphere.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -351,7 +370,7 @@ TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 
@@ -381,7 +400,7 @@ TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
-TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness_for_alhambra)
+TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness_for_alhambra)
 {
     const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
@@ -402,7 +421,7 @@ TEST_F(StaircaseMesherTest, selectiveStructurer_preserves_topological_closedness
 
     auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 2}.getMesh();
 
-    // Selection the specific cells to structure and generate the result Mesh
+    // Selection the specific cells to staircase and generate the result Mesh
 
     std::set<Cell> cellSet;
 

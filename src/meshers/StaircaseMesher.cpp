@@ -47,14 +47,16 @@ void StaircaseMesher::process(Mesh& mesh) const
         return;
     }
 
+    auto dimensions = getHighestDimensionByGroup(mesh);
+
     log("Slicing.", 1);
     mesh.grid = slicingGrid;
-    mesh = Slicer{ mesh }.getMesh();
+    mesh = Slicer{ mesh, dimensions }.getMesh();
     
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
-    mesh = Collapser(mesh, decimalPlacesInCollapser_).getMesh();
+    mesh = Collapser(mesh, decimalPlacesInCollapser_, dimensions).getMesh();
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     
@@ -65,7 +67,7 @@ void StaircaseMesher::process(Mesh& mesh) const
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     log("Removing repeated and overlapping elements.", 1);   
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(mesh);
+    RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
