@@ -449,4 +449,55 @@ TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
+TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
+{
+    const std::string inputFilename = "testData/cases/longPolyline/longPolyline.vtu";
+    auto mesh = vtkIO::readInputMesh("testData/cases/longPolyline/longPolyline.vtu");
+
+    mesh.grid[X] = utils::GridTools::linspace(600, 1100.0, 20);
+    mesh.grid[Y] = utils::GridTools::linspace(600, 1100.0, 20);
+    mesh.grid[Z] = utils::GridTools::linspace(600, 1100.0, 20);
+
+    std::vector<Element::Type> dimensions = { Element::Type::Line };
+
+    // SurfaceMesh
+
+    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(mesh, meshlib::utils::meshTools::isNotTetrahedron);
+
+    // Slicer
+
+    auto slicedMesh = meshlib::core::Slicer{ surfaceMesh, dimensions }.getMesh();
+
+    // Collapser
+
+    auto collapsedMesh = meshlib::core::Collapser{ slicedMesh, 2, dimensions }.getMesh();
+
+    // Selection the specific cells to staircase and generate the result Mesh
+
+    std::set<Cell> cellSet;
+
+    for (int x = 0; x < 20; ++x) {
+        for (int y = 0; y < 20; ++y) {
+            for (int z = 0; z < 20; ++z) {
+                cellSet.insert(Cell{ x, y, z });
+            }
+        }
+    }
+
+    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getMesh();
+
+    RedundancyCleaner::removeOverlappedElementsByDimension(resultMesh, dimensions);
+    utils::meshTools::reduceGrid(resultMesh, mesh.grid);
+    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
+
+    assertMeshEqual(StaircaseMesher(mesh).mesh(), resultMesh);
+
+    // // For debugging
+    // std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
+    // auto basename = meshlib::vtkIO::getBasename(inputFilename);
+    // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
+    // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
+
+}
+

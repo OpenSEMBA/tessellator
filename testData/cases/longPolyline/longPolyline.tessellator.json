@@ -1,0 +1,10 @@
+{
+    "grid": {
+        "numberOfCells": [20, 20, 20],
+        "boundingBox": [
+            [ 600,  600,  600],
+            [1100, 1100, 1100]
+        ]
+    },
+    "object": {"filename": "longPolyline.vtu"}
+}
