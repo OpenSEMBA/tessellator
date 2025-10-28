@@ -196,7 +196,7 @@ Mesh ConformalMesher::mesh() const
 
     // Calls structurer to mesh only those cells.
     log("Structuring non-conformal cells.", 1);
-    res = Staircaser{ res }.getSelectiveMesh(nonConformalCells,Staircaser::GapsFillingType::Split);
+    res = Staircaser{ res }.getSelectiveMesh(nonConformalCells,Staircaser::GapsFillingType::Insert);
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
