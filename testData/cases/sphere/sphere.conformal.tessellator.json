@@ -1,6 +1,6 @@
 {
     "grid": {
-        "numberOfCells": [50, 50, 50],
+        "numberOfCells": [30, 30, 30],
         "boundingBox": [
             [-100.0, -100.0, -100.0],
             [ 100.0,  100.0,  100.0]
