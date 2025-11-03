@@ -72,31 +72,41 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
     IdSet neighborsOfVertex2;
 
     for (const auto& c : cellsCoord1) {
-        for (const auto& e : cellElemMap.at(c)) {
-            const auto& elementVertices = e->vertices;
-            auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex1);
-
-            if (it != elementVertices.end()) {
-                auto pos = std::distance(elementVertices.begin(), it);
-                auto n = elementVertices.size();
-
-                neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]); 
-                neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]); 
-            }        
+        auto it = cellElemMap.find(c);
+        if (it == cellElemMap.end()) {
+            continue;
+        } else {
+            for (const auto& e : cellElemMap.at(c)) {
+                const auto& elementVertices = e->vertices;
+                auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex1);
+    
+                if (it != elementVertices.end()) {
+                    auto pos = std::distance(elementVertices.begin(), it);
+                    auto n = elementVertices.size();
+    
+                    neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]); 
+                    neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]); 
+                }        
+            }
         }
     }
 
     for (const auto& c : cellsCoord2) {
-        for (const auto& e : cellElemMap.at(c)) {
-            const auto& elementVertices = e->vertices;
-            auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
-
-            if (it != elementVertices.end()) {
-                auto pos = std::distance(elementVertices.begin(), it);
-                auto n = elementVertices.size();
-
-                neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]); 
-                neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]); 
+        auto it = cellElemMap.find(c);
+        if (it == cellElemMap.end()) {
+            continue;
+        } else {
+            for (const auto& e : cellElemMap.at(c)) {
+                const auto& elementVertices = e->vertices;
+                auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
+    
+                if (it != elementVertices.end()) {
+                    auto pos = std::distance(elementVertices.begin(), it);
+                    auto n = elementVertices.size();
+    
+                    neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]); 
+                    neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]); 
+                }
             }
         }
     }
@@ -185,7 +195,13 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                     CoordinateId newIndex;
                     if (isOnCellBoundary) {
                         auto it = coordinateMap.find(toRelative(calculateStaircasedCell(vertexCoord)));
-                        newIndex = it->second;
+                        if (it == coordinateMap.end()) {
+                            mesh_.coordinates.push_back(toRelative(calculateStaircasedCell(vertexCoord)));
+                            newIndex = int (mesh_.coordinates.size() - 1);
+                            coordinateMap.emplace(toRelative(calculateStaircasedCell(vertexCoord)), newIndex);
+                        } else {
+                            newIndex = it->second;
+                        }
                         boundaryCoordinates.push_back(toRelative(calculateStaircasedCell(vertexCoord)));
                     } else {
                         auto it = coordinateMap.find(vertexCoord);
