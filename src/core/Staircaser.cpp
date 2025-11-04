@@ -216,27 +216,39 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                     newElement.vertices.push_back(newIndex);
                 }               
 
-                bool isAllCoordinatesOnCellBoundary = true;
+                bool isAllCoordinatesOnTheSameCellBoundary = false;
+                std::set<Cell> commonStructuredCells;
+                bool firstVertex = true;
 
                 for (const auto& vertex : newElement.vertices) {
                     const auto& vertexCoord = mesh_.coordinates[vertex];
                     auto touchingCells = GridTools::getTouchingCells(vertexCoord);
-                    
-                    bool vertexOnBoundary = false;
-                    for (const auto& touchingCell : touchingCells) {
-                        if (cellsToStructure.count(touchingCell)) {
-                            vertexOnBoundary = true;
-                            break;
-                        } 
+
+                    std::set<Cell> structuredTouchingCells;
+                    for (const auto& c : touchingCells) {
+                        if (cellsToStructure.count(c)) {
+                            structuredTouchingCells.insert(c);
+                        }
                     }
 
-                    if(!vertexOnBoundary) {
-                        isAllCoordinatesOnCellBoundary = false;
-                        break;
+                    if (firstVertex) {
+                        commonStructuredCells = std::move(structuredTouchingCells);
+                        firstVertex = false;
+                    } else {
+                        std::set<Cell> intersection;
+                        std::set_intersection(commonStructuredCells.begin(), commonStructuredCells.end(),
+                                            structuredTouchingCells.begin(), structuredTouchingCells.end(),
+                                            std::inserter(intersection, intersection.begin()));
+                        commonStructuredCells = std::move(intersection);
                     }
+
+                    if (commonStructuredCells.empty()) break;
                 }
 
-                if (!isAllCoordinatesOnCellBoundary) {
+                isAllCoordinatesOnTheSameCellBoundary = !commonStructuredCells.empty();
+
+
+                if (!isAllCoordinatesOnTheSameCellBoundary) {
                     meshGroup.elements.push_back(newElement);
     
                     for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
