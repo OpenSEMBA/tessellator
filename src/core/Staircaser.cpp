@@ -295,17 +295,18 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                             }
                         }
 
-                        bool isTwoVerticesEqual = (firstVertexCoords == secondVertexCoords) ||
+                        bool areTwoVerticesEqual = (firstVertexCoords == secondVertexCoords) ||
                                                   (secondVertexCoords == thirdVertexCoords) ||
                                                   (firstVertexCoords == thirdVertexCoords);
     
-                        if(equalCoords == 2 && !isTwoVerticesEqual) {
+                        if(equalCoords == 2 && !areTwoVerticesEqual) {
                             elementsConvertedInLines.insert(*e);
                         }
                     }
                 }
     
                 for (const auto& e: elementsConvertedInLines) {
+                    bool processed = false;
                     for (const auto& otherElementsInCell: cellElemMap_withNewElements.at(cell)) {
                         if (e == *otherElementsInCell) {
                             continue;
@@ -340,24 +341,21 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                                 std::swap(v1, v2);
                             } 
     
-                            auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
-                            auto itV2 = std::find(otherElementsInCell->vertices.begin(), otherElementsInCell->vertices.end(), v2);
-                            auto itV4 = e.vertices.end();
-                            auto itV3 = otherElementsInCell->vertices.end();
+                            CoordinateId v4 = -1;
+                            for (const auto& v : e.vertices) {
+                                if (v != v1 && v != v2) {
+                                    v4 = v;
+                                    break;
+                                }
+                            }
 
-                            if(itV1 == e.vertices.begin()) {
-                                itV4 = e.vertices.end() - 1;
-                            } else {
-                                itV4 = std::prev(itV1);
+                            CoordinateId v3 = -1;
+                            for (const auto& v : otherElementsInCell->vertices) {
+                                if (v != v1 && v != v2) {
+                                    v3 = v;
+                                    break;
+                                }
                             }
-                            if(itV2 == otherElementsInCell->vertices.begin()) {
-                                itV3 = otherElementsInCell->vertices.end() - 1;
-                            } else {
-                                itV3 = std::prev(itV2);
-                            }
-    
-                            const auto& v3 = *itV3;
-                            const auto& v4 = *itV4;
     
                             Element triangle1;
                             triangle1.type = Element::Type::Surface;
@@ -379,8 +377,11 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                             if (itElement != meshGroup.elements.end()) {
                                 meshGroup.elements.erase(itElement);
                             }
+                            processed = true;
+                            break;
                         }
                     }
+                    if(processed) {continue;}
                 }
             }
         }
