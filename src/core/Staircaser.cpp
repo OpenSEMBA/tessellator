@@ -168,6 +168,8 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
         CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
 
         meshGroup.elements.reserve(meshGroup.elements.size() + inputGroup.elements.size());
+        std::map<Cell, std::vector<const Element*>> cellElemMap_withNewElements;
+
         for (const auto& [cell, elements] : cellElemMap) {
             if (cellsToStructure.count(cell) ) {
                 continue;
@@ -250,10 +252,133 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
 
                 if (!isAllCoordinatesOnTheSameCellBoundary) {
                     meshGroup.elements.push_back(newElement);
+                    cellElemMap_withNewElements[cell].push_back(&meshGroup.elements.back());
     
                     for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
                         for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
                             boundaryCoordinatePairs.emplace(boundaryCoordinates[i], boundaryCoordinates[j]);
+                        }
+                    }
+                }
+            }
+
+            // Now lets split some elements according to the starcased cells
+            std::set<Element> elementsConvertedInLines;
+            auto itCell = cellElemMap_withNewElements.find(cell);
+            if (itCell != cellElemMap_withNewElements.end()) {
+
+                for(const auto& e: cellElemMap_withNewElements.at(cell)) {
+                    if (!e->vertices.empty()) {
+                        bool allVerticesAreEqual = std::all_of(
+                            e->vertices.begin() + 1,
+                            e->vertices.end(),
+                            [&](int v) { return v == e->vertices.front(); }
+                        );
+    
+                        if (allVerticesAreEqual) {
+                            continue;
+                        }
+                    }
+    
+                    if (e->isTriangle()) {
+                        const auto& firstVertexCoords  = mesh_.coordinates[e->vertices[0]];
+                        const auto& secondVertexCoords = mesh_.coordinates[e->vertices[1]];
+                        const auto& thirdVertexCoords  = mesh_.coordinates[e->vertices[2]];
+
+                        int equalCoords = 0;
+    
+                        bool sameAxis = false;
+                        for (int dim = 0; dim < 3; ++dim) {
+                            if (firstVertexCoords[dim] == secondVertexCoords[dim] &&
+                                secondVertexCoords[dim] == thirdVertexCoords[dim]) {
+                                ++equalCoords;
+                            }
+                        }
+
+                        bool isTwoVerticesEqual = (firstVertexCoords == secondVertexCoords) ||
+                                                  (secondVertexCoords == thirdVertexCoords) ||
+                                                  (firstVertexCoords == thirdVertexCoords);
+    
+                        if(equalCoords == 2 && !isTwoVerticesEqual) {
+                            elementsConvertedInLines.insert(*e);
+                        }
+                    }
+                }
+    
+                for (const auto& e: elementsConvertedInLines) {
+                    for (const auto& otherElementsInCell: cellElemMap_withNewElements.at(cell)) {
+                        if (e == *otherElementsInCell) {
+                            continue;
+                        }
+    
+                        IdSet sharedVertices;
+                        int sharedCount = 0;
+                        int lastCommonVertexIndex = -2;
+                        bool correctOrientation = false;
+    
+                        for (int i = 0; i < otherElementsInCell->vertices.size(); ++i) {
+                            int vOther = otherElementsInCell->vertices[i];
+    
+                            if (std::find(e.vertices.begin(), e.vertices.end(), vOther) != e.vertices.end()) {
+                                sharedVertices.insert(vOther);
+                                ++sharedCount;
+                            }
+    
+                            if (i == lastCommonVertexIndex + 1) {
+                                correctOrientation = true;
+                            }
+                        }
+    
+                        bool shareExactlyTwo = (sharedCount == 2);
+    
+                        if(shareExactlyTwo && otherElementsInCell->isTriangle()) {
+                            
+                            auto v1 = *sharedVertices.begin();
+                            auto v2 = *std::next(sharedVertices.begin());
+    
+                            if(!correctOrientation) {
+                                std::swap(v1, v2);
+                            } 
+    
+                            auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
+                            auto itV2 = std::find(otherElementsInCell->vertices.begin(), otherElementsInCell->vertices.end(), v2);
+                            auto itV4 = e.vertices.end();
+                            auto itV3 = otherElementsInCell->vertices.end();
+
+                            if(itV1 == e.vertices.begin()) {
+                                itV4 = e.vertices.end() - 1;
+                            } else {
+                                itV4 = std::prev(itV1);
+                            }
+                            if(itV2 == otherElementsInCell->vertices.begin()) {
+                                itV3 = otherElementsInCell->vertices.end() - 1;
+                            } else {
+                                itV3 = std::prev(itV2);
+                            }
+    
+                            const auto& v3 = *itV3;
+                            const auto& v4 = *itV4;
+    
+                            Element triangle1;
+                            triangle1.type = Element::Type::Surface;
+                            triangle1.vertices = { v3, v2, v4 };
+    
+                            Element triangle2;
+                            triangle2.type = Element::Type::Surface;
+                            triangle2.vertices = { v4, v1, v3 };
+    
+                            meshGroup.elements.push_back(triangle1);
+                            meshGroup.elements.push_back(triangle2);
+    
+                            auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementsInCell);
+                            auto itElement      = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), e);
+    
+                            if (itOtherElement != meshGroup.elements.end()) {
+                                meshGroup.elements.erase(itOtherElement);
+                            }
+                            if (itElement != meshGroup.elements.end()) {
+                                meshGroup.elements.erase(itElement);
+                            }
                         }
                     }
                 }
