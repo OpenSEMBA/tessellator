@@ -143,6 +143,7 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
     fillerType_ = type;
 
     RelativePairSet boundaryCoordinatePairs;
+    std::vector<std::set<ElementId>> toRemove(mesh_.groups.size());
     for (std::size_t g = 0; g < mesh_.groups.size(); ++g) {
 
         auto& inputGroup = inputMesh_.groups[g];
@@ -364,19 +365,25 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                             Element triangle2;
                             triangle2.type = Element::Type::Surface;
                             triangle2.vertices = { v4, v1, v3 };
-    
+                            
+                            auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementsInCell);
+                            if (itOtherElement != meshGroup.elements.end()) {
+                                ElementId otherElementId = std::distance(meshGroup.elements.begin(), itOtherElement);
+                                toRemove[g].insert(otherElementId);
+                            }
+
+                            auto itElement      = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), e);
+                            if (itElement != meshGroup.elements.end()) {
+                                ElementId elementId = std::distance(meshGroup.elements.begin(), itElement);
+                                toRemove[g].insert(elementId);
+                            }
+
                             meshGroup.elements.push_back(triangle1);
                             meshGroup.elements.push_back(triangle2);
-    
-                            auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementsInCell);
-                            auto itElement      = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), e);
-    
-                            if (itOtherElement != meshGroup.elements.end()) {
-                                meshGroup.elements.erase(itOtherElement);
-                            }
-                            if (itElement != meshGroup.elements.end()) {
-                                meshGroup.elements.erase(itElement);
-                            }
+
+                            RedundancyCleaner::removeElements(mesh_, toRemove);
+                            toRemove[g].clear();
+
                             processed = true;
                             break;
                         }
@@ -386,9 +393,10 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
             }
         }
     }
-
+    
     RedundancyCleaner::fuseCoords(mesh_);
     RedundancyCleaner::removeDegenerateElements(mesh_);
+    RedundancyCleaner::removeRepeatedElements(mesh_);
     RedundancyCleaner::cleanCoords(mesh_);
 
     for (auto it = boundaryCoordinatePairs.begin(); it != boundaryCoordinatePairs.end();) {
