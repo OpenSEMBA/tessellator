@@ -315,7 +315,6 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
     
                         IdSet sharedVertices;
                         int sharedCount = 0;
-                        int lastCommonVertexIndex = -2;
                         bool correctOrientation = false;
     
                         for (int i = 0; i < otherElementsInCell->vertices.size(); ++i) {
@@ -325,10 +324,7 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                                 sharedVertices.insert(vOther);
                                 ++sharedCount;
                             }
-    
-                            if (i == lastCommonVertexIndex + 1) {
-                                correctOrientation = true;
-                            }
+
                         }
     
                         bool shareExactlyTwo = (sharedCount == 2);
@@ -337,6 +333,10 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                             
                             auto v1 = *sharedVertices.begin();
                             auto v2 = *std::next(sharedVertices.begin());
+
+                            auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
+                            auto itV2 = std::find(e.vertices.begin(), e.vertices.end(), v2);
+                            correctOrientation = (itV1 < itV2);
     
                             if(!correctOrientation) {
                                 std::swap(v1, v2);
