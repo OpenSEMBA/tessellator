@@ -2707,8 +2707,8 @@ TEST_F(StaircaserTest, selectiveStructurer_SplitLinesWithNeighborTriangle)
             Element({1, 0}, Element::Type::Line),
             Element({3, 4, 5}, Element::Type::Surface),
             Element({5, 1, 6}, Element::Type::Surface),
-            Element({1, 0, 4}, Element::Type::Surface),
-            Element({4, 5, 1}, Element::Type::Surface),
+            Element({1, 5, 4}, Element::Type::Surface),
+            Element({4, 0, 1}, Element::Type::Surface),
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
