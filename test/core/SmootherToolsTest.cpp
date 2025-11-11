@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+﻿#include "gtest/gtest.h"
 
 #include "Smoother.h"
 #include "utils/Tools.h"
@@ -294,6 +294,43 @@ protected:
 			Element({ 8, 3, 5 }, Element::Type::Surface),
 			Element({ 9, 1, 0 }, Element::Type::Surface),
 			Element({ 9, 2, 1 }, Element::Type::Surface)
+		};
+
+		return res;
+	}
+
+	static Mesh buildCollapseEdgeMeshWithInnerDent()
+	{
+		//  7------------=6 
+		//  |         _-‾⟋⎸
+		//  |      _-‾⟋   ⎸
+		//  |   _-‾ ⟋     ⎸
+		//  |_-‾  ⟋       ⎸ 
+		//  4---3---------5
+		//  | -‾‾-     
+		//  2‾--__‾-_  
+		//  0------==1
+		Mesh res;
+		res.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+		res.coordinates = {
+			Coordinate({ 0.00, 0.00, 1.00 }), // 0
+			Coordinate({ 0.60, 0.00, 1.00 }), // 1
+			Coordinate({ 0.00, 0.10, 1.00 }), // 2
+			Coordinate({ 0.20, 0.40, 1.00 }), // 3
+			Coordinate({ 0.00, 0.40, 1.00 }), // 4
+			Coordinate({ 1.00, 0.40, 1.00 }), // 5
+			Coordinate({ 1.00, 1.00, 1.00 }), // 6
+			Coordinate({ 0.00, 1.00, 1.00 }), // 7
+		};
+
+		res.groups.push_back(Group());
+		res.groups[0].elements = {
+			Element({ 0, 1, 2 }, Element::Type::Surface), // 0
+			Element({ 1, 3, 2 }, Element::Type::Surface), // 1
+			Element({ 2, 3, 4 }, Element::Type::Surface), // 2
+			Element({ 3, 5, 6 }, Element::Type::Surface), // 3
+			Element({ 3, 6, 4 }, Element::Type::Surface), // 4
+			Element({ 4, 6, 7 }, Element::Type::Surface), // 4
 		};
 
 		return res;
@@ -623,6 +660,41 @@ TEST_F(SmootherToolsTest, collapse_two_points_in_contour)
 	
 	EXPECT_EQ(collapsed[5], collapsed[7]);
 	EXPECT_EQ(collapsed[6], collapsed[7]);
+}
+
+///  7------------=6
+///  |         _-‾⟋⎸
+///  |      _-‾⟋   ⎸
+///  |   _-‾ ⟋     ⎸
+///  |_-‾  ⟋       ⎸
+///  4---3---------5
+///  | -‾‾-
+///  2‾--__‾-_  
+///  0------==1
+/// Expected result:
+/// - Coordinate Ids 2 and 4 are removed from the list of coordinates.
+/// - Coordinate Id 2 collapses to CoordinateId 0.
+/// - Coordinate Id 4 collapses to CoordinateId 7.
+
+TEST_F(SmootherToolsTest, collapsePointsInContourWithInnerDent)
+{
+	Mesh mesh = buildCollapseEdgeMeshWithInnerDent();
+	const Elements& elements = mesh.groups[0].elements;
+
+	SmootherTools sT(mesh.grid);
+	Coordinates collapsed =
+		sT.collapsePointsOnContour(elements, mesh.coordinates, alignmentAngle);
+
+	EXPECT_EQ(8, countDifferentCoordinates(mesh.coordinates));
+	ASSERT_EQ(6, countDifferentCoordinates(collapsed));
+
+
+	EXPECT_NE(collapsed[2], mesh.coordinates[2]);
+	EXPECT_NE(collapsed[4], mesh.coordinates[4]);
+
+	EXPECT_NE(collapsed[2], collapsed[4]);
+	EXPECT_EQ(collapsed[2], collapsed[0]);
+	EXPECT_EQ(collapsed[4], collapsed[7]);
 }
 
 /// Build the list of singular Ids corresponding to a corner structure with the following ids
