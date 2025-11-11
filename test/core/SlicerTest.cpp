@@ -426,7 +426,9 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellsFromTheSamePlane)
 
     for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis])
+                << "Current coordinate: #" << i << std::endl
+                << "Current Axis: #" << axis << std::endl;
         }
     }
 
@@ -434,15 +436,19 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellsFromTheSamePlane)
         auto& resultGroup = resultMesh.groups[g];
         auto& expectedGroup = expectedElements[g];
 
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-
         for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
             auto& resultElement = resultGroup.elements[e];
             auto& expectedElement = expectedGroup[e];
 
+            EXPECT_TRUE(resultElement.isLine())
+                << "Current Group: #" << g << std::endl
+                << "Current Element: #" << e << std::endl;
+
             for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl
+                    << "Current Vertex: #" << v << std::endl;
             }
         }
     }
@@ -545,7 +551,9 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellThatPassThoroughPoints)
 
     for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis])
+                << "Current coordinate: #" << i << std::endl
+                << "Current Axis: #" << axis << std::endl;
         }
     }
 
@@ -561,13 +569,96 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellThatPassThoroughPoints)
             auto& expectedElement = expectedGroup[e];
 
             for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl
+                    << "Current Vertex: #" << v << std::endl;
             }
         }
     }
 }
 
 
+
+TEST_F(SlicerTest, keepsNodesIntact)
+{
+
+    // z
+    // *-------------*-------------*
+    // |             |             |
+    // |             |             |
+    // |             |       2     |
+    // |             |             |
+    // |             |             |
+    // |             |             |
+    // *-------------*-------------*
+    // |             |             |
+    // |             |             |
+    // |             |             |
+    // |      3      |             |
+    // |             |             |  
+    // |             |             |  
+    // *---0---------*--------1----* x
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -4.5, -5.0, -5.0 }),   // 0 First Segment, First Point
+        Coordinate({ +4.5, -5.0, -5.0 }),   // 1 First Segment, Final Point
+        Coordinate({ +3.0, -5.0, +3.0 }),   // 2 Second Segment, First Point
+        Coordinate({ -3.0, -5.0, -3.0 }),   // 3 Second Segment, Final Point
+    };
+    m.groups.resize(2);
+    m.groups[0].elements = {
+        Element{ {0}, Element::Type::Node },
+        Element{ {1}, Element::Type::Node }
+    };
+    m.groups[1].elements = {
+        Element{ {2}, Element::Type::Node },
+        Element{ {3}, Element::Type::Node }
+    };
+    GridTools tools(m.grid);
+
+    Coordinate intersectionPointFirstSegment = Coordinate({ 0.0, -5.0, -5.0 });
+    Coordinate intersectionPointSecondSegment = Coordinate({ 0.0, -5.0, 0.0 });
+
+    Mesh resultMesh;
+    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+
+    ASSERT_EQ(resultMesh.coordinates.size(), m.coordinates.size());
+    ASSERT_EQ(resultMesh.groups.size(), m.groups.size());
+
+
+    Relatives expectedRelatives = tools.absoluteToRelative(m.coordinates);
+
+    for (std::size_t i = 0; i < m.coordinates.size(); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis])
+                << "Current coordinate: #" << i << std::endl
+                << "Current Axis: #" << axis << std::endl;
+        }
+    }
+
+    for (std::size_t g = 0; g < m.groups.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = m.groups[g];
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+
+        for (std::size_t e = 0; e < expectedGroup.elements.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup.elements[e];
+
+            ASSERT_TRUE(resultElement.isNode());
+            ASSERT_EQ(resultElement.vertices[0], expectedElement.vertices[0]);
+        }
+    }
+}
 
 TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
 {
@@ -583,7 +674,7 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
     //    +5*---┼---┼-----*---┼---┼/----*¦  | / |         +5*---┼---┼-----*---┼---┼/-┼--*¦  | / |
     //      |   |/  |     |   |/ /|     |¦  |/  |           |   |/  |     |   |/ /|  ¦  |¦  |/  |
     //      |   *---┼-----┼---*/--┼-----┼┼--*   |           |   *---┼-----┼---*/--┼--┼--┼┼--*   |
-    //      |  /| +5|Y    |  ⫽|   ⎸     ⎸¦ /⎸   ⎸    ->     ⎸ ┈┈┼┈┈┈┼Y┈┈┈┈┼┈┈+{2} ⎸  ¦  ⎸¦ /⎸   ⎸ 
+    //      |  /| +5|Y    |  ⫽⎸   ⎸     ⎸¦ /⎸   ⎸    ->     ⎸ ┈┈┼┈┈┈┼Y┈┈┈┈┼┈┈+{2} ⎸  ¦  ⎸¦ /⎸   ⎸ 
     //      | / |   *-----┼//-┼---*-----┼┼/-┼---*           | / | +5*-----┼//-┼---*--┼--┼┼/-┼---*
     //      |/  |  /     /|/  |  /      |¦  |  /            |/  |  /     +{1} |  /   ¦  |¦  |  /
     //      *---┼------/--*---┼---------*   | /             *---┼------/-┼*---┼------¦--*   | /
@@ -658,15 +749,246 @@ TEST_F(SlicerTest, canSliceLinesInAdjacentCellsWithThreeDimensionalMovement)
         auto& resultElement = resultGroup.elements[e];
         auto& expectedElement = expectedElements[e];
 
-        EXPECT_TRUE(expectedElement.isLine());
+        EXPECT_TRUE(expectedElement.isLine()) << "Current Element: #" << e << std::endl;
 
         for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                << "Current Element: #" << e << std::endl
+                << "Current Vertex: #" << v << std::endl;
         }
     }
 }
 
 
+
+TEST_F(SlicerTest, canKeepOppositeLinesInLineDimensionPolicy)
+{
+
+    // z                                       z                                   
+    // *-------------*-------------*          *-------------*----------------*    
+    // |             ⎹             |          |              |               ⎸  
+    // |             ⎹  1          |          |              | {1->3}        ⎸  
+    // |             ⎹⫽            ⎸          ⎸              ⎸⫽             ⎸    
+    // |        ⩘   ⫽⎸   3        ⎹          ⎹          {0.66->2} {3->6}    ⎸   
+    // |       /   ⫽/|  ⫽⩘        |          |           ⫽  ⎸   ⫽         ⎹     
+    // |         ⫽ ⩗ ⎸⫽ /         |          |         ⫽    ⎸ ⫽           ⎹     
+    // *-------⫽-----*-------------*  ->      *-{0.33->1}--{2.5->5}---------*    
+    // |      ⫽    ⫽⎹             ⎹          ⎹     ⫽      ⫽ ⎸              |    
+    // |     0    ⫽  ⎸             ⎸          ⎸    0      ⫽  |              |    
+    // |         2   |             |          |        {2->4} |              |   
+    // |             |             |          |               |              |    
+    // |             |             |          |               |              |    
+    // |          <- |             |          |               |              |    
+    // *--------4====*====5--------* x        *------{4->7}===*===={5->8}----* x    
+    //            ->
+    // 
+    // 
+    //              *-------------*--------------*                   *-------------*-------------*
+    //             /|            /|             /⎸                  /|            /|            /|
+    //            / |           / |            / ⎸                 / |           / |           / |
+    //           /  |          /  |           /  ⎸                /  |          /  |          /  |
+    //          *---┼---------*---┼----------*   ⎸               *---┼---------*---┼---------*   |
+    //         /|   |        /|   |       7 /⎸   ⎸              /|   |        /|   |      10/|   |
+    //      Z / |   *-------/-┼---*----⫽-┼/-┼---*           Z / |   *-------/-┼---*----⫽-┼/-┼---*
+    //       /  |  /|      /  |  /|  ⫽   /  |  /|            /  |  /|      /  |  /|  +{9}/  ⎹  /⎹
+    //    +5*---┼---┼-----*---┼---┼⫽----*¦  | / |         +5*---┼---┼-----*---┼- -┼⫽-┼--*¦  | / |
+    //      |   |/  |     |   |/ ⫽|     |¦  |/  |           |   |/  |     |   |/⫽⎹   ¦  |¦  |/  |
+    //      |   *---┼-----┼---*⫽--┼-----┼┼--*   |           |   *---┼-----┼---*⫽-┼---┼--┼┼--*   |
+    //      |  /| +5|Y    |  ⫻⎸   ⎸     ⎸¦ /⎸   ⎸    ->     ⎸ ┈┈┼┈┈┈┼Y┈┈┈┈┼┈┈+{8}⎹   ¦  ⎹⎹  /⎸  ⎹  
+    //      | / |   *-----┼⫽/-┼---*-----┼┼/-┼---*           | / | +5*-----┼⫽/-┼--*---┼--┼┼/-┼---*
+    //      |/  |  /     ⫽⎸/  |  /      |¦  |  /            |/  |  /     +{7} |  /   ¦  ⎹¦  ⎹  /
+    //      *---┼------⫽--*---┼---------*   | /             *---┼------⫽-┼*--┼------¦---*   | /
+    //      |   |/    6   |   ⎹/        |   ⎹/              |   |/   6   ¦|   |/         |   |/
+    //      |   *-----┼---┼---*---------┼---*               |   *----┼---┼┼---*----------┼---*
+    //      |  /      ¦   |  /          |  /                |  /     ¦    |  /           |  /
+    //      | /           | /           | /                 | /           | /            | /
+    //      |/            |/            |/                  |/            |/             |/
+    //    -5*-------------*-------------* +5  X           -5*-------------*--------------* +5  X
+
+    Mesh m;
+    m.grid = {
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0}),
+        std::vector<double>({-5.0, 0.0, 5.0})
+    };
+    m.coordinates = {
+        Coordinate({ -4.5,  -5.0,  -1.5  }),    // First Line, Vertex 0, Second Line, Vertex 0
+        Coordinate({ +1.5,  -5.0,  +4.5  }),    // First Line, Vertex 1, Second Line, Vertex 1
+        Coordinate({ -3.0,  -5.0,  -3.0  }),    // Third Line, Vertex 1, Fourth Line, Vertex 0
+        Coordinate({ +3.0,  -5.0,  +3.0  }),    // Third Line, Vertex 0, Fourth Line, Vertex 1
+        Coordinate({ -4.5,  -5.0,  -5.0  }),    // Fifth Line, Vertex 0, Sixth Line, Vertex 0
+        Coordinate({ +4.5,  -5.0,  -5.0  }),    // Fifth Line, Vertex 1, Sixth Line, Vertex 1
+        Coordinate({ -2.75, -2.75, -1.50 }),    // Seventh Line, Vertex 0, Eighth Line, Vertex 0
+        Coordinate({ +2.40, +1.50, +1.50 }),    // Seventh Line, Vertex 1, Eighth Line, Vertex 1
+    };
+
+    m.groups.resize(2);
+    m.groups[0].elements = {
+        Element{ {0, 1}, Element::Type::Line }, // First Line
+        Element{ {1, 0}, Element::Type::Line }, // Second Line
+        Element{ {2, 3}, Element::Type::Line }, // Third Line
+        Element{ {3, 2}, Element::Type::Line }, // Fourth Line
+        Element{ {4, 5}, Element::Type::Line }, // Fifth Line
+        Element{ {5, 4}, Element::Type::Line }, // Sixth Line
+        Element{ {6, 7}, Element::Type::Line }, // Seventh Line
+        Element{ {7, 6}, Element::Type::Line }, // Eighth Line
+    };
+    m.groups[1].elements = {
+        Element{ {0, 1}, Element::Type::Line }, // First Line
+        Element{ {1, 0}, Element::Type::Line }, // Second Line
+        Element{ {2, 3}, Element::Type::Line }, // Third Line
+        Element{ {3, 2}, Element::Type::Line }, // Fourth Line
+        Element{ {4, 5}, Element::Type::Line }, // Fifth Line
+        Element{ {5, 4}, Element::Type::Line }, // Sixth Line
+        Element{ {6, 7}, Element::Type::Line }, // Seventh Line
+        Element{ {7, 6}, Element::Type::Line }, // Eighth Line
+    };
+    GridTools tools(m.grid);
+
+    Coordinate distanceFirstLine = m.coordinates[1] - m.coordinates[0];
+    CoordinateDir firstPointXComponent = 0.0 - m.coordinates[0][0];
+    CoordinateDir firstPointZComponent = firstPointXComponent * distanceFirstLine[2] / distanceFirstLine[0];
+    CoordinateDir secondPointZComponent = 0.0 - m.coordinates[1][2];
+    CoordinateDir secondPointXComponent = secondPointZComponent * distanceFirstLine[0] / distanceFirstLine[2];
+    Coordinate firstIntersectionPointFirstLine = Coordinate({ secondPointXComponent + m.coordinates[1][0], -5.0, 0.0 });
+    Coordinate secondIntersectionPointFirstLine = Coordinate({ 0.0, -5.0, firstPointZComponent + m.coordinates[0][2] });
+
+    Coordinates expectedCoordinates = {
+        m.coordinates[0],                       // 0 First Line, First Point
+        firstIntersectionPointFirstLine,        // 1 First Line, First Intersection Point
+        secondIntersectionPointFirstLine,       // 2 First Line, Second Intersection Point
+        m.coordinates[1],                       // 3 First Line, Final Point
+        m.coordinates[2],                       // 4 Third Line, First Point
+        Coordinate({ 0, -5.0, 0 }),             // 5 Third Line, Intersection Point
+        m.coordinates[3],                       // 6 Third Line, Final Point
+        m.coordinates[4],                       // 7 Fifth Line, Final Point
+        Coordinate({ 0, -5.0, -5.0 }),          // 8 Fifth Line, Intersection Point
+        m.coordinates[5],                       // 9 Fifth Line, Final Point
+        m.coordinates[6],                       // 10 Seventh Line, First Point
+        Coordinate({0, 0, 0}),                  // 11 Seventh Line, First Intersection Point
+        Coordinate({0, 0, 0}),                  // 12 Seventh Line, Second Intersection Point
+        Coordinate({0, 0, 0}),                  // 13 Seventh Line, Third Intersection Point
+        m.coordinates[7],                       // 14 Seventh Line, Final Point
+    };
+
+    Relatives expectedRelatives = tools.absoluteToRelative(expectedCoordinates);
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+
+            Element({3, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+
+            Element({4, 5}, Element::Type::Line),
+            Element({5, 6}, Element::Type::Line),
+
+            Element({6, 5}, Element::Type::Line),
+            Element({5, 4}, Element::Type::Line),
+
+            Element({7, 8}, Element::Type::Line),
+            Element({8, 9}, Element::Type::Line),
+
+            Element({9, 8}, Element::Type::Line),
+            Element({8, 7}, Element::Type::Line),
+
+            Element({10, 11}, Element::Type::Line),
+            Element({11, 12}, Element::Type::Line),
+            Element({12, 13}, Element::Type::Line),
+            Element({13, 14}, Element::Type::Line),
+
+            Element({14, 13}, Element::Type::Line),
+            Element({13, 12}, Element::Type::Line),
+            Element({12, 11}, Element::Type::Line),
+            Element({11, 10}, Element::Type::Line),
+        },
+        {
+
+            Element({0, 1}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+
+            Element({4, 5}, Element::Type::Line),
+            Element({5, 6}, Element::Type::Line),
+
+            Element({7, 8}, Element::Type::Line),
+            Element({8, 9}, Element::Type::Line),
+
+            Element({10, 11}, Element::Type::Line),
+            Element({11, 12}, Element::Type::Line),
+            Element({12, 13}, Element::Type::Line),
+            Element({13, 14}, Element::Type::Line),
+        }
+    };
+
+    Mesh resultMesh;
+
+    Relatives relativeCoordinates = tools.absoluteToRelative(m.coordinates);
+
+    std::vector<Element::Type> dimensions({ Element::Type::Line, Element::Type::Surface });
+
+    ASSERT_NO_THROW(resultMesh = Slicer(m, dimensions).getMesh());
+
+    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
+    RedundancyCleaner::cleanCoords(resultMesh);
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
+
+
+
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+    for (std::size_t i = 0; i < (m.coordinates.size() - 4); ++i) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis])
+                << "Current coordinate: #" << i << std::endl
+                << "Current Axis: #" << axis << std::endl;
+        }
+    }
+
+    EXPECT_LT(resultMesh.coordinates[11][X], 1.0);
+    EXPECT_LT(resultMesh.coordinates[11][Y], 1.0);
+    EXPECT_EQ(resultMesh.coordinates[11][Z], 1.0);
+
+    EXPECT_EQ(resultMesh.coordinates[12][X], 1.0);
+    EXPECT_LT(resultMesh.coordinates[12][Y], 1.0);
+    EXPECT_GT(resultMesh.coordinates[12][Z], 1.0);
+
+    EXPECT_GT(resultMesh.coordinates[13][X], 1.0);
+    EXPECT_EQ(resultMesh.coordinates[13][Y], 1.0);
+    EXPECT_GT(resultMesh.coordinates[13][Z], 1.0);
+
+    EXPECT_DOUBLE_EQ(resultMesh.coordinates[14][X], expectedRelatives[14][X]);
+    EXPECT_DOUBLE_EQ(resultMesh.coordinates[14][Y], expectedRelatives[14][Y]);
+    EXPECT_DOUBLE_EQ(resultMesh.coordinates[14][Z], expectedRelatives[14][Z]);
+
+    
+    
+    for (GroupId g = 0; g < resultMesh.groups.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size()) << "Current Group: #" << g << std::endl;
+
+        for (ElementId e = 0; e < expectedGroup.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            EXPECT_TRUE(expectedElement.isLine())
+                << "Current Group: #" << g << std::endl
+                << "Current Element: #" << e << std::endl;
+
+            for (CoordinateId v = 0; v < expectedElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl
+                    << "Current Vertex: #" << v << std::endl;
+            }
+        }
+    }
+}
 
 
 TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)

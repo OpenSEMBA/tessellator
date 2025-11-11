@@ -11,8 +11,15 @@ namespace core {
 
 using namespace utils;
 
-Collapser::Collapser(const Mesh& in, int decimalPlaces)
-{    
+Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Element::Type>& dimensionPolicy)
+{
+    if (dimensionPolicy.size() == 0) {
+        dimensionPolicy_ = std::vector<Element::Type>(in.groups.size(), Element::Type::Surface);
+    }
+    else {
+        dimensionPolicy_ = dimensionPolicy;
+    }
+
     mesh_ = in;
     double factor = std::pow(10.0, decimalPlaces);
     for (auto& v : mesh_.coordinates) {
@@ -23,7 +30,7 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces)
     RedundancyCleaner::cleanCoords(mesh_);
     
     collapseDegenerateElements(mesh_, 0.4 / (factor * factor));
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(mesh_);
+    RedundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
 

@@ -119,6 +119,106 @@ TEST_F(StaircaserTest, calculateStaircasedRelativeBetweenSteps)
     }
 }
 
+TEST_F(StaircaserTest, transformNodesBySnappingThemIntoCellIntersections)
+{
+
+    // *---------*      2---------3
+    // |  2   3  |      |         |
+    // |         |      |         |
+    // |       1 |  ->  |         |
+    // |  0      |      |         |
+    // *---------*      0---------1
+
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 5.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells - 1) == step);
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells);
+    mesh.coordinates = {
+        Relative({ 0.3, 0.3, 0.0 }),
+        Relative({ 0.7, 0.4, 0.0 }),
+        Relative({ 0.3, 0.7, 0.0 }),
+        Relative({ 0.7, 0.7, 0.0 }),
+        Relative({ 0.3, 0.0, 0.7 }),
+        Relative({ 0.3, 0.7, 0.7 }),
+        Relative({ 0.8, 0.7, 0.7 }),
+        Relative({ 0.6, 0.7, 0.7 }),
+    };
+    mesh.groups = { Group(), Group(), Group() };
+    mesh.groups[0].elements = {
+        Element({0}, Element::Type::Node),
+        Element({1}, Element::Type::Node)
+    };
+    mesh.groups[1].elements = {
+        Element({2}, Element::Type::Node),
+        Element({3}, Element::Type::Node),
+        Element({4}, Element::Type::Node),
+        Element({5}, Element::Type::Node),
+        Element({6}, Element::Type::Node),
+    };
+    mesh.groups[2].elements = {
+        Element({7}, Element::Type::Node),
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 0.0, 0.0, 0.0 }),
+        Relative({ 1.0, 0.0, 0.0 }),
+        Relative({ 0.0, 1.0, 0.0 }),
+        Relative({ 1.0, 1.0, 0.0 }),
+        Relative({ 0.0, 0.0, 1.0 }),
+        Relative({ 0.0, 1.0, 1.0 }),
+        Relative({ 1.0, 1.0, 1.0 }),
+    };
+
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0}, Element::Type::Node),
+            Element({1}, Element::Type::Node)
+        },
+        {
+            Element({2}, Element::Type::Node),
+            Element({3}, Element::Type::Node),
+            Element({4}, Element::Type::Node),
+            Element({5}, Element::Type::Node),
+            Element({6}, Element::Type::Node),
+        },
+        {
+            Element({6}, Element::Type::Node),
+        },
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getMesh();
+
+    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
+    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
+
+
+    for (std::size_t index = 0; index < expectedRelatives.size(); ++index) {
+        for (std::size_t axis = X; axis <= Z; ++axis) {
+            EXPECT_EQ(resultMesh.coordinates[index][axis], expectedRelatives[index][axis]);
+        }
+    }
+
+    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+        auto& resultGroup = resultMesh.groups[g];
+        auto& expectedGroup = expectedElements[g];
+
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size());
+
+        for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+            auto& resultElement = resultGroup.elements[e];
+            auto& expectedElement = expectedGroup[e];
+
+            EXPECT_TRUE(resultElement.isNode());
+
+            EXPECT_EQ(resultElement.vertices[0], expectedElement.vertices[0]);
+        }
+    }
+}
+
 TEST_F(StaircaserTest, transformSingleSegmentsIntoSingleStaircasedElements)
 {
 
@@ -632,7 +732,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedE
     // |   *--╱------┼-┼-*           |   *---------{0.67->2}    
     // |  / ╱        |  /            |  /          |  ⫽     
     // | /╱          | /             | /           | ⫽      
-    // |⌿0          |/              |/            |⫽
+    // |⌿0           |/              |/            |⫽
     // *-------------* x             0========={0.33->1} x
 
     float lowerRelativeValue = -5.0;

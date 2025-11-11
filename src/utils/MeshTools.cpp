@@ -22,6 +22,24 @@ std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Eleme
     return res;
 }
 
+std::vector<Element::Type> getHighestDimensionByGroup(const Mesh& mesh) {
+    std::vector<Element::Type> highestDimensions;
+
+    highestDimensions.reserve(mesh.groups.size());
+
+    for (auto & group : mesh.groups) {
+        auto highestValue = Element::Type::None;
+        for (auto& element : group.elements) {
+            if (highestValue < element.type) {
+                highestValue = element.type;
+            }
+        }
+        highestDimensions.push_back(highestValue);
+    }
+
+    return highestDimensions;
+}
+
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)
 {
     Mesh res = mesh;

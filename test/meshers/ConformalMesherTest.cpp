@@ -17,8 +17,8 @@ protected:
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
-        opts.snapperOptions.edgePoints = 0;
-        opts.snapperOptions.forbiddenLength = 0.0;
+        opts.snapperOptions.edgePoints = 3;
+        opts.snapperOptions.forbiddenLength = 0.3;
         
         ConformalMesher mesher{inputMesh, opts};
 

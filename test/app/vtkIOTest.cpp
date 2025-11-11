@@ -27,8 +27,20 @@ TEST_F(VTKIOTest, exportAndReadMeshFromVTU)
     auto mVTU{ readInputMesh("tmp_exported_alhambra.vtu") };
 
     EXPECT_EQ(mSTL.coordinates.size(), mVTU.coordinates.size());
-    EXPECT_EQ(mSTL.groups.size(), mVTU.groups.size());  
+    EXPECT_EQ(mSTL.groups.size(), mVTU.groups.size());
     EXPECT_EQ(mSTL.countElems(), mVTU.countElems());
+}
+
+TEST_F(VTKIOTest, readElementTypes)
+{
+    auto m{ readInputMesh("testData/elementTypes.vtu") };
+
+    EXPECT_EQ(m.coordinates.size(), 3);
+    EXPECT_EQ(m.groups.size(), 1);
+    EXPECT_EQ(m.groups[0].elements.size(), 3);
+    EXPECT_TRUE(m.groups[0].elements[0].isNode());
+    EXPECT_TRUE(m.groups[0].elements[1].isLine());
+    EXPECT_TRUE(m.groups[0].elements[2].isTriangle());
 }
 
 TEST_F(VTKIOTest, exportGridToVTU)

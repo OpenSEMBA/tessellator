@@ -126,7 +126,7 @@ TEST_F(CollapserTest, collapser_3)
 	EXPECT_EQ(m.groups, r.groups);
 	for (std::size_t i = 0; i < m.coordinates.size(); i++) {
 		for (std::size_t d = 0; d < 3; d++) {
-			EXPECT_NEAR(m.coordinates[i](d), r.coordinates[i](d), 1e-8);
+			EXPECT_NEAR(m.coordinates[i](d), r.coordinates[i](d), 1e-8) << "Current Coordinate: #" << i << std::endl;
 		}
 	}
 }
@@ -253,7 +253,9 @@ TEST_F(CollapserTest, round_lines_to_tolerance)
 		auto& resultCoordinate = resultMesh.coordinates[c];
 
 		for (Axis axis = X; axis <= Z; ++axis) {
-			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis])
+				<< "Current coordinate: #" << c << std::endl
+				<< "Current Axis: #" << axis << std::endl;
 		}
 	}
 
@@ -264,16 +266,21 @@ TEST_F(CollapserTest, round_lines_to_tolerance)
 		auto& expectedGroup = expectedMesh.groups[g];
 		auto& resultGroup = resultMesh.groups[g];
 
-		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size()) << "Current Group: #" << g << std::endl;
 
 		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
 			auto & expectedElement = expectedGroup.elements[e];
 			auto & resultElement = resultGroup.elements[e];
 
-			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
 
 			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
-				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Group: #" << g << std::endl
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
 			}
 		}
 	}
@@ -320,7 +327,9 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 		auto& resultCoordinate = resultMesh.coordinates[c];
 
 		for (Axis axis = X; axis <= Z; ++axis) {
-			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis])
+				<< "Current coordinate: #" << c << std::endl
+				<< "Current Axis: #" << axis << std::endl;
 		}
 	}
 	
@@ -333,23 +342,28 @@ TEST_F(CollapserTest, collapse_individual_lines_below_tolerance)
 		auto& expectedGroup = expectedMesh.groups[g];
 		auto& resultGroup = resultMesh.groups[g];
 
-		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size()) << "Current Group: #" << g << std::endl;
 		
 		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
 			auto& expectedElement = expectedGroup.elements[e];
 			auto& resultElement = resultGroup.elements[e];
 
-			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
 
 			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
-				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Group: #" << g << std::endl
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
 			}
 		}
 	}
 }
 
 
-TEST_F(CollapserTest, equal_lines_get_erased)
+TEST_F(CollapserTest, equal_lines_get_erased_with_surface_policy)
 {
 	int decimalPlaces = 2;
 	auto tolerance = std::pow(10.0, decimalPlaces);
@@ -372,6 +386,11 @@ TEST_F(CollapserTest, equal_lines_get_erased)
 		Element({2, 3}, Element::Type::Line),
 		Element({1, 4}, Element::Type::Line),
 		Element({4, 5}, Element::Type::Line),
+		Element({5, 4}, Element::Type::Line),
+		Element({4, 1}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
 	};
 	mesh.groups[1].elements = {
 		Element({0, 1}, Element::Type::Line),
@@ -379,6 +398,11 @@ TEST_F(CollapserTest, equal_lines_get_erased)
 		Element({2, 3}, Element::Type::Line),
 		Element({3, 4}, Element::Type::Line),
 		Element({4, 5}, Element::Type::Line),
+		Element({5, 4}, Element::Type::Line),
+		Element({4, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
 	};
 
 	Mesh expectedMesh;
@@ -411,7 +435,9 @@ TEST_F(CollapserTest, equal_lines_get_erased)
 		auto& resultCoordinate = resultMesh.coordinates[c];
 
 		for (Axis axis = X; axis <= Z; ++axis) {
-			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis]);
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis])
+				<< "Current coordinate: #" << c << std::endl
+				<< "Current Axis: #" << axis << std::endl;
 		}
 	}
 
@@ -422,16 +448,134 @@ TEST_F(CollapserTest, equal_lines_get_erased)
 		auto& expectedGroup = expectedMesh.groups[g];
 		auto& resultGroup = resultMesh.groups[g];
 
-		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size());
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size()) << "Current Group: #" << g << std::endl;
 
 		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
 			auto& expectedElement = expectedGroup.elements[e];
 			auto& resultElement = resultGroup.elements[e];
 
-			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size());
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
 
 			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
-				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Group: #" << g << std::endl
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
+			}
+		}
+	}
+}
+
+
+TEST_F(CollapserTest, equal_lines_get_erased_but_not_inverted_with_lines_policy)
+{
+	int decimalPlaces = 2;
+	auto tolerance = std::pow(10.0, decimalPlaces);
+
+	Mesh mesh;
+	mesh.grid = buildGridSize2();
+
+	mesh.coordinates = {
+		Coordinate({ 0.000, 0.000, 0.000}),
+		Coordinate({ 0.325, 0.325, 0.325}),
+		Coordinate({ 1.557, 1.556, 1.584}),
+		Coordinate({ 1.995, 3.226, 0.112}),
+		Coordinate({ 1.562, 1.562, 1.579}),
+		Coordinate({ 2.004, 3.230, 0.109}),
+	};
+	mesh.groups.resize(2);
+	mesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({1, 4}, Element::Type::Line),
+		Element({4, 5}, Element::Type::Line),
+		Element({5, 4}, Element::Type::Line),
+		Element({4, 1}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
+	};
+	mesh.groups[1].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 4}, Element::Type::Line),
+		Element({4, 5}, Element::Type::Line),
+		Element({5, 4}, Element::Type::Line),
+		Element({4, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
+	};
+
+	Mesh expectedMesh;
+	expectedMesh.grid = buildGridSize2();
+	expectedMesh.coordinates = {
+		Coordinate({ 0.00, 0.00, 0.00}),
+		Coordinate({ 0.33, 0.33, 0.33}),
+		Coordinate({ 1.56, 1.56, 1.58}),
+		Coordinate({ 2.00, 3.23, 0.11}),
+	};
+	expectedMesh.groups.resize(2);
+	expectedMesh.groups[0].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({1, 0}, Element::Type::Line),
+	};
+	expectedMesh.groups[1].elements = {
+		Element({0, 1}, Element::Type::Line),
+		Element({1, 2}, Element::Type::Line),
+		Element({2, 3}, Element::Type::Line),
+	};
+
+
+	auto resultMesh = Collapser(mesh, decimalPlaces, {Element::Type::Line, Element::Type::Surface}).getMesh();
+
+	ASSERT_EQ(resultMesh.coordinates.size(), expectedMesh.coordinates.size());
+
+	for (std::size_t c = 0; c < resultMesh.coordinates.size(); ++c) {
+		auto& expectedCoordinate = expectedMesh.coordinates[c];
+		auto& resultCoordinate = resultMesh.coordinates[c];
+
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_EQ(resultCoordinate[axis], expectedCoordinate[axis])
+				<< "Current coordinate: #" << c << std::endl
+				<< "Current Axis: #" << axis << std::endl;
+		}
+	}
+
+	ASSERT_EQ(resultMesh.groups.size(), expectedMesh.groups.size());
+	ASSERT_EQ(resultMesh.groups.size(), mesh.groups.size());
+
+	for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
+		auto& expectedGroup = expectedMesh.groups[g];
+		auto& resultGroup = resultMesh.groups[g];
+
+		ASSERT_EQ(resultGroup.elements.size(), expectedGroup.elements.size()) << "Current Group: #" << g << std::endl;
+
+		for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
+			auto& expectedElement = expectedGroup.elements[e];
+			auto& resultElement = resultGroup.elements[e];
+
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Group: #" << g << std::endl
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
 			}
 		}
 	}
