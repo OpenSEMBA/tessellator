@@ -1,7 +1,7 @@
 #include "launcher.h"
 #include "vtkIO.h"
 
-#include "meshers/StructuredMesher.h"
+#include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
 #include "utils/GridTools.h"
 
@@ -74,14 +74,14 @@ std::string readMesherType(const std::string &fn)
     if (j["mesher"].contains("type")) {
         return j["mesher"]["type"];
     } else {
-        return meshlib::app::structured_mesher;
+        return meshlib::app::staircase_mesher;
     }
 }
 
 std::string readExtension(const std::string &fn)
 {
     auto mesherType = readMesherType(fn);
-    if (mesherType == meshlib::app::structured_mesher) {
+    if (mesherType == meshlib::app::staircase_mesher) {
         return "str";
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return "cmsh";
@@ -107,8 +107,8 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
 std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
 {
     auto mesherType = readMesherType(fn);
-    if (mesherType == meshlib::app::structured_mesher) {
-        return std::make_unique<meshlib::meshers::StructuredMesher>(meshlib::meshers::StructuredMesher{in});
+    if (mesherType == meshlib::app::staircase_mesher) {
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in});
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
     } else {

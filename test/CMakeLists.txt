@@ -31,7 +31,7 @@ add_executable(tessellator_tests
 	"utils/GridToolsTest.cpp"
 	"utils/MeshToolsTest.cpp"
 	"utils/RedundancyCleanerTest.cpp"
-    "meshers/StructuredMesherTest.cpp"
+    "meshers/StaircaseMesherTest.cpp"
 	"meshers/OffgridMesherTest.cpp"
 	"meshers/ConformalMesherTest.cpp"
 )

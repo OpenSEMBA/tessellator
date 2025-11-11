@@ -18,6 +18,7 @@ public:
     static void removeRepeatedElementsIgnoringOrientation(Mesh&);
     static void removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh&);
     static void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh&);
+    static void removeOverlappedElementsByDimension(Mesh&, const std::vector<Element::Type>&);
     static void removeElements(Mesh&, const std::vector<IdSet>&);
 private:
     static Elements findDegenerateElements_(const Group&, const Coordinates&);

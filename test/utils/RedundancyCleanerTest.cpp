@@ -338,6 +338,312 @@ TEST_F(RedundancyCleanerTest, removeOverlappedElementsWhenSurfaceMeshing)
 	}
 }
 
+TEST_F(RedundancyCleanerTest, removeOverlappedElementsbyDimension) {
+	Mesh mesh;
+	mesh.grid = buildUnitLengthGrid(0.2);
+	mesh.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}), // 0
+		Coordinate({0.0, 1.0, 0.0}), // 1
+		Coordinate({1.0, 1.0, 0.0}), // 2
+		Coordinate({1.0, 0.0, 0.0}), // 3
+		Coordinate({0.0, 0.0, 1.0}), // 4
+		Coordinate({0.0, 1.0, 1.0}), // 5
+		Coordinate({1.0, 1.0, 1.0}), // 6
+		Coordinate({1.0, 0.0, 1.0}), // 7
+	};
+	mesh.groups.resize(15);
+	mesh.groups[0].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({4}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({7, 6}, Element::Type::Line),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+	};
+	mesh.groups[1].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({4}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({7, 6}, Element::Type::Line),
+	};
+	mesh.groups[2].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({4}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({5}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({7, 6}, Element::Type::Line),
+	};
+	mesh.groups[3].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+	};
+	mesh.groups[4].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2, 3}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+	};
+	mesh.groups[5].elements = {
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+	};
+	mesh.groups[6].elements = {
+		Element({2, 3}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({3, 2}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+		Element({6, 7}, Element::Type::Line),
+	};
+	mesh.groups[7].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+	};
+	mesh.groups[8].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+	};
+	mesh.groups[9].elements = {
+		Element({0, 4}, Element::Type::Line),
+		Element({5, 1}, Element::Type::Line),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+	};
+	mesh.groups[10].elements = {
+		Element({3, 0}, Element::Type::Line),
+		Element({2, 1}, Element::Type::Line),
+		Element({5, 6}, Element::Type::Line),
+		Element({4, 7}, Element::Type::Line),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+		Element({0, 4}, Element::Type::Line),
+		Element({5, 1}, Element::Type::Line),
+	};
+	mesh.groups[11].elements = {
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+		Element({0, 1, 5, 4}, Element::Type::Surface),
+		Element({1, 2, 6, 5}, Element::Type::Surface),
+		Element({2, 3, 7, 6}, Element::Type::Surface),
+		Element({3, 0, 4, 7}, Element::Type::Surface),
+		Element({4, 5, 6, 7}, Element::Type::Surface),
+
+		Element({1, 2, 3, 0}, Element::Type::Surface),
+		Element({2, 3, 0, 1}, Element::Type::Surface),
+		Element({3, 0, 1, 2}, Element::Type::Surface),
+		Element({2, 1, 0, 3}, Element::Type::Surface),
+	};
+	mesh.groups[12].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+	};
+	mesh.groups[13].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+	};
+	mesh.groups[14].elements = {
+		Element({0}, Element::Type::Node),
+		Element({1}, Element::Type::Node),
+		Element({2}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+		Element({3}, Element::Type::Node),
+	};
+
+	std::vector<Element::Type> dimensions = {
+		Element::Type::Surface,
+		Element::Type::Line,
+		Element::Type::Surface,
+		Element::Type::Line,
+		Element::Type::Surface,
+		Element::Type::Line,
+		Element::Type::Surface,
+		Element::Type::Line,
+		Element::Type::Surface,
+		Element::Type::Surface,
+		Element::Type::Surface,
+		Element::Type::Surface,
+		Element::Type::Node,
+		Element::Type::Line,
+		Element::Type::Surface
+	};
+
+	Coordinates expectedCoordinates = {
+		Coordinate({0.0, 0.0, 0.0}), // 0
+		Coordinate({0.0, 1.0, 0.0}), // 1
+		Coordinate({1.0, 1.0, 0.0}), // 2
+		Coordinate({1.0, 0.0, 0.0}), // 3
+		Coordinate({0.0, 0.0, 1.0}), // 4
+		Coordinate({0.0, 1.0, 1.0}), // 5
+		Coordinate({1.0, 1.0, 1.0}), // 6
+		Coordinate({1.0, 0.0, 1.0}), // 7
+	};
+
+	std::vector<Elements> expectedElementsList = {
+		{
+			Element({4}, Element::Type::Node),
+			Element({5}, Element::Type::Node),
+			Element({7, 6}, Element::Type::Line),
+			Element({0, 1, 2, 3}, Element::Type::Surface),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({4}, Element::Type::Node),
+			Element({5}, Element::Type::Node),
+			Element({2, 3}, Element::Type::Line),
+			Element({3, 2}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+			Element({7, 6}, Element::Type::Line),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({4}, Element::Type::Node),
+			Element({5}, Element::Type::Node),
+			Element({3, 2}, Element::Type::Line),
+			Element({7, 6}, Element::Type::Line),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2, 3}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2, 3}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+		},
+		{
+			Element({2, 3}, Element::Type::Line),
+			Element({3, 2}, Element::Type::Line),
+			Element({3, 2}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+		},
+		{
+			Element({3, 2}, Element::Type::Line),
+			Element({6, 7}, Element::Type::Line),
+		},
+		{
+			Element({0, 1}, Element::Type::Line),
+		},
+		{
+			Element({0, 1}, Element::Type::Line),
+		},
+		{
+			Element({0, 4}, Element::Type::Line),
+			Element({5, 1}, Element::Type::Line),
+			Element({0, 1, 2, 3}, Element::Type::Surface),
+		},
+		{
+			Element({0, 1, 2, 3}, Element::Type::Surface),
+			Element({4, 5, 6, 7}, Element::Type::Surface),
+			Element({0, 4}, Element::Type::Line),
+			Element({5, 1}, Element::Type::Line),
+		},
+		{
+			Element({0, 1, 2, 3}, Element::Type::Surface),
+			Element({0, 1, 5, 4}, Element::Type::Surface),
+			Element({1, 2, 6, 5}, Element::Type::Surface),
+			Element({2, 3, 7, 6}, Element::Type::Surface),
+			Element({3, 0, 4, 7}, Element::Type::Surface),
+			Element({4, 5, 6, 7}, Element::Type::Surface),
+
+			Element({2, 1, 0, 3}, Element::Type::Surface),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2}, Element::Type::Node),
+			Element({3}, Element::Type::Node),
+			Element({3}, Element::Type::Node),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2}, Element::Type::Node),
+			Element({3}, Element::Type::Node),
+		},
+		{
+			Element({0}, Element::Type::Node),
+			Element({1}, Element::Type::Node),
+			Element({2}, Element::Type::Node),
+			Element({3}, Element::Type::Node),
+		},
+	};
+
+	RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+
+	EXPECT_EQ(mesh.coordinates.size(), expectedCoordinates.size());
+	ASSERT_EQ(mesh.groups.size(), expectedElementsList.size());
+
+	for (std::size_t index = 0; index < mesh.coordinates.size(); ++index) {
+		const auto& resultCoordinate = mesh.coordinates[index];
+		const auto& expectedCoordinate = expectedCoordinates[index];
+
+		for (Axis axis = X; axis <= Z; ++axis) {
+			EXPECT_FLOAT_EQ(resultCoordinate[axis], expectedCoordinate[axis]) << "Current Coordinate: #" << index << std::endl;
+		}
+	}
+
+	for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
+		const auto& resultElements = mesh.groups[g].elements;
+		const auto& expectedElements = expectedElementsList[g];
+
+		ASSERT_EQ(resultElements.size(), expectedElements.size())
+			<< "Current Group: #" << g << std::endl;
+
+		for (std::size_t e = 0; e < resultElements.size(); ++e) {
+			const auto& resultElement = resultElements[e];
+			const auto& expectedElement = expectedElements[e];
+
+			EXPECT_EQ(resultElement.type, expectedElement.type);
+			ASSERT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Group: #" << g << std::endl
+				<< "Current Element: #" << e << std::endl;
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Group: #" << g << std::endl
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
+			}
+		}
+	}
+}
+
+
 TEST_F(RedundancyCleanerTest, doNotRemoveOppositeLines)
 {
 	Mesh m;

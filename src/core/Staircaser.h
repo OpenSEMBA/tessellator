@@ -47,6 +47,12 @@ private:
         Relatives& resultRelatives,
         Group& group
     );
+    void processNodeAndAddToGroup(
+        const Element& node,
+        const Relatives& originalRelative,
+        Relatives& resultRelatives,
+        Group& group
+    );
     bool isEdgePartOfCellSurface(const Element& edge, const RelativeIds &surfaceRelativeIds) const;
     bool isPureDiagonal(const Element& edge, const Relatives& relatives);
     bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;

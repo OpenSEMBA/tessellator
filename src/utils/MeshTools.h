@@ -21,6 +21,7 @@ static bool isTetrahedron(const Element& e) { return e.isTetrahedron(); }
 static bool isNotTetrahedron(const Element& e) { return !e.isTetrahedron(); }
 
 std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter);
+std::vector<Element::Type> getHighestDimensionByGroup(const Mesh& mesh);
 
 Mesh buildMeshFilteringElements(
 	const Mesh& in, std::function<bool(const Element&)> filter);
