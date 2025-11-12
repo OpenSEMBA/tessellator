@@ -76,6 +76,10 @@ private:
     std::vector<Cell> calculateMiddleCellsBetweenTwoRelatives(Relative& startExtreme, Relative& endExtreme);
     void calculateRelativeIdSetByCellSurface(const Relatives& relatives, std::map<Surfel, IdSet>& relativesByCellSurface);
     void fillGaps(const RelativePairSet boundaryCoordinatePairs);
+    std::pair<Element, Relatives> obtainNewIndexForElement(const Element& e, const std::set<Cell>& cellsToStructure, CoordinateMap& coordinateMap);
+    bool isAllCoordinatesOnTheSameCellBoundary(const Element& newElement, const std::set<Cell>& cellsToStructure);
+    std::set<Element> getElementsConvertedInLines(const Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap);
+    void splitLinesWithNeighborTriangle(const size_t groupIndex, std::set<Element> elementsConvertedInLines, Group& meshGroup, const Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap, std::vector<std::set<ElementId>> toRemove);
 };
 
 
