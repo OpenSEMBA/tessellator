@@ -22,6 +22,7 @@ add_executable(tessellator_tests
 	"core/SnapperTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
+    "core/SplicerTest.cpp"
     "core/StaircaserTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/ConvexHullTest.cpp"
