@@ -1,4 +1,4 @@
-
+﻿
 #include "gtest/gtest.h"
 
 #include "core/Slicer.h"
@@ -12,7 +12,40 @@ using namespace meshFixtures;
 
 class MeshToolsTest : public ::testing::Test {
 public:
-	
+	static void assertCoordinatesListEquals(const Coordinates& expectedCoordinates, const Coordinates& resultCoordinates) {
+		ASSERT_EQ(expectedCoordinates.size(), resultCoordinates.size());
+
+		for (CoordinateId c = 0; c < expectedCoordinates.size(); ++c) {
+			auto& expectedCoordinate = expectedCoordinates[c];
+			auto& resultCoordinate = resultCoordinates[c];
+
+			for (Axis axis = X; axis <= Z; ++axis) {
+				EXPECT_EQ(expectedCoordinate[axis], resultCoordinate[axis])
+					<< "Current coordinate: #" << c << std::endl
+					<< "Current Axis: #" << axis << std::endl;
+			}
+		}
+	}
+
+	static void assertElementsListEquals(const Elements& expectedElements, const Elements& resultElements) {
+		ASSERT_EQ(expectedElements.size(), resultElements.size());
+
+		for (ElementId e = 0; e < expectedElements.size(); ++e) {
+			const Element& expectedElement = expectedElements[e];
+			const Element& resultElement = resultElements[e];
+
+			EXPECT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+				<< "Current Element: #" << e << std::endl;
+			EXPECT_EQ(resultElement.type, expectedElement.type)
+				<< "Current Element: #" << e << std::endl;
+
+			for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+				EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+					<< "Current Element: #" << e << std::endl
+					<< "Current Vertex: #" << v << std::endl;
+			}
+		}
+	}
 };
 
 
@@ -718,6 +751,183 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 		ASSERT_NO_THROW(meshTools::reduceGrid(sliced, originalGrid));
 		EXPECT_EQ(6, sliced.countElems());
 	}
+}
+
+//
+//          5---------ʌ---------6              5---------ʌ---------6
+//          |        /0\        |              |        /0\        |
+//          |  e4   /   \       |              |   e4  / | \  e5   |
+//          |      /  e0 \  e5  |              |      /   ⎸ \      |
+//          |     /       \     |              |     /    |  \	   |
+//          |    /         \    |              |    /      ⎸  \    |
+//          |   /           \   |     -->      |   /  e0   | e3\   |
+//          |  /             \  |              |  /         ⎸   \  |
+//          | /    ve3   4    \ |              | /          |4   \ |
+//          |/_________________\|              |/___________|_____\|
+//          1 ‾==‾‾‾‾‾‾‾‾/‾‾‾‾=‾2              1 ‾-_        /    -‾2
+//               ‾-_ e1 /e2_-‾                      ‾-_ e1 /e2_-‾
+//                  ‾-_/_-‾                            ‾-_/_-‾
+//                    3                                  3
+
+TEST_F(MeshToolsTest, removeNullAreaTriangles)
+{
+	Mesh m;
+
+	m.coordinates = {
+		Coordinate({1.5, 4.0, 0.0}),	// 0
+		Coordinate({0.0, 1.0, 0.0}),	// 1
+		Coordinate({3.0, 1.0, 0.0}),	// 2
+		Coordinate({3.0, 0.0, 0.0}),	// 3
+		Coordinate({2.0, 1.0, 0.0}),	// 4
+		Coordinate({0.0, 4.0, 0.0}),	// 5
+		Coordinate({3.0, 4.0, 0.0}),	// 6
+	};
+	m.groups.resize(1);
+	m.groups[0].elements = {
+		Element({0, 1, 2}, Element::Type::Surface), // 0
+		Element({1, 3, 4}, Element::Type::Surface), // 1
+		Element({2, 4, 3}, Element::Type::Surface), // 2
+		Element({1, 4, 2}, Element::Type::Surface), // 3
+		Element({0, 5, 1}, Element::Type::Surface), // 4
+		Element({0, 2, 6}, Element::Type::Surface), // 5
+	};
+
+	auto expectedCoordinates = m.coordinates;
+
+	Elements expectedElements = {
+		Element({0, 1, 4}, Element::Type::Surface), // 0
+		Element({1, 3, 4}, Element::Type::Surface), // 1
+		Element({2, 4, 3}, Element::Type::Surface), // 2
+		Element({0, 4, 2}, Element::Type::Surface), // 3
+		Element({0, 5, 1}, Element::Type::Surface), // 4
+		Element({0, 2, 6}, Element::Type::Surface), // 5
+	};
+
+	auto resultMesh = meshTools::removeNullAreasKeepingTopology(m);
+
+	assertCoordinatesListEquals(expectedCoordinates, resultMesh.coordinates);
+	assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+//                  4                             4
+//       3┌─────────╥─6  				3┌─────────┬─6
+//		  │\      ⫽	║/                   │\	      /│/
+//		  │ \    ⫽	║\5                  │ \	 /╱│\5
+//		  │  \  ⫽	║ \                  │  \   /╱ │ \
+//       2│___\⫽	║  \          ->    2│___\1/╱  │  \
+//		  │  1⫽  	║	\                │   /|\   │   \
+//		  │  ⫽	    ║    \               │  / | \  │    \
+//		  │ ⫽	    ║     \              │ /  |  \ │     \
+//		  │⫽  10	║      \             │/	  |10 \│      \
+//       0╘════ʌ════╝───────8           0└────ʌ────┴───────8
+//         \  / \  /7                     \  / \  /7
+//          \/   \/                        \/   \/
+//          9    11                        9    11
+//
+
+TEST_F(MeshToolsTest, removeNullAreaTrianglesWithMultipleAdjacents)
+{
+	Mesh m;
+
+	m.coordinates = {
+		Coordinate({  0.0,  2.0,  0.0 }),	// 0
+		Coordinate({  4.0,  6.0,  0.0 }),	// 1
+		Coordinate({  0.0,  6.0,  0.0 }),	// 2
+		Coordinate({  0.0, 12.0,  0.0 }),	// 3
+		Coordinate({ 10.0, 12.0,  0.0 }),	// 4
+		Coordinate({ 10.0,  9.0,  0.0 }),	// 5
+		Coordinate({ 12.0, 12.0,  0.0 }),	// 6
+		Coordinate({ 10.0,  2.0,  0.0 }),	// 7
+		Coordinate({ 19.0,  2.0,  0.0 }),	// 8
+		Coordinate({  2.0,  0.0,  0.0 }),	// 9
+		Coordinate({  4.0,  2.0,  0.0 }),	// 10
+		Coordinate({  6.0,  0.0,  0.0 }),	// 11
+	};
+	m.groups.resize(1);
+	m.groups[0].elements = {
+		Element({  0,  1,  2 }, Element::Type::Surface), // 0
+		Element({  2,  1,  3 }, Element::Type::Surface), // 1
+		Element({  3,  1,  4 }, Element::Type::Surface), // 2
+		Element({  0,  4,  1 }, Element::Type::Surface), // 3
+		Element({  4,  5,  6 }, Element::Type::Surface), // 4
+		Element({  5,  7,  8 }, Element::Type::Surface), // 5
+		Element({  0,  7,  4 }, Element::Type::Surface), // 6
+		Element({  4,  7,  5 }, Element::Type::Surface), // 7
+		Element({  0,  9, 10 }, Element::Type::Surface), // 8
+		Element({ 10, 11,  7 }, Element::Type::Surface), // 9
+		Element({  0, 10,  7 }, Element::Type::Surface), // 10
+	};
+
+	auto expectedCoordinates = m.coordinates;
+
+	Elements expectedElements = {
+		Element({  0,  1,  2 }, Element::Type::Surface), // 0
+		Element({  2,  1,  3 }, Element::Type::Surface), // 1
+		Element({  3,  1,  4 }, Element::Type::Surface), // 2
+		Element({  0, 10,  1 }, Element::Type::Surface), // 3
+		Element({  4,  5,  6 }, Element::Type::Surface), // 4
+		Element({  5,  7,  8 }, Element::Type::Surface), // 5
+		Element({  1,  7,  5 }, Element::Type::Surface), // 6
+		Element({  4,  1,  5 }, Element::Type::Surface), // 7
+		Element({  0,  9, 10 }, Element::Type::Surface), // 8
+		Element({ 10, 11,  7 }, Element::Type::Surface), // 9
+		Element({  1, 10,  7 }, Element::Type::Surface), // 10
+	};
+
+	auto resultMesh = meshTools::removeNullAreasKeepingTopology(m);
+
+	assertCoordinatesListEquals(expectedCoordinates, resultMesh.coordinates);
+	assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+//
+//          4*        ʌ			*5             4*        ʌ         *5
+//          |        /0\                       |        /0\
+//          |       /   \                      |       / | \
+//          |      /     \                     |      /   ⎸ \
+//          |     /       \                    |     /    |  \
+//          |    /         \                   |    /      ⎸  \
+//          |   /           \         -->      |   /       |   \
+//          |  /             \                 |  /         ⎸   \
+//          | /               \                | /          |    \
+//          |/_________________\               |/___________|_____\
+//          1‾‾‾‾‾‾‾‾‾‾‾‾3‾‾‾‾‾‾2              1            3      2
+
+TEST_F(MeshToolsTest, removeNullAreaTrianglesWithNodesAndLines)
+{
+	Mesh m;
+
+	m.coordinates = {
+		Coordinate({1.5, 4.0, 0.0}),	// 0
+		Coordinate({0.0, 1.0, 0.0}),	// 1
+		Coordinate({3.0, 1.0, 0.0}),	// 2
+		Coordinate({2.0, 1.0, 0.0}),	// 3
+		Coordinate({0.0, 4.0, 0.0}),	// 4
+		Coordinate({3.0, 4.0, 0.0}),	// 5
+	};
+	m.groups.resize(1);
+	m.groups[0].elements = {
+		Element({0, 1, 2},	Element::Type::Surface),	// 0
+		Element({1, 3, 2},	Element::Type::Surface),	// 1
+		Element({4, 1},		Element::Type::Line),		// 2
+		Element({1, 4},		Element::Type::Line),		// 3
+		Element({5},		Element::Type::Node),		// 4
+	};
+
+	auto expectedCoordinates = m.coordinates;
+
+	Elements expectedElements = {
+		Element({0, 1, 3},	Element::Type::Surface),	// 0
+		Element({0, 3, 2},	Element::Type::Surface),	// 1
+		Element({4, 1},		Element::Type::Line),		// 2
+		Element({1, 4},		Element::Type::Line),		// 3
+		Element({5},		Element::Type::Node),		// 4
+	};
+
+	auto resultMesh = meshTools::removeNullAreasKeepingTopology(m);
+
+	assertCoordinatesListEquals(expectedCoordinates, resultMesh.coordinates);
+	assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
 }

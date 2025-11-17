@@ -5,6 +5,7 @@
 #include "GridTools.h"
 #include "ElemGraph.h"
 #include "CoordGraph.h"
+#include <iostream>
 
 #include <sstream>
 
@@ -416,6 +417,123 @@ std::string info(const Element& e, const Mesh& m)
 bool isAClosedTopology(const Elements& es)
 {
 	return CoordGraph(es).getBoundaryGraph().getVertices().size() == 0;
+}
+
+std::map<ElementId, std::vector<ElementId>> getAdjacentMap(const Elements& elements) {
+    std::multimap<std::pair<CoordinateId, CoordinateId>, std::pair<ElementId, std::size_t>> sidesToElems;
+    for (ElementId e = 0; e < elements.size(); ++e) {
+        const Element& element = elements[e];
+        if (!element.isTriangle()) {
+            continue;
+        }
+        for (std::size_t v = 0; v < element.vertices.size(); v++) {
+            std::pair<CoordinateId, CoordinateId> ids({ element.vertices[v], element.vertices[(v + 1) % 3] });
+            if (ids.first > ids.second) {
+                std::swap(ids.first, ids.second);
+            }
+            sidesToElems.emplace(ids, std::pair<ElementId, std::size_t>(e, v));
+        }
+    }
+
+    std::map<ElementId, std::vector<ElementId>> adjacentMap;
+    for (auto it = sidesToElems.begin(); it != sidesToElems.end(); ++it) {
+        auto nIt = std::next(it);
+        if (nIt == sidesToElems.end() || it->first != nIt->first) {
+            continue;
+        }
+        ElementId eId1 = it->second.first;
+        ElementId eId2 = nIt->second.first;
+        if (!Geometry::areAdjacentWithSameTopologicalOrientation(
+            elements[eId1], elements[eId2])) {
+            continue;
+        }
+
+        adjacentMap.try_emplace(eId1, std::vector<ElementId>{ eId1, eId1, eId1 });
+        adjacentMap.try_emplace(eId2, std::vector<ElementId>{ eId2, eId2, eId2 });
+        adjacentMap[eId1][it->second.second] = eId2;
+        adjacentMap[eId2][nIt->second.second] = eId1;
+    }
+     
+    return adjacentMap;
+}
+
+Mesh removeNullAreasKeepingTopology(const Mesh & inputMesh, double tolerance) {    
+    Mesh resultMesh(inputMesh);
+
+    for (auto& group : resultMesh.groups) {
+        std::map<ElementId, std::vector<ElementId>> adjacentMap = getAdjacentMap(group.elements);
+
+        std::set<ElementId> longestAdjacentTreated;
+        bool areaZeroFound = true;
+        std::size_t tries = 0;
+        for (; areaZeroFound && tries < 100000; ++tries) {
+            areaZeroFound = false;
+            for (auto it = adjacentMap.begin(); it != adjacentMap.end(); ++it) {
+                ElementId e = it->first;
+
+                if (longestAdjacentTreated.find(e) != longestAdjacentTreated.end()) {
+                    continue;
+                }
+
+                Element& element = group.elements[e];
+
+                double area = Geometry::area(Geometry::asTriV(element, inputMesh.coordinates));
+                if (std::abs(area) <= tolerance) {
+                    areaZeroFound = true;
+
+                    std::size_t longestSideIndex = 0;
+                    double longestSide = 0;
+
+                    for (std::size_t v = 0; v < 3; ++v) {
+                        double side = (inputMesh.coordinates[element.vertices[(v + 1) % 3]] - inputMesh.coordinates[element.vertices[v]]).norm();
+                        if (longestSide < side) {
+                            longestSide = side;
+                            longestSideIndex = v;
+                        }
+                    }
+                    ElementId longestAdjacent = it->second[longestSideIndex];
+                    longestAdjacentTreated.insert(e);
+                    longestAdjacentTreated.insert(longestAdjacent);
+
+                    std::size_t longestAdjacentVertexStart = std::find(adjacentMap[longestAdjacent].begin(), adjacentMap[longestAdjacent].end(), e) - adjacentMap[longestAdjacent].begin();
+                    std::size_t longestAdjacentVertexEnd = (longestAdjacentVertexStart + 1) % 3;
+
+                    CoordinateId longestSideStart = element.vertices[longestSideIndex];
+                    CoordinateId longestSideEnd = element.vertices[(longestSideIndex + 1) % 3];
+                    CoordinateId middlePoint = element.vertices[(longestSideIndex + 2) % 3];
+                    CoordinateId adjacentOpposite = group.elements[longestAdjacent].vertices[(longestAdjacentVertexStart + 2) % 3];
+
+
+                    group.elements[longestAdjacent].vertices[longestAdjacentVertexEnd] = middlePoint;
+                    element.vertices[(longestSideIndex + 1) % 3] = adjacentOpposite;
+
+                    ElementId auxAdjacent = it->second[(longestSideIndex + 1) % 3];
+
+                    it->second[longestSideIndex] = adjacentMap[longestAdjacent][longestAdjacentVertexEnd];
+                    if (it->second[longestSideIndex] == longestAdjacent) {
+                        it->second[longestSideIndex] = e;
+                    }
+                    else {
+                        std::size_t newAdjacentStart = std::find(adjacentMap[it->second[longestSideIndex]].begin(), adjacentMap[it->second[longestSideIndex]].end(), longestAdjacent) - adjacentMap[it->second[longestSideIndex]].begin();
+                        adjacentMap[it->second[longestSideIndex]][newAdjacentStart] = e;
+                    }
+                    it->second[(longestSideIndex + 1) % 3] = longestAdjacent;
+
+                    if (auxAdjacent == e) {
+                        auxAdjacent = longestAdjacent;
+                    }
+                    else {
+                        std::size_t newAdjacentStart = std::find(adjacentMap[auxAdjacent].begin(), adjacentMap[auxAdjacent].end(), e) - adjacentMap[auxAdjacent].begin();
+                        adjacentMap[auxAdjacent][newAdjacentStart] = longestAdjacent;
+                    }
+                    adjacentMap[longestAdjacent][longestAdjacentVertexStart] = auxAdjacent;
+                    adjacentMap[longestAdjacent][longestAdjacentVertexEnd] = e;
+                }
+            }
+        }
+    }
+
+    return resultMesh;
 }
 
 }
