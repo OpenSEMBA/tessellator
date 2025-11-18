@@ -5,25 +5,22 @@
 
 #include <functional>
 
-namespace meshlib {
-namespace utils {
+namespace meshlib::utils::redundancyCleaner {
 
-class RedundancyCleaner {
-public:
-    static void cleanCoords(Mesh&);
-    static void fuseCoords(Mesh&);
-    static void removeDegenerateElements(Mesh&);
-    static void removeElementsWithCondition(Mesh&, std::function<bool(const Element&)>);
-    static void removeRepeatedElements(Mesh&);
-    static void removeRepeatedElementsIgnoringOrientation(Mesh&);
-    static void removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh&);
-    static void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh&);
-    static void removeOverlappedElementsByDimension(Mesh&, const std::vector<Element::Type>&);
-    static void removeElements(Mesh&, const std::vector<IdSet>&);
-private:
-    static Elements findDegenerateElements_(const Group&, const Coordinates&);
-  };
+void cleanCoords(Mesh& mesh);
+void fuseCoords(Mesh& mesh);
 
-}
+void removeDegenerateElements(Mesh& mesh);
+
+void removeElementsWithCondition(Mesh& mesh, std::function<bool(const Element&)> condition);
+void removeRepeatedElements(Mesh& mesh);
+void removeRepeatedElementsIgnoringOrientation(Mesh& mesh);
+
+void removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh& mesh);
+void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh& mesh);
+void removeOverlappedElementsByDimension(Mesh& mesh, const std::vector<Element::Type>& dimension);
+
+void removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove);
+
 }
 

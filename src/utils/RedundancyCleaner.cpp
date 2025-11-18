@@ -10,10 +10,9 @@
 #include <algorithm>
 #include <unordered_set> 
 
-namespace meshlib {
-namespace utils {
+namespace meshlib::utils::redundancyCleaner {
 
-void RedundancyCleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
+void removeRepeatedElementsIgnoringOrientation(Mesh& m)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (const auto& g : m.groups) {
@@ -34,7 +33,7 @@ void RedundancyCleaner::removeRepeatedElementsIgnoringOrientation(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void RedundancyCleaner::removeRepeatedElements(Mesh& m)
+void removeRepeatedElements(Mesh& m)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (const auto& g : m.groups) {
@@ -61,7 +60,7 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
 void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, std::set<ElementId>& overlappedElements);
 void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate>& meshCoordinates, std::set<ElementId>& overlappedElements);
 
-void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh & mesh)
+void removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh & mesh)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
 
@@ -73,7 +72,7 @@ void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(M
     removeElements(mesh, toRemove);
 }
 
-void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh& mesh)
+void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh& mesh)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
 
@@ -197,7 +196,7 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
 }
 
 
-void RedundancyCleaner::removeOverlappedElementsByDimension(Mesh& mesh, const std::vector<Element::Type>& highestDimensions)
+void removeOverlappedElementsByDimension(Mesh& mesh, const std::vector<Element::Type>& highestDimensions)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
 
@@ -218,7 +217,7 @@ void RedundancyCleaner::removeOverlappedElementsByDimension(Mesh& mesh, const st
     removeElements(mesh, toRemove);
 }
 
-void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
+void removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
 {
     std::vector<std::set<ElementId>> toRemove(m.groups.size());
     for (auto const& g : m.groups) {
@@ -233,7 +232,7 @@ void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(
     removeElements(m, toRemove);
 }
 
-Elements RedundancyCleaner::findDegenerateElements_(
+Elements findDegenerateElements_(
     const Group& g,
     const Coordinates& coords)
 {
@@ -249,7 +248,7 @@ Elements RedundancyCleaner::findDegenerateElements_(
     return res;
 }
 
-void RedundancyCleaner::fuseCoords(Mesh& mesh) 
+void fuseCoords(Mesh& mesh) 
 {
     std::map<Coordinate, IdSet> posIds;
     for (GroupId g = 0; g < mesh.groups.size(); g++) {
@@ -275,13 +274,13 @@ void RedundancyCleaner::fuseCoords(Mesh& mesh)
     }
 }
 
-void RedundancyCleaner::removeDegenerateElements(Mesh& mesh){
+void removeDegenerateElements(Mesh& mesh){
     removeElementsWithCondition(mesh, [&](const Element& e) {
         return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
     });
 }
 
-void RedundancyCleaner::cleanCoords(Mesh& output) 
+void cleanCoords(Mesh& output) 
 {
     const std::size_t& numStrCoords = output.coordinates.size();
 
@@ -315,7 +314,7 @@ void RedundancyCleaner::cleanCoords(Mesh& output)
     
 }
 
-void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 
+void removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 
 {
     for (GroupId gId = 0; gId < mesh.groups.size(); gId++) {
         Elements& elems = mesh.groups[gId].elements;
@@ -335,5 +334,4 @@ void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toR
     }
 }
 
-}
 }
