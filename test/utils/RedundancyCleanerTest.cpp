@@ -24,7 +24,7 @@ TEST_F(RedundancyCleanerTest, removeRepeatedElements)
 	auto r{ m };
 	r.groups[0].elements.push_back(m.groups[0].elements.back());
 
-	RedundancyCleaner::removeRepeatedElements(r);
+	redundancyCleaner::removeRepeatedElements(r);
 
 	EXPECT_EQ(m, r);
 }
@@ -38,7 +38,7 @@ TEST_F(RedundancyCleanerTest, removeRepeatedElements_with_indices_rotated)
 	auto& e = r.groups[0].elements.back();
 	std::rotate(e.vertices.begin(), e.vertices.begin() + 1, e.vertices.end());
 
-	RedundancyCleaner::removeRepeatedElements(r);
+	redundancyCleaner::removeRepeatedElements(r);
 
 	EXPECT_EQ(m, r);
 }
@@ -60,7 +60,7 @@ TEST_F(RedundancyCleanerTest, removeRepeatedLinesFromSameGroup)
 		Element({0, 1}, Element::Type::Line),
 	};
 
-	RedundancyCleaner::removeRepeatedElements(m);
+	redundancyCleaner::removeRepeatedElements(m);
 
 	EXPECT_EQ(m.coordinates.size(), 2);
 	EXPECT_EQ(m.groups.size(), 2);
@@ -129,7 +129,7 @@ TEST_F(RedundancyCleanerTest, removeOverlappedElementsContainedWithinLines)
 		}
 	};
 
-	RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(m);
+	redundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(m);
 
 	EXPECT_EQ(m.coordinates.size(), expectedCoordinates.size());
 	ASSERT_EQ(m.groups.size(), expectedElementsList.size());
@@ -299,7 +299,7 @@ TEST_F(RedundancyCleanerTest, removeOverlappedElementsWhenSurfaceMeshing)
 		}
 	};
 
-	RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(m);
+	redundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(m);
 
 	EXPECT_EQ(m.coordinates.size(), expectedCoordinates.size());
 	ASSERT_EQ(m.groups.size(), expectedElementsList.size());
@@ -603,7 +603,7 @@ TEST_F(RedundancyCleanerTest, removeOverlappedElementsbyDimension) {
 		},
 	};
 
-	RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+	redundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
 
 	EXPECT_EQ(mesh.coordinates.size(), expectedCoordinates.size());
 	ASSERT_EQ(mesh.groups.size(), expectedElementsList.size());
@@ -660,7 +660,7 @@ TEST_F(RedundancyCleanerTest, doNotRemoveOppositeLines)
 
 	auto resultMesh{ m };
 
-	RedundancyCleaner::removeRepeatedElements(resultMesh);
+	redundancyCleaner::removeRepeatedElements(resultMesh);
 
 	EXPECT_EQ(resultMesh, m);
 }
@@ -685,7 +685,7 @@ TEST_F(RedundancyCleanerTest, removeElementsWithCondition)
 	
 	{
 		Mesh r = m;
-		RedundancyCleaner::removeElementsWithCondition(r, [](auto e) {return e.isNone(); });
+		redundancyCleaner::removeElementsWithCondition(r, [](auto e) {return e.isNone(); });
 
 		EXPECT_EQ(3, m.groups[0].elements.size());
 		EXPECT_EQ(2, r.groups[0].elements.size());
@@ -694,7 +694,7 @@ TEST_F(RedundancyCleanerTest, removeElementsWithCondition)
 
 	{
 		Mesh r = m;
-		RedundancyCleaner::removeElementsWithCondition(
+		redundancyCleaner::removeElementsWithCondition(
 			r, [](auto e) {return e.isLine() || e.isNone(); });
 
 		EXPECT_EQ(3, m.groups[0].elements.size());

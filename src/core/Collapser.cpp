@@ -26,11 +26,11 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Elemen
         v = v.round(factor);
     }
     
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
     
     collapseDegenerateElements(mesh_, 0.4 / (factor * factor));
-    RedundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
+    redundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
 
@@ -78,8 +78,8 @@ void Collapser::collapseDegenerateElements(Mesh& mesh, const double& areaThresho
             }
         }
 
-        RedundancyCleaner::fuseCoords(mesh);
-        RedundancyCleaner::cleanCoords(mesh);
+        redundancyCleaner::fuseCoords(mesh);
+        redundancyCleaner::cleanCoords(mesh);
 
         for (auto & group : mesh.groups) {
             for (auto& element : group.elements) {

@@ -267,7 +267,7 @@ TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
     auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
     // ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
 
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    redundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, inputMesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
 
@@ -386,7 +386,7 @@ TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness
 
     auto resultMesh = staircaser.getSelectiveMesh(cellSet, meshlib::core::Staircaser::GapsFillingType::Insert);
 
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    redundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, mesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
     
@@ -435,7 +435,7 @@ TEST_F(StaircaseMesherTest, selectiveStaircaser_preserves_topological_closedness
 
     auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
 
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
+    redundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, mesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
     
@@ -486,7 +486,7 @@ TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
 
     auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getMesh();
 
-    RedundancyCleaner::removeOverlappedElementsByDimension(resultMesh, dimensions);
+    redundancyCleaner::removeOverlappedElementsByDimension(resultMesh, dimensions);
     utils::meshTools::reduceGrid(resultMesh, mesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
 

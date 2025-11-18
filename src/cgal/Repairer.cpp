@@ -72,9 +72,9 @@ Mesh repair(const Mesh& m)
         repairGroup(r.coordinates, r.groups[gId], m.coordinates, g);
     }
 
-    RedundancyCleaner::fuseCoords(r);
-    RedundancyCleaner::removeDegenerateElements(r);
-    RedundancyCleaner::cleanCoords(r);
+    redundancyCleaner::fuseCoords(r);
+    redundancyCleaner::removeDegenerateElements(r);
+    redundancyCleaner::cleanCoords(r);
 
     return r;
 }

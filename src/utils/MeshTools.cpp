@@ -181,7 +181,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         
     m.grid = nG;
 
-    RedundancyCleaner::removeElementsWithCondition(m, [&](const Element&e) {
+    redundancyCleaner::removeElementsWithCondition(m, [&](const Element&e) {
         for (auto& vId : e.vertices) {
             Coordinate& c = m.coordinates[vId];
             for (std::size_t d = 0; d < 3; d++) {
@@ -195,7 +195,7 @@ void reduceGrid(Mesh& m, const Grid& nG)
         return false;
     });
 
-	RedundancyCleaner::cleanCoords(m);
+	redundancyCleaner::cleanCoords(m);
     for (auto& c : m.coordinates) {
         c -= offset;
     }

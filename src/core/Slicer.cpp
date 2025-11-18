@@ -96,9 +96,9 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
         );
     }
 
-    RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
 
     // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);

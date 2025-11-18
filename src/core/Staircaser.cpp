@@ -41,9 +41,9 @@ Mesh Staircaser::getMesh()
         }
     }
 
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
 
     return mesh_;
 }
@@ -82,14 +82,14 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
             for (const auto& e : cellElemMap.at(c)) {
                 const auto& elementVertices = e->vertices;
                 auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex1);
-    
+
                 if (it != elementVertices.end()) {
                     auto pos = std::distance(elementVertices.begin(), it);
                     auto n = elementVertices.size();
-    
-                    neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]); 
-                    neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]); 
-                }        
+
+                    neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]);
+                    neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]);
+                }
             }
         }
     }
@@ -102,13 +102,13 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
             for (const auto& e : cellElemMap.at(c)) {
                 const auto& elementVertices = e->vertices;
                 auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
-    
+
                 if (it != elementVertices.end()) {
                     auto pos = std::distance(elementVertices.begin(), it);
                     auto n = elementVertices.size();
-    
-                    neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]); 
-                    neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]); 
+
+                    neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]);
+                    neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]);
                 }
             }
         }
@@ -178,14 +178,14 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                 continue;
             }
             for (const auto e : elements) {
-                auto [newElement, boundaryCoordinates] = obtainNewIndexForElement(*e, cellsToStructure, coordinateMap);              
+                auto [newElement, boundaryCoordinates] = obtainNewIndexForElement(*e, cellsToStructure, coordinateMap);
 
                 auto allCoordsOnBoundary = isAllCoordinatesOnTheSameCellBoundary(newElement, cellsToStructure);
 
                 if (!allCoordsOnBoundary) {
                     meshGroup.elements.push_back(newElement);
                     cellElemMap_withNewElements[cell].push_back(&meshGroup.elements.back());
-    
+
                     for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
                         for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
                             boundaryCoordinatePairs.emplace(boundaryCoordinates[i], boundaryCoordinates[j]);
@@ -199,15 +199,15 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
 
                 auto elementsConvertedInLines = getElementsConvertedInLines(cell, cellElemMap_withNewElements);
                 splitLinesWithNeighborTriangle(g, elementsConvertedInLines, meshGroup, cell, cellElemMap_withNewElements, toRemove);
-                
+
             }
         }
     }
-    
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
-    RedundancyCleaner::removeRepeatedElements(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeRepeatedElements(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
 
     for (auto it = boundaryCoordinatePairs.begin(); it != boundaryCoordinatePairs.end();) {
         const auto& [coord1, coord2] = *it;
@@ -354,7 +354,7 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
                         }
                     }
 
-                    RedundancyCleaner::removeElements(mesh_, toRemove);
+                    redundancyCleaner::removeElements(mesh_, toRemove);
                 }
             }
         } else {
@@ -362,7 +362,7 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
         }
     }
 
-    RedundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
 }
 
 std::pair<Element, Relatives> Staircaser::obtainNewIndexForElement(const Element& e, const std::set<Cell>& cellsToStructure, CoordinateMap& coordinateMap) {
@@ -517,7 +517,7 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
             bool shareExactlyTwo = (sharedCount == 2);
 
             if(shareExactlyTwo && otherElementsInCell->isTriangle()) {
-                
+
                 auto v1 = *sharedVertices.begin();
                 auto v2 = *std::next(sharedVertices.begin());
 
@@ -527,7 +527,7 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 
                 if(!correctOrientation) {
                     std::swap(v1, v2);
-                } 
+                }
 
                 CoordinateId v4 = -1;
                 for (const auto& v : e.vertices) {
@@ -552,7 +552,7 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
                 Element triangle2;
                 triangle2.type = Element::Type::Surface;
                 triangle2.vertices = { v4, v1, v3 };
-                
+
                 auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementsInCell);
                 if (itOtherElement != meshGroup.elements.end()) {
                     ElementId otherElementId = std::distance(meshGroup.elements.begin(), itOtherElement);
@@ -568,7 +568,7 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
                 meshGroup.elements.push_back(triangle1);
                 meshGroup.elements.push_back(triangle2);
 
-                RedundancyCleaner::removeElements(mesh_, toRemove);
+                redundancyCleaner::removeElements(mesh_, toRemove);
                 toRemove[groupIndex].clear();
 
                 processed = true;
@@ -605,9 +605,9 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
         }
     }
 
-    RedundancyCleaner::fuseCoords(auxiliarMesh);
-    RedundancyCleaner::removeDegenerateElements(auxiliarMesh);
-    RedundancyCleaner::cleanCoords(auxiliarMesh);
+    redundancyCleaner::fuseCoords(auxiliarMesh);
+    redundancyCleaner::removeDegenerateElements(auxiliarMesh);
+    redundancyCleaner::cleanCoords(auxiliarMesh);
 
     std::map<Surfel, IdSet> idSetByCellSurface;
     std::map<Surfel, RelativeIds> relativeIdsByCellSurface;
