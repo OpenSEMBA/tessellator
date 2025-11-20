@@ -252,22 +252,12 @@ void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
                 thirdVertex = -1;
 
                 const auto& verts = elem.vertices; 
-                auto it1 = std::find(verts.begin(), verts.end(), v1);
-                auto it2 = std::find(verts.begin(), verts.end(), v2);
+                auto itV1 = std::find(verts.begin(), verts.end(), v1);
+                auto itV2 = std::find(verts.begin(), verts.end(), v2);
 
-                int idx1 = std::distance(verts.begin(), it1);
-                int idx2 = std::distance(verts.begin(), it2);
-
-                int nextIdx1 = (idx1 + 1) % 3;
-                int prevIdx1 = (idx1 + 2) % 3;
-
-                if (idx2 == nextIdx1) {
-                    thirdVertex = verts[(idx2 + 1) % 3];
-                    correctOrientation = true;
-                } else if (idx2 == prevIdx1) {
-                    thirdVertex = verts[(idx1 + 1) % 3];
-                    correctOrientation = false;
-                }
+                auto idx1 = static_cast<int>(std::distance(verts.begin(), itV1));
+                auto idx2 = static_cast<int>(std::distance(verts.begin(), itV2));
+                correctOrientation = (idx2 == (idx1 + 1) % 3);
             }
         }
 
