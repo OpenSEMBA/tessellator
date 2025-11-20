@@ -10,6 +10,7 @@
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 #include "utils/CoordGraph.h"
+#include "utils/ElemGraph.h"
 #include "utils/RedundancyCleaner.h"
 
 namespace meshlib::meshers {
@@ -130,6 +131,36 @@ std::set<Cell> ConformalMesher::cellsWithMoreThanAPathPerFace(const Mesh& mesh)
     return res;
 }
 
+std::set<Cell> ConformalMesher::cellsWithOverlappingTriangles(const Mesh& mesh) {
+    double angle = 179.9999;
+
+    std::set<Cell> cellsWithOverlap;
+    GridTools gridTools(mesh.grid);
+    for (const auto& g : mesh.groups) {
+        ElemGraph eG(g.elements, mesh.coordinates);
+        for (const auto& elPair : eG.findElementsWithWeight(angle)) {
+            const Element& element1 = g.elements[elPair.first];
+            const Element& element2 = g.elements[elPair.second];
+
+            Element element2Copy(element2);
+
+            auto firstCommonPointPosition = std::find(element2Copy.vertices.begin(), element2Copy.vertices.end(), element1.vertices.front());
+
+            std::rotate(element2Copy.vertices.begin(), firstCommonPointPosition, element2Copy.vertices.end());
+
+            if (element1.vertices[0] == element2Copy.vertices[0] &&
+                element1.vertices[1] == element2Copy.vertices[2] &&
+                element1.vertices[2] == element2Copy.vertices[1]) {
+                continue;
+            }           
+
+            Relative innerRelative = mesh.coordinates[element1.vertices[0]];
+            cellsWithOverlap.insert(gridTools.toCell(innerRelative));
+        }
+    }
+    return cellsWithOverlap;
+}
+
 std::set<Cell> ConformalMesher::cellsWithAVertexInAnEdgeForbiddenRegion(const Mesh& mesh)
 {
     std::set<Cell> res;
@@ -155,6 +186,9 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
     
     // Rule #2: Cell faces must always be crossed by a single path.
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
+
+    // Rule #X Cell faces must not have overlapping triangles.
+    res = mergeCellSets(res, cellsWithOverlappingTriangles(mesh));
 
     // Rule #3: Conformal cells can't contain node or line elements.
     // res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
