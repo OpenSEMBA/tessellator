@@ -513,7 +513,9 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 
                 auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
                 auto itV2 = std::find(e.vertices.begin(), e.vertices.end(), v2);
-                correctOrientation = (itV1 < itV2);
+                auto idx1 = static_cast<int>(std::distance(e.vertices.begin(), itV1));
+                auto idx2 = static_cast<int>(std::distance(e.vertices.begin(), itV2));
+                correctOrientation = (idx2 == (idx1 + 1) % 3);
 
                 if(!correctOrientation) {
                     std::swap(v1, v2);
