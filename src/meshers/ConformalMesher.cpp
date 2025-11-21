@@ -153,9 +153,23 @@ std::set<Cell> ConformalMesher::cellsWithOverlappingTriangles(const Mesh& mesh) 
                 element1.vertices[2] == element2Copy.vertices[1]) {
                 continue;
             }           
+            auto triv1 = Geometry::asTriV(element1, mesh.coordinates);
+            auto triv2 = Geometry::asTriV(element2, mesh.coordinates);
+            /**/
+            auto lowestRelativeIt1 = std::min_element(triv1.begin(), triv1.end());
+            auto lowestRelativeIt2 = std::min_element(triv2.begin(), triv2.end());
 
-            Relative innerRelative = mesh.coordinates[element1.vertices[0]];
-            cellsWithOverlap.insert(gridTools.toCell(innerRelative));
+            cellsWithOverlap.insert(gridTools.toCell(std::min(*lowestRelativeIt1, *lowestRelativeIt2)));
+            
+            /*
+
+            for (const auto& coordinate : triv1) {
+                cellsWithOverlap.insert(gridTools.toCell(coordinate));
+            }
+            for (const auto& coordinate : triv2) {
+                cellsWithOverlap.insert(gridTools.toCell(coordinate));
+            }
+            /**/
         }
     }
     return cellsWithOverlap;
@@ -235,7 +249,7 @@ Mesh ConformalMesher::mesh() const
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     // Find cells which break conformal FDTD rules after selective structuring.
-    nonConformalCells = findNonConformalCells(res);
+    // nonConformalCells = findNonConformalCells(res);
     log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
 
 
