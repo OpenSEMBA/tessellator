@@ -2246,7 +2246,7 @@ TEST_F(StaircaserTest, selectiveStaircaserFillingGapsInFrontier_Insert)
 
 TEST_F(StaircaserTest, selectiveStaircaser_SplitLinesWithNeighborTriangle)
 {
-    // *----0════════2═════════════5          *---(0->3)==(2->5)════════(5->6)
+    // *----0════════2═════════════5          *---(0->3)══(2->5)════════(5->6)
     // |     ‾-_     ║\\           ║          |     ‾-_     ║ \           ║ 
     // |        ‾-_  ║ \ \         ║          |        ‾-_  ║   \         ║ 
     // |           - ║  \  \       ║          |           - ║     \       ║ 
@@ -2254,12 +2254,12 @@ TEST_F(StaircaserTest, selectiveStaircaser_SplitLinesWithNeighborTriangle)
     // |             |‾-  \    \   ║          |             ║‾‾--__   \   ║ 
     // |             |  ‾-_\     \ ║          |             ║      ‾‾--_\ ║ 
     // *-------------*-----3═══════4    ->    *-----------(3->0)════════(4->1)
-    // |             |      \      |          |             |             ║ 
-    // |             |       \     |          |             |             ║ 
-    // |             |        \    |          |             |             ║ 
-    // |             |         \   |          |             |             ║ 
-    // |             |          \  |          |             |             ║ 
-    // |             |           \ |          |             |             ║
+    // |             |      \      ║          |             |             ║ 
+    // |             |       \     ║          |             |             ║ 
+    // |             |        \    ║          |             |             ║ 
+    // |             |         \   ║          |             |             ║ 
+    // |             |          \  ║          |             |             ║ 
+    // |             |           \ ║          |             |             ║
     // *-------------*-------------6          *-------------*-----------(6->2)
 
     float lowerCoordinateValue = -5.0;
@@ -2311,6 +2311,217 @@ TEST_F(StaircaserTest, selectiveStaircaser_SplitLinesWithNeighborTriangle)
             Element({5, 1, 6}, Element::Type::Surface),
             Element({1, 5, 4}, Element::Type::Surface),
             Element({4, 0, 1}, Element::Type::Surface),
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+TEST_F(StaircaserTest, selectiveStaircaser_staircase_overlapping_1)
+{
+ 
+    // z                                                          z
+    // *---------------*---------------*---------------*          *---------------*---------------*---------------*  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |   _-10-__     |               |          |               |   _-8--__     |               |  
+    // |               |_-‾       ‾‾--_|               |          |               |_-‾       ‾‾--_|               |  
+    // 9═══════8═══════5═══════════════4---------------*          7═══════6═══════3═══════════════2---------------*  
+    // |\      │      /║              ╱║‾--__          |          |\      │      /║      ->       ║‾--__          |  
+    // | \     │     / ║            ╱  ║    _=11       |          | \     │     / ║               ║     ‾9        |  
+    // |  \    │    /  ║          ╱    ║  _-           |          |  \    │    /  ║               ║     /         |  
+    // |   \   │   /   ║   1 ───╱────==3-‾             |    ->    |   \   │   /   ║ ^           | ║    /          |  
+    // |    \  │  /    ║  /⟍ ╱  __-‾   ⎸               ⎸          ⎸    \  ⎸  /    ║ |           v ║   /           ⎸  
+    // |     \ │ /     ║ / ╱_⟍-‾       ⎸               ⎸          ⎸     \ ⎸ /     ║               ║  /            ⎸  
+    // |      \│/      ║/╱-‾   ⟍       ⎸               ⎸          ⎸      \⎸/      ║       <-      ║ /             ⎸  
+    // *-------7═══════0═════════2-----*---------------*          *-------5═══════0═══════════════1---------------*  
+    // |        \      ║        /      |               |          |        \      ║             / |               |  
+    // |         \     ║       /       |               |          |         \     ║           /   |               |  
+    // |          \    ║     /         |               |          |          \    ║         /     |               |  
+    // |           \   ║    /          |               |          |           \   ║       /       |               |  
+    // |            \  ║   /           |               |          |            \  ║     /         |               |  
+    // |             \ ║ /             |               |          |             \ ║   /           |               |  
+    // |              \║/              |               |          |              \║ /             |               |  
+    // *---------------6---------------*---------------* x        *---------------4---------------*---------------* x
+    //
+    float lowerCoordinateValue = -5.0;                                    
+    float upperCoordinateValue = 10.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / numberOfCells == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({ 1, 0, 1 }));
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    mesh.coordinates = {
+        Relative({ 1.00, 0.00, 1.00 }), // 0
+        Relative({ 1.20, 0.00, 1.40 }), // 1
+        Relative({ 1.66, 0.00, 1.00 }), // 2
+        Relative({ 2.00, 0.00, 1.40 }), // 3
+        Relative({ 2.00, 0.00, 2.00 }), // 4
+        Relative({ 1.00, 0.00, 2.00 }), // 5
+        Relative({ 1.00, 0.00, 0.00 }), // 6
+        Relative({ 0.50, 0.00, 1.00 }), // 7
+        Relative({ 0.50, 0.00, 2.00 }), // 8
+        Relative({ 0.00, 0.00, 2.00 }), // 9
+        Relative({ 1.40, 0.00, 2.25 }), // 10
+        Relative({ 2.40, 0.00, 1.75 }), // 11
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface), // 0, Clock-wise
+        Element({1, 0, 3}, Element::Type::Surface), // 1, Counter-Clock-wise
+        Element({3, 0, 4}, Element::Type::Surface), // 2, Clock-wise
+        Element({4, 0, 5}, Element::Type::Surface), // 3, Clock-wise
+        Element({0, 2, 6}, Element::Type::Surface), // 4, Clock-wise
+        Element({0, 6, 7}, Element::Type::Surface), // 5, Clock-wise
+        Element({0, 7, 5}, Element::Type::Surface), // 6, Clock-wise
+        Element({5, 7, 8}, Element::Type::Surface), // 7, Clock-wise
+        Element({8, 7, 9}, Element::Type::Surface), // 8, Clock-wise
+        Element({4, 5, 10}, Element::Type::Surface), // 9, Clock-wise
+        Element({3, 4, 11}, Element::Type::Surface),// 10, Clock-wise
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 1.00, 0.00, 1.00 }), // (0|1->0)
+        Relative({ 2.00, 0.00, 1.00 }), // (2|3->1)
+        Relative({ 2.00, 0.00, 2.00 }), // (4->2)
+        Relative({ 1.00, 0.00, 2.00 }), // (5->3)
+        Relative({ 1.00, 0.00, 0.00 }), // (6->4)
+        Relative({ 0.50, 0.00, 1.00 }), // (7->5)
+        Relative({ 0.50, 0.00, 2.00 }), // (8->6)
+        Relative({ 0.00, 0.00, 2.00 }), // (9->7)
+        Relative({ 1.40, 0.00, 2.25 }), // (10->8)
+        Relative({ 2.40, 0.00, 1.75 }), // (11->9)
+    };
+
+    Elements expectedElements = {
+            Element({0},            Element::Type::Node),       //  0, 1 ->  0
+            Element({0, 1},         Element::Type::Line),       //  0, 2 ->  1
+            Element({1, 0},         Element::Type::Line),       //  0, 2 ->  2
+            Element({1, 2},         Element::Type::Line),       //  1, 2 ->  3
+            Element({2, 1},         Element::Type::Line),       //  1, 2 ->  4
+            Element({2, 1, 0, 3},   Element::Type::Surface),    //  3    ->  5  | Clock-wise
+            Element({0, 4, 5},      Element::Type::Surface),    //  5    ->  6  | Clockwise
+            Element({0, 5, 3},      Element::Type::Surface),    //  6    ->  7  | Clockwise
+            Element({3, 5, 6},      Element::Type::Surface),    //  7    ->  8  | Clockwise
+            Element({6, 5, 7},      Element::Type::Surface),    //  8    ->  9  | Clockwise
+            Element({0, 1, 4},      Element::Type::Surface),    //  4    -> 10  | Clockwise
+            Element({2, 3, 8},      Element::Type::Surface),    //  9    -> 11  | Clockwise
+            Element({1, 2, 9},      Element::Type::Surface),    // 10    -> 12  | Clockwise
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+TEST_F(StaircaserTest, selectiveStaircaser_staircase_overlapping_2)
+{
+
+    // z                                                          z
+    // *---------------*---------------*---------------*          *---------------*---------------*---------------*  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |   _-8--__     |               |          |               |   _-6--__     |               |  
+    // |               |_-‾       ‾‾--_|               |          |               |_-‾       ‾‾--_|               |  
+    // *---------------5═══════════════4---------------*          *---------------1═══════════════3---------------*  
+    // |              /║              ╱║‾--__          |          |              /║      ->       ║‾--__          |  
+    // |             / ║            ╱  ║   __=9        |          |             / ║               ║     ‾7        |  
+    // |            /  ║    1─────╱───=3-‾‾            |          |            /  ║               ║               |  
+    // |           /   ║   / \  ╱  _-‾ |               |    ->    |           /   ║ ^           | ║               |  
+    // |          /    ║  /  ╱\ _-‾    |               |          |          /    ║ |           v ║               |  
+    // |         /     ║ / ╱ _-\       |               |          |         /     ║               ║               |  
+    // |        /      ║/╱_-‾   \      |               |          |        /      ║       <-      ║               |  
+    // *-------7═══════0═════════2-----*---------------*          *-------5═══════0═══════════════2---------------*  
+    // |        \      ║        /      |               |          |        \      ║             / |               |  
+    // |         \     ║       /       |               |          |         \     ║           /   |               |  
+    // |          \    ║     /         |               |          |          \    ║         /     |               |  
+    // |           \   ║    /          |               |          |           \   ║       /       |               |  
+    // |            \  ║   /           |               |          |            \  ║     /         |               |  
+    // |             \ ║ /             |               |          |             \ ║   /           |               |  
+    // |              \║/              |               |          |              \║ /             |               |  
+    // *---------------6---------------*---------------* x        *---------------4---------------*---------------* x
+    //
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 10.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / numberOfCells == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({ 1, 0, 1 }));
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    mesh.coordinates = {
+        Relative({ 1.00, 0.00, 1.00 }), // 0
+        Relative({ 1.40, 0.00, 1.60 }), // 1
+        Relative({ 1.66, 0.00, 1.00 }), // 2
+        Relative({ 2.00, 0.00, 1.60 }), // 3
+        Relative({ 2.00, 0.00, 2.00 }), // 4
+        Relative({ 1.00, 0.00, 2.00 }), // 5
+        Relative({ 1.00, 0.00, 0.00 }), // 6
+        Relative({ 0.50, 0.00, 1.00 }), // 7
+        Relative({ 1.40, 0.00, 2.25 }), // 8
+        Relative({ 2.40, 0.00, 1.75 }), // 9
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface), // 0, Clock-wise
+        Element({1, 0, 3}, Element::Type::Surface), // 1, Counter-Clock-wise
+        Element({3, 0, 4}, Element::Type::Surface), // 2, Clock-wise
+        Element({4, 0, 5}, Element::Type::Surface), // 3, Clock-wise
+        Element({0, 2, 6}, Element::Type::Surface), // 4, Clock-wise
+        Element({0, 6, 7}, Element::Type::Surface), // 5, Clock-wise
+        Element({0, 7, 5}, Element::Type::Surface), // 6, Clock-wise
+        Element({4, 5, 8}, Element::Type::Surface), // 7, Clock-wise
+        Element({3, 4, 9}, Element::Type::Surface), // 8, Clock-wise
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 1.00, 0.00, 1.00 }), // (0->0)
+        Relative({ 1.00, 0.00, 2.00 }), // (5|1->1)
+        Relative({ 2.00, 0.00, 1.00 }), // (2->2)
+        Relative({ 2.00, 0.00, 2.00 }), // (4->3)
+        Relative({ 1.00, 0.00, 0.00 }), // (6->4)
+        Relative({ 0.50, 0.00, 1.00 }), // (7->5)
+        Relative({ 1.40, 0.00, 2.25 }), // (8->6)
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),           // 0,   ->  0
+            Element({1, 0}, Element::Type::Line),           // 0,   ->  1
+            Element({0, 2}, Element::Type::Line),           // 0,   ->  2
+            Element({2, 0}, Element::Type::Line),           // 0,   ->  3
+            Element({1, 0, 2, 3}, Element::Type::Surface),  // 2    ->  4   | Counter - Clock-wise!!!!
+            Element({3, 2}, Element::Type::Line),           // 5    ->  5   | Clockwise
+            Element({2, 3}, Element::Type::Line),           // 5    ->  6   | Clockwise
+            Element({3}, Element::Type::Node),              // 5    ->  7   | Clockwise
+            Element({3, 2, 0, 1}, Element::Type::Surface),  // 2    ->  8   | Clockwise
+            Element({0, 4, 5}, Element::Type::Surface),     // 6    ->  9   | Clockwise
+            Element({0, 5, 1}, Element::Type::Surface),     // 4    -> 10   | Clockwise
+            Element({0, 2, 4}, Element::Type::Surface),     // 7    -> 11   | Clockwise
+            Element({3, 1, 6}, Element::Type::Surface),     // 8    -> 12   | Clockwise
+            //Element({3, 3, 7}, Element::Type::Surface),   // 8    -> 13   | Degenerate
+
     };
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
