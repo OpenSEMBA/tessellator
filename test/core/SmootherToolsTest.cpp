@@ -471,7 +471,7 @@ TEST_F(SmootherToolsTest, remeshElementsAvoidingInteriorPoints)
 {
 	Mesh m = buildTwoInnerPointsPatchMesh();
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	Elements elems = m.groups[0].elements;
 	sT.remeshWithNoInteriorPoints(elems, m.coordinates, getView<Element>(elems));
@@ -498,7 +498,7 @@ TEST_F(SmootherToolsTest, remeshElementsAvoidingInteriorPoints_2)
 {
 	Mesh m = buildTwoInnerPointsPatchMeshNotConnected();
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	Elements elems = m.groups[0].elements;
 	sT.remeshWithNoInteriorPoints(elems, m.coordinates, getView<Element>(elems));
@@ -528,7 +528,7 @@ TEST_F(SmootherToolsTest, collapseEdge)
 	Mesh mesh = buildCollapseEdgeMesh();
 	const Elements& es = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	auto sIds = sT.buildSingularIds(es, mesh.coordinates, sSAngle);
 		
 	Coordinates collapsed = mesh.coordinates;
@@ -551,7 +551,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnCellFaces)
 	Mesh mesh = buildTwoCellsPatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	auto sIds = sT.buildSingularIds(elems, mesh.coordinates, sSAngle);
 
 	Coordinates collapsed = mesh.coordinates;
@@ -580,7 +580,7 @@ TEST_F(SmootherToolsTest, collapse_inner_point)
 	Mesh mesh = buildInnerPointPatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = mesh.coordinates;
 	sT.collapseInteriorPointsToBound(collapsed, getView<Element>(elems));
 
@@ -605,7 +605,7 @@ TEST_F(SmootherToolsTest, collapse_inner_point_2)
 	const Mesh mesh = buildInnerPointPatchMesh2();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = mesh.coordinates;
 	sT.collapseInteriorPointsToBound(collapsed, getView<Element>(elems));
 
@@ -626,7 +626,7 @@ TEST_F(SmootherToolsTest, collapse_one_point_in_contour)
 	Mesh mesh = buildOnePointInCellFacePatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid); 
+	SmootherTools sT(mesh.grid, mesh.coordinates); 
 	Coordinates collapsed = 
 		sT.collapsePointsOnContour(elems, mesh.coordinates, alignmentAngle);
 	
@@ -648,7 +648,7 @@ TEST_F(SmootherToolsTest, collapse_two_points_in_contour)
 	Mesh mesh = buildTwoPointsInCellFacePatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = 
 		sT.collapsePointsOnContour(elems, mesh.coordinates, alignmentAngle);
 
@@ -681,7 +681,7 @@ TEST_F(SmootherToolsTest, collapsePointsInContourWithInnerDent)
 	Mesh mesh = buildCollapseEdgeMeshWithInnerDent();
 	const Elements& elements = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed =
 		sT.collapsePointsOnContour(elements, mesh.coordinates, alignmentAngle);
 
@@ -720,7 +720,7 @@ TEST_F(SmootherToolsTest, buildSingularIds)
 	const Elements& es = m.groups[0].elements;
 
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 
 	EXPECT_EQ(IdSet({ 0, 1, 2, 3, 4, 5}), sIds.contourIds());
@@ -735,7 +735,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_singlePatch)
 	Coordinates& cs = m.coordinates;
 	Elements& es = m.groups[0].elements;
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 	
 	ElementsView p({&es[0], &es[1], &es[2]});
@@ -751,7 +751,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_threePatches)
 	Coordinates& cs = m.coordinates;
 	Elements& es = m.groups[0].elements;
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 
 	auto cells = sT.buildCellElemMap(es, cs);
@@ -801,7 +801,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_interior_in_face)
 		{}         // Corner
 	);
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	for (auto const& cell : sT.buildCellElemMap(m.groups[0].elements, m.coordinates)) {
 		for (auto const& p : Geometry::buildDisjointSmoothSets(cell.second, m.coordinates, sSAngle)) {
@@ -854,7 +854,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_interior_in_face_2)
 
 	const Elements& es = m.groups[0].elements;
 	Coordinates collapsed = m.coordinates;
-	SmootherTools(m.grid)
+	SmootherTools(m.grid, m.coordinates)
 		.collapsePointsOnFeatureEdges(collapsed, {&es[0], &es[2], &es[5]}, sIds);
 
 	m.coordinates = collapsed;
@@ -879,7 +879,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_over_face)
 	const Elements& es = m.groups[0].elements;
 	{
 		Coordinates collapsed = m.coordinates;
-		SmootherTools(m.grid)
+		SmootherTools(m.grid, m.coordinates)
 			.collapsePointsOnFeatureEdges(collapsed, { &es[0], &es[1],  &es[2], &es[3] }, sIds);
 
 		EXPECT_EQ(6, countDifferentCoordinates(collapsed));
@@ -889,7 +889,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_over_face)
 	}
 	{
 		Coordinates collapsed = m.coordinates;
-		SmootherTools(m.grid)
+		SmootherTools(m.grid, m.coordinates)
 			.collapsePointsOnFeatureEdges(collapsed, { &es[4], &es[5],  &es[6], &es[7] }, sIds);
 
 		EXPECT_EQ(6, countDifferentCoordinates(collapsed));
@@ -923,7 +923,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_in_interior)
 
 	const Elements& es = m.groups[0].elements;
 	Coordinates collapsed = m.coordinates;
-	SmootherTools(m.grid)
+	SmootherTools(m.grid, m.coordinates)
 		.collapsePointsOnFeatureEdges(collapsed, { &es[0], &es[1],  &es[2], &es[3] }, sIds);
 
 	EXPECT_EQ(6, countDifferentCoordinates(collapsed));

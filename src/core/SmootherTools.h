@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Delaunator.h"
+
 #include "utils/CoordGraph.h"
 #include "utils/GridTools.h"
 #include "utils/Tools.h"
@@ -34,7 +36,7 @@ public:
         IdSet edgeIds_;
     };
 
-    SmootherTools(const Grid& grid);
+    SmootherTools(const Grid& grid, const Coordinates & globalCoordinates);
 
     void collapsePointsOnFeatureEdges(
         Coordinates& res,
@@ -83,6 +85,8 @@ public:
         const ElementsView& patch);
 
 private:
+    Delaunator delaunator_;
+
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
 

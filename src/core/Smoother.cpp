@@ -21,7 +21,7 @@ using namespace meshTools;
 
 
 Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
-    sT_(SmootherTools(mesh.grid)),
+    sT_(SmootherTools(mesh.grid, mesh.coordinates)),
     opts_(opts)
 {
     meshTools::checkNoCellsAreCrossed(mesh);

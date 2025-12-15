@@ -16,8 +16,8 @@ namespace core {
 
 using namespace utils;
 
-SmootherTools::SmootherTools(const Grid& grid) :
-    GridTools(grid)
+SmootherTools::SmootherTools(const Grid& grid, const Coordinates & globalCoordinates) :
+    GridTools(grid), delaunator_(globalCoordinates)
 {}
 
 CoordinateId SmootherTools::getClosestEndOfPaths(
@@ -330,17 +330,7 @@ void SmootherTools::remeshWithNoInteriorPoints(
     }
 
     auto cPolygons = g.getBoundaryGraph().findCycles();
-    Elements remeshedEls;
-    for (auto& cPolygon : cPolygons) {
-        for (std::size_t i = 0; i < cPolygon.size() - 2; i++) {
-            remeshedEls.push_back( Element({ 
-                cPolygon[0], 
-                cPolygon[i + 1], 
-                cPolygon[i + 2] 
-            }, 
-            Element::Type::Surface));
-        }
-    }
+    Elements remeshedEls = delaunator_.mesh(cPolygons);
     
     for (auto & element: remeshedEls){
         if (hasWrongOrientation(*patch[0], element, cs)) {
