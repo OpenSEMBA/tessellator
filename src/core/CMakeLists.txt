@@ -8,6 +8,7 @@ add_library(tessellator-core
     "SmootherTools.cpp"
     "Staircaser.cpp"
     "Splicer.cpp"
+    "Delaunator.cpp"
 )
 
 target_link_libraries(tessellator-core tessellator-utils)

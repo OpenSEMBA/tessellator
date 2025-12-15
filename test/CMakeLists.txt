@@ -18,6 +18,7 @@ add_executable(tessellator_tests
 	"app/launcherTest.cpp"
 	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
+	"core/DelaunatorTest.cpp"
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
 	"core/SmootherTest.cpp"

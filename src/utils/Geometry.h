@@ -83,7 +83,7 @@ public:
                 - a2 * (b1 * c3 - b3 * c1)
                 + a3 * (b1 * c2 - b2 * c1);
 
-            const bool isCoplanar{ det < COPLANARITY_TOLERANCE };
+            const bool isCoplanar{ abs(det) < COPLANARITY_TOLERANCE };
 
             if (!isCoplanar) {
                 return false;

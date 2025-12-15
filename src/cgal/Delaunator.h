@@ -48,22 +48,22 @@ private:
 	typedef CGAL::Constrained_triangulation_face_base_2<K, Fbb>       Fb;
 	typedef CGAL::Triangulation_data_structure_2<Vb, Fb>              TDS;
 	typedef CGAL::Exact_predicates_tag                                Itag;
-	typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, Itag>  CDT;
-	typedef CDT::Point                                                Point;
+	typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, Itag>  Triangulation;
+	typedef Triangulation::Point                                                Point;
 	typedef CGAL::Polygon_2<K>                                        Polygon_2;
-	typedef CDT::Face_handle                                          Face_handle;
+	typedef Triangulation::Face_handle                                          Face_handle;
 
-	typedef boost::bimap<CDT::Point, CoordinateId> IndexPointToId;
+	typedef boost::bimap<Triangulation::Point, CoordinateId> IndexPointToId;
 
 	IndexPointToId buildPointsInIndex(const IdSet& inIds, const Polygons& constraint) const;
-	static CDT buildCDT(
+	static Triangulation buildCDT(
 		const IndexPointToId& pointToId,
 		const IdSet& inIds,
 		const Polygons& constrainingPolygons);
-	std::vector<Element> convertFromCDT(const CDT& cdt, const IndexPointToId& pointToId) const;
+	std::vector<Element> convertFromCDT(const Triangulation& cdt, const IndexPointToId& pointToId) const;
 	
-	static void mark_domains(CDT& cdt);
-	static void mark_domains(CDT& ct, Face_handle start, int index, std::list<CDT::Edge>& border);
+	static void mark_domains(Triangulation& cdt);
+	static void mark_domains(Triangulation& ct, Face_handle start, int index, std::list<Triangulation::Edge>& border);
 	void checkIdsAreInRange(
 		const IdSet& inIds,
 		const std::vector<Polygon>& constrainingPolygons) const;
