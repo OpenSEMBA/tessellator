@@ -74,6 +74,12 @@ public:
         Coordinates& coords,
         const ElementsView& patch);
 
+    void collapsePointsOnContourWithDelanautor(
+        Elements& elems,
+        Coordinates& coords,
+        const ElementsView& patch,
+        const SingularIds&);
+
     void remeshElementsToOneInteriorPoint(
         Elements& es,
         Coordinates& cs,
@@ -81,6 +87,10 @@ public:
 
     void remeshWithNoInteriorPoints(
         Elements& es,
+        const Coordinates& cs,
+        const ElementsView& patch);
+
+    static bool patchIsPlanar(
         const Coordinates& cs,
         const ElementsView& patch);
 
@@ -131,10 +141,6 @@ private:
 
     static void reorientSingleElement(
         Element& element);
-
-    static bool patchIsPlanar(
-        const Coordinates& cs,
-        const ElementsView& patch);
 
 
 };

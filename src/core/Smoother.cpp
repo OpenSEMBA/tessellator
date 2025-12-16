@@ -74,6 +74,16 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapseInteriorPointsToBound(res.coordinates, p);
         });
+        /**/
+
+        std::for_each(
+#ifdef TESSELLATOR_EXECUTION_POLICIES
+            std::execution::par,
+#endif      
+            patchs.begin(), patchs.end(), [&](auto& p) {
+                sT_.collapsePointsOnContourWithDelanautor(g.elements, res.coordinates, p, singularIds);
+            });
+        /**/
 
     }
     
