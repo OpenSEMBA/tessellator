@@ -27,7 +27,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     meshTools::checkNoCellsAreCrossed(mesh);
 
     mesh_ = mesh;
-    mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
+    // mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
     mesh_ = meshTools::duplicateCoordinatesSharedBySingleTrianglesVertex(mesh_);
     
     Mesh res = mesh_;
@@ -42,15 +42,16 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
                 patchs.push_back(p);
             }
         }
-
+        /**/
         std::for_each(patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.remeshBoundary(g.elements, res.coordinates, mesh_.coordinates, p);
         });
-                
+        /**/
+
         std::for_each(patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnCellEdges(res.coordinates, p, singularIds, opts_.contourAlignmentAngle);
         });
-
+        /**/
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
@@ -58,7 +59,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnCellFaces(res.coordinates, p, singularIds);
         });
-
+        /**/
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
@@ -66,7 +67,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnFeatureEdges(res.coordinates, p, singularIds);
         });
-
+        /**/
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
@@ -93,15 +94,17 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     redundancyCleaner::cleanCoords(res);
     mesh_ = res;
 
-
+    /*
     Coordinates& cs = mesh_.coordinates;
     for (auto const& g : mesh_.groups) {
         cs = sT_.collapsePointsOnContour(g.elements, cs, opts_.contourAlignmentAngle);
     }
+    /*
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::removeDegenerateElements(mesh_);
-
+    /*
     meshTools::checkNoCellsAreCrossed(mesh_);
+    /**/
 }
 
 }

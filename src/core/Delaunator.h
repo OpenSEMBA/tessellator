@@ -31,7 +31,6 @@ private:
 
 	void checkConstraintsArePlanar(const IdSet& targetVertices) const;
 	Triangulation buildCDT(IndexPointToId& pointToId, const IdSet& targetVertices, const Polygons& constrainingPolygons) const;
-	std::pair<Axis, Axis> findWidestAxes(const IdSet& targetVertexes) const;
 	Elements convertFromCDT(const Triangulation& cdt, const IndexPointToId& pointToId) const;
 };
 

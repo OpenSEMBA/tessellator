@@ -47,19 +47,35 @@ Delaunator::Triangulation Delaunator::buildCDT(
     const Polygons& constrainingPolygons) const {
     Triangulation cdt;
 
-    auto widestAxes = findWidestAxes(targetVertices);
-
     std::vector<Point> newVertices;
     newVertices.reserve(targetVertices.size());
 
-    for (CoordinateId v : targetVertices) {
-        const auto coordinate = globalCoordinates_->at(v);
+    Coordinates rotatedCoordinates;
+    std::vector<CoordinateId> originalIds;
+    for (auto const& id : targetVertices) {
+        rotatedCoordinates.push_back((*globalCoordinates_)[id]);
+        originalIds.push_back(id);
+    }
 
-        Point point({ coordinate[widestAxes.first], coordinate[widestAxes.second] });
+    VecD normal({ 0.,0.,0. });
+
+    for (std::size_t i = 0; i + 2 < rotatedCoordinates.size() && normal.norm() == 0.0; ++i) {
+        for (std::size_t j = i + 1; j + 1 < rotatedCoordinates.size() && normal.norm() == 0.0; ++j) {
+            for (std::size_t k = j + 1; k < rotatedCoordinates.size() && normal.norm() == 0.0; ++k) {
+                normal = utils::Geometry::normal(TriV({ rotatedCoordinates[i], rotatedCoordinates[j], rotatedCoordinates[k] }));
+            }
+        }   
+    }
+    
+    utils::Geometry::rotateToXYPlane(rotatedCoordinates.begin(), rotatedCoordinates.end(), normal);
+
+    IndexPointToId res;
+    for (std::size_t index = 0; index < targetVertices.size(); ++index) {
+        Point point({ rotatedCoordinates[index][X], rotatedCoordinates[index][Y] });
         newVertices.push_back(point);
-
-        PointId pointId(newVertices.size() - 1);
-        pointsToIds.insert(IndexPointToId::value_type(pointId, v));
+        
+        PointId pointId(index);
+        pointsToIds.insert(IndexPointToId::value_type(pointId, originalIds[index]));
     }
 
     cdt.insertVertices(newVertices);
@@ -81,39 +97,6 @@ Delaunator::Triangulation Delaunator::buildCDT(
     cdt.insertEdges(edges);
     
     return cdt;
-}
-
-std::pair<Axis, Axis> Delaunator::findWidestAxes(const IdSet& targetVertexes) const {
-    auto start = targetVertexes.begin();
-    Coordinate lowestValues = globalCoordinates_->at(*start);
-    Coordinate highestValues = lowestValues;
-
-    auto vIt = std::next(start);
-    for (vIt; vIt != targetVertexes.end(); ++vIt) {
-        const Coordinate& coordinate = globalCoordinates_->at(*vIt);
-
-        for (Axis axis = X; axis <= Z; ++axis) {
-            if (coordinate[axis] < lowestValues[axis]) {
-                lowestValues[axis] = coordinate[axis];
-            }
-            if (coordinate[axis] > highestValues[axis]) {
-                highestValues[axis] = coordinate[axis];
-            }
-        }
-    }
-
-    auto distance = highestValues - lowestValues;
-    Axis shortestDistance = X;
-    for (Axis axis = Y; axis <= Z; ++axis) {
-        if (distance[axis] < distance[shortestDistance]) {
-            shortestDistance = axis;
-        }
-    }
-    std::set<Axis> orderedAxes({ (shortestDistance + 1) % 3, (shortestDistance + 2) % 3 });
-    Axis first = *orderedAxes.begin();
-    Axis second = *std::next(orderedAxes.begin());
-
-    return std::make_pair(first, second);
 }
 
 Elements Delaunator::convertFromCDT(const Triangulation& cdt, const IndexPointToId& pointToId) const {

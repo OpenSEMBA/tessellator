@@ -440,6 +440,7 @@ Coordinates SmootherTools::collapsePointsOnContour(
     const double alignmentThresholdAngle)
 {
     Coordinates res{ coords };
+    auto const singularIds = buildSingularIds(elems, coords, alignmentThresholdAngle);
     auto contourIds{ CoordGraph{ elems }.getBoundaryGraph().getVertices() };
     
     for (auto const& c : buildCellElemMap(elems, coords)) {
@@ -499,23 +500,27 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
 
         auto cPolygons = g.getBoundaryGraph().findCycles();
         std::vector<CoordinateIds> newCPolygons;
+
+        /*
         std::map<CoordinateId, CoordinateIds> neighbours;
-
+        /**/
         newCPolygons.reserve(cPolygons.size());
-
-        bool equalCycles = true;
-
+        // Important: FeatureIds,
         for (const auto& cycle : cPolygons) {
             CoordinateIds newCycle;
+
             for (CoordinateId v : cycle) {
-                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end()) {
+                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end() ||  isRelativeInCellCorner(coords[v])) {
                     newCycle.push_back(v);
-                }
-                else {
-                    equalCycles = false;
                 }
             }
 
+            if (newCycle.size() <= 2) {
+                newCPolygons.push_back(cycle);
+                continue;
+            }
+
+            /*
             std::size_t nextNeighbourIndex = 0;
             std::size_t previousNeighbourIndex = newCycle.size() - 1;
 
@@ -529,12 +534,8 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
                     nextNeighbourIndex = (nextNeighbourIndex + 1) % newCycle.size();
                 }
             }
-
+            /**/
             newCPolygons.push_back(newCycle);
-        }
-
-        if (equalCycles) {
-            return;
         }
 
         Elements remeshedEls = delaunator_.mesh(newCPolygons);
