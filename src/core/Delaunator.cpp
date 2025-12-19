@@ -15,7 +15,7 @@ Elements Delaunator::mesh(const Polygons& constrainingPolygons) const {
 
         checkConstraintsArePlanar(targetVertices);
 
-        IndexPointToId pointsToIds;
+        PointToId pointsToIds;
 
         Triangulation cdt = buildCDT(pointsToIds, targetVertices, constrainingPolygons);
 
@@ -42,13 +42,10 @@ void Delaunator::checkConstraintsArePlanar(const IdSet & targetVertices) const {
 }
 
 Delaunator::Triangulation Delaunator::buildCDT(
-    IndexPointToId& pointsToIds,
+    PointToId& pointsToIds,
     const IdSet& targetVertices,
     const Polygons& constrainingPolygons) const {
     Triangulation cdt;
-
-    std::vector<Point> newVertices;
-    newVertices.reserve(targetVertices.size());
 
     Coordinates rotatedCoordinates;
     std::vector<CoordinateId> originalIds;
@@ -69,13 +66,20 @@ Delaunator::Triangulation Delaunator::buildCDT(
     
     utils::Geometry::rotateToXYPlane(rotatedCoordinates.begin(), rotatedCoordinates.end(), normal);
 
-    IndexPointToId res;
+    
     for (std::size_t index = 0; index < targetVertices.size(); ++index) {
         Point point({ rotatedCoordinates[index][X], rotatedCoordinates[index][Y] });
-        newVertices.push_back(point);
         
         PointId pointId(index);
-        pointsToIds.insert(IndexPointToId::value_type(pointId, originalIds[index]));
+        pointsToIds.insert(PointToId::value_type(point, originalIds[index]));
+    }
+
+    std::vector<Point> newVertices;
+    newVertices.reserve(pointsToIds.left.size());
+
+    for (auto& leftPointIt = pointsToIds.left.begin(); leftPointIt != pointsToIds.left.end(); ++leftPointIt) {
+        const Point& point = leftPointIt->first;
+        newVertices.push_back(point);
     }
 
     cdt.insertVertices(newVertices);
@@ -85,12 +89,15 @@ Delaunator::Triangulation Delaunator::buildCDT(
 
     for (const auto& polygon : constrainingPolygons) {
         for (std::size_t i = 0; i < polygon.size(); ++i) {
-            std::set<PointId> edgeSet({
-                pointsToIds.right.at(polygon[i]),
-                pointsToIds.right.at(polygon[(i + 1) % polygon.size()])
-                });
+            auto leftCoordIdIt = pointsToIds.right.find(polygon[i]);
+            auto leftPointIt = pointsToIds.project_left(leftCoordIdIt);
+            PointId leftId = PointId(std::distance(pointsToIds.left.begin(), leftPointIt));
 
-            edges.emplace_back(*edgeSet.begin(), *edgeSet.rbegin());
+            auto rightCoordIdIt = pointsToIds.right.find(polygon[(i + 1) % polygon.size()]);
+            auto rightPointIt = pointsToIds.project_left(rightCoordIdIt);
+            PointId rightId = PointId(std::distance(pointsToIds.left.begin(), rightPointIt));
+
+            edges.emplace_back(leftId, rightId);
         }
     }
 
@@ -99,7 +106,7 @@ Delaunator::Triangulation Delaunator::buildCDT(
     return cdt;
 }
 
-Elements Delaunator::convertFromCDT(const Triangulation& cdt, const IndexPointToId& pointToId) const {
+Elements Delaunator::convertFromCDT(const Triangulation& cdt, const PointToId& pointToId) const {
     auto newTriangles = cdt.triangles;
 
     Elements result;
@@ -110,7 +117,8 @@ Elements Delaunator::convertFromCDT(const Triangulation& cdt, const IndexPointTo
         vertices.reserve(3);
 
         for (PointId id : triangle.vertices) {
-            vertices.push_back(pointToId.left.at(id));
+            const Point& point = cdt.vertices[id];
+            vertices.push_back(pointToId.left.at(point));
         }
 
         result.emplace_back(vertices, Element::Type::Surface);

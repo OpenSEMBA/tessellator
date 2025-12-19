@@ -21,16 +21,16 @@ using namespace meshTools;
 
 
 Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
-    sT_(SmootherTools(mesh.grid, mesh.coordinates)),
     opts_(opts)
 {
     meshTools::checkNoCellsAreCrossed(mesh);
 
     mesh_ = mesh;
-    // mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
+    mesh_ = meshTools::duplicateCoordinatesUsedByDifferentGroups(mesh_);
     mesh_ = meshTools::duplicateCoordinatesSharedBySingleTrianglesVertex(mesh_);
     
     Mesh res = mesh_;
+    SmootherTools sT_(res.grid, res.coordinates);
     for (auto& g : res.groups) {
         auto const singularIds = 
             sT_.buildSingularIds(g.elements, mesh_.coordinates, opts_.featureDetectionAngle);

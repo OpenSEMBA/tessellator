@@ -27,11 +27,23 @@ private:
 	typedef CDT::V2d<double>                                          Point;
 	typedef CDT::VertInd                                              PointId;
 
-	typedef boost::bimap<PointId, CoordinateId> IndexPointToId;
+	struct PointLesserComparer {
+		bool operator() (const Point& pointA, const Point& pointB) const noexcept {
+			if (pointA.x < pointB.x) {
+				return true;
+			}
+			if (pointA.x == pointB.x) {
+				return pointA.y < pointB.y;
+			}
+			return false;
+		}
+	};	
+
+	typedef boost::bimap<boost::bimaps::set_of<Point, PointLesserComparer>, CoordinateId> PointToId;
 
 	void checkConstraintsArePlanar(const IdSet& targetVertices) const;
-	Triangulation buildCDT(IndexPointToId& pointToId, const IdSet& targetVertices, const Polygons& constrainingPolygons) const;
-	Elements convertFromCDT(const Triangulation& cdt, const IndexPointToId& pointToId) const;
+	Triangulation buildCDT(PointToId& pointToId, const IdSet& targetVertices, const Polygons& constrainingPolygons) const;
+	Elements convertFromCDT(const Triangulation& cdt, const PointToId& pointToId) const;
 };
 
 }
