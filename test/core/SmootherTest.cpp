@@ -233,6 +233,18 @@ TEST_F(SmootherTest, touching_by_single_point)
 ///      2‾‾--__‾-_                       │/     ‾-_
 ///      0──────====1     x               0─────────=1     x
 ///
+/// ------------------------------------------------------------------
+///                      z                            z
+///     16=──────────────17          (16->10)─────────(17->11)
+///      │ ⟍‾-_          │	              │ ⟍	         /│
+///      │   ⟍ ‾-_       │	              │   ⟍	        / │
+///      │      ⟍ ‾-_    │	              │      ⟍	   /  │
+///      │         ⟍ ‾-_ │	    ->	      │         ⟍ /	  │
+///     15──────────13───14            (15->9)────(13->8) │
+///               _-‾ \  │                         _-‾ \  │
+///            _-‾     ‾\│                      _-‾     ‾\│
+///     x    12──────────11              x  (12->7)────(11->6)
+///
 /// --------------------------------------------------------
 ///      z                                z
 ///      9──────────────=16             (9->4)─────────(16->10)
@@ -244,20 +256,6 @@ TEST_F(SmootherTest, touching_by_single_point)
 ///      │       ___--‾‾ │                │ ‾‾--___       │
 ///      │ __--‾‾        │                │        ‾‾--__ │
 ///      1=──────────────12	 y            1=───────────(12->7)	 y
-///
-///
-/// ------------------------------------------------------------------
-///
-///                      z                            z
-///     16=──────────────17          (16->10)─────────(17->11)
-///      │ ⟍‾-_          │	              │ ⟍	         /│
-///      │   ⟍ ‾-_       │	              │   ⟍	        / │
-///      │      ⟍ ‾-_    │	              │      ⟍	   /  │
-///      │         ⟍ ‾-_ │	    ->	      │         ⟍ /	  │
-///     15──────────13───14            (15->9)────(13->8) │
-///               _-‾ \  │                         _-‾ \  │
-///            _-‾     ‾\│                      _-‾     ‾\│
-///     x    12──────────11              x  (12->7)────(11->6)
 ///
 /// ---------------------------------------------------------
 ///	                     z          	                   z
@@ -271,6 +269,19 @@ TEST_F(SmootherTest, touching_by_single_point)
 ///      │ __--‾‾____----2                │ ⟋             │
 ///  y  11=======────────0           y (11->6)────────────0
 ///
+/// ---------------------------------------------------------
+///	                                	                   z
+///      0────3─────1────5  x             0─(3->2)───1──(5->3)
+///	     │    .    /│  / │                │    .    /│  / │
+///      │    .   / │ /  │                │    .   / │ /  │
+///      │    . /   │/   │                │    . /   │/   │
+///      │    ./   .│    │      ->        │    ./   .│    │
+///      │   /.   . │    │                │   /.   . │    │
+///      │ /  . .   │    │                │ /  . .   │    │
+///      │/   ..    │    │                │/   ..    │    │
+///     11────13────12───15          (11->6)───*─(12->7)─(15->9)
+///                                         (13->8)
+///											
 /// --------------------------------------------------------------------
 ///
 ///      9───────────────10             (9->4)─────────(10->5)
@@ -337,8 +348,8 @@ TEST_F(SmootherTest, smoothPointscontour)
 		Element({  9,  3,  8 }, Element::Type::Surface), //	16
 		Element({  8,  3,  2 }, Element::Type::Surface), //	17
 
-		Element({ 10,  5,  4 }, Element::Type::Surface), //	18
-		Element({  5, 10, 11 }, Element::Type::Surface), //	19
+		Element({  4, 11,  5 }, Element::Type::Surface), //	18
+		Element({ 11,  4, 10 }, Element::Type::Surface), //	19
 	};
 
 	Mesh result = Smoother(mesh, smootherOpts).getMesh();
@@ -354,10 +365,26 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
 	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 	
+	/*
+
 	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
 	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
 	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+
+	/*
+
+	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
+	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
+	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+
+	/**/
 	
+	m.grid[X] = utils::GridTools::linspace(-60.0, -36.0, 4);
+	m.grid[Y] = utils::GridTools::linspace(-52.0, -28.0, 4);
+	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+
+	/**/
+
 	auto slicedMesh = Slicer{m}.getMesh();
 	
 	SmootherOptions smootherOpts;
@@ -369,12 +396,15 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 	EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
 
-    // //For debugging.
-	// meshTools::convertToAbsoluteCoordinates(smoothedMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.smoothed.vtk", smoothedMesh);
-	// 
-	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
+    //For debugging.
+	meshTools::convertToAbsoluteCoordinates(smoothedMesh);
+
+
+	vtkIO::exportGridToVTU("testData/cases/alhambra/alhambra.grid.vtk", smoothedMesh.grid);
+	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.smoothed.vtk", smoothedMesh);
+	 
+	auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
+	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
 }
 
 

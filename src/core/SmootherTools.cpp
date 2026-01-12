@@ -516,6 +516,25 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
             }
 
             if (newCycle.size() <= 2) {
+                newCycle.clear();
+
+                auto previousIt = cycle.begin();
+
+                newCycle.push_back(*previousIt);
+                Coordinate * previousCoordinate = &coords[*previousIt];
+
+                for (auto currentIt = std::next(previousIt); currentIt != cycle.end(); ++currentIt) {
+                    if (coords[*currentIt] != *previousCoordinate) {
+                        if (std::next(currentIt) != cycle.end() || coords[*currentIt] != coords[newCycle[0]]) {
+                            newCycle.push_back(*currentIt);
+                            previousIt = currentIt;
+                            previousCoordinate = &coords[*currentIt];
+                        }
+                    }
+                }
+            }
+
+            if (newCycle.size() <= 2) {
                 newCPolygons.push_back(cycle);
                 continue;
             }
