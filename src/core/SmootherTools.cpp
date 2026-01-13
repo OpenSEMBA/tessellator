@@ -508,9 +508,13 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
         // Important: FeatureIds,
         for (const auto& cycle : cPolygons) {
             CoordinateIds newCycle;
+            
+            if (cycle.size() <= 2) {
+                continue;
+            }
 
             for (CoordinateId v : cycle) {
-                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end() ||  isRelativeInCellCorner(coords[v])) {
+                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end() ||  isRelativeInCellEdge(coords[v])) {
                     newCycle.push_back(v);
                 }
             }
@@ -518,25 +522,23 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
             if (newCycle.size() <= 2) {
                 newCycle.clear();
 
-                auto previousIt = cycle.begin();
-
-                newCycle.push_back(*previousIt);
-                Coordinate * previousCoordinate = &coords[*previousIt];
-
-                for (auto currentIt = std::next(previousIt); currentIt != cycle.end(); ++currentIt) {
-                    if (coords[*currentIt] != *previousCoordinate) {
-                        if (std::next(currentIt) != cycle.end() || coords[*currentIt] != coords[newCycle[0]]) {
-                            newCycle.push_back(*currentIt);
-                            previousIt = currentIt;
-                            previousCoordinate = &coords[*currentIt];
-                        }
-                    }
-                }
+                newCycle.insert(newCycle.begin(), cycle.begin(), cycle.end());
             }
 
-            if (newCycle.size() <= 2) {
-                newCPolygons.push_back(cycle);
-                continue;
+            auto currentIt = newCycle.begin();
+
+            while (currentIt != newCycle.end()) {
+                auto nextIt = std::next(currentIt);
+                if (nextIt == newCycle.end()) {
+                    nextIt = newCycle.begin();
+                }
+
+                if (coords[*currentIt] == coords[*nextIt]) {
+                    currentIt = newCycle.erase(currentIt);
+                }
+                else {
+                    ++currentIt;
+                }
             }
 
             /*
@@ -555,6 +557,10 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
             }
             /**/
             newCPolygons.push_back(newCycle);
+        }
+
+        if (newCPolygons.size() == 0) {
+            return;
         }
 
         Elements remeshedEls = delaunator_.mesh(newCPolygons);
