@@ -509,53 +509,54 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
         for (const auto& cycle : cPolygons) {
             CoordinateIds newCycle;
             
-            if (cycle.size() <= 2) {
+            if (cycle.size() < 3) {
                 continue;
             }
 
-            for (CoordinateId v : cycle) {
-                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end() ||  isRelativeInCellEdge(coords[v])) {
+            CoordinateIds filteredRepeated;
+            filteredRepeated.reserve(cycle.size());
+
+            
+            for (std::size_t currentIndex = 0; currentIndex < cycle.size(); ++currentIndex) {
+                auto nextIndex = (currentIndex + 1) % cycle.size();
+
+                if (coords[cycle[currentIndex]] != coords[cycle[nextIndex]]) {
+                    filteredRepeated.push_back(cycle[currentIndex]);
+                }
+            }
+
+            if (filteredRepeated.size() < 3) {
+                continue;
+            }
+
+            Relative center = (coords[filteredRepeated[0]] + coords[filteredRepeated[1]] + coords[filteredRepeated[2]]) / 3;
+            Cell centerCell = toCell(center);
+
+            bool isCycleOnSameFace = true;
+            std::size_t i = 0;
+            while (isCycleOnSameFace && i < filteredRepeated.size()) {
+                isCycleOnSameFace = toCell(coords[filteredRepeated[i]]) == centerCell && areCoordOnSameFace(center, coords[filteredRepeated[i]]);
+                ++i;
+            }
+
+            for (CoordinateId v : filteredRepeated) {
+                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end()) {
+                    newCycle.push_back(v);
+                }
+                else if (!isCycleOnSameFace && isRelativeInCellEdge(coords[v])) {
+                    newCycle.push_back(v);
+                }
+                else if (isRelativeInCellCorner(coords[v])) {
                     newCycle.push_back(v);
                 }
             }
 
-            if (newCycle.size() <= 2) {
+            if (newCycle.size() < 3) {
                 newCycle.clear();
 
-                newCycle.insert(newCycle.begin(), cycle.begin(), cycle.end());
+                newCycle.insert(newCycle.begin(), filteredRepeated.begin(), filteredRepeated.end());
             }
 
-            auto currentIt = newCycle.begin();
-
-            while (currentIt != newCycle.end()) {
-                auto nextIt = std::next(currentIt);
-                if (nextIt == newCycle.end()) {
-                    nextIt = newCycle.begin();
-                }
-
-                if (coords[*currentIt] == coords[*nextIt]) {
-                    currentIt = newCycle.erase(currentIt);
-                }
-                else {
-                    ++currentIt;
-                }
-            }
-
-            /*
-            std::size_t nextNeighbourIndex = 0;
-            std::size_t previousNeighbourIndex = newCycle.size() - 1;
-
-            for (CoordinateId v : cycle) {
-                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) == sIds.cornerIds().end()) {
-                    neighbours[v] = CoordinateIds{ newCycle[previousNeighbourIndex], newCycle[nextNeighbourIndex] };
-                }
-                else {
-                    neighbours[v] = CoordinateIds{ v, v };
-                    previousNeighbourIndex = nextNeighbourIndex;
-                    nextNeighbourIndex = (nextNeighbourIndex + 1) % newCycle.size();
-                }
-            }
-            /**/
             newCPolygons.push_back(newCycle);
         }
 
