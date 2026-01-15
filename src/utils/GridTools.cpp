@@ -512,18 +512,23 @@ bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2)
         return false;
     }
 
-    if (cell1 != cell2) {
-        return false;
-    }
 
-    std::size_t nEqualCoordsInFace = 0;
+
+    std::size_t nEqualCoords = 0;
     for (Axis d = 0; d < 3; d++) {
+        auto minCellValue = std::min(cell1[d], cell2[d]);
+        auto maxCellValue = std::max(ceil(r1[d]), ceil(r2[d]));
+
+        if ((maxCellValue - minCellValue) > 1) {
+            return false;
+        }
+
         if (approxDir(cell1[d], r1(d)) && approxDir(r1(d) - r2(d), 0.0)) {
-            nEqualCoordsInFace++;
+            nEqualCoords++;
         }
     }
 
-    if (nEqualCoordsInFace >= 1){
+    if (nEqualCoords >= 1){
         return true;
     }
     else {
@@ -532,14 +537,23 @@ bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2)
 }
 bool GridTools::areCoordOnSameEdge(const Relative& r1, const Relative& r2) 
 {
-    // This assumes that both relatives belong to the same cell.
+    Cell cell1 = toCell(r1);
+    Cell cell2 = toCell(r2);
+
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
 
     std::size_t nEqualCoords = 0;
     for (Axis d = 0; d < 3; d++) {
-        if (approxDir(r1(d) - r2(d), 0.0)) {
+        auto minCellValue = std::min(cell1[d], cell2[d]);
+        auto maxCellValue = std::max(ceil(r1[d]), ceil(r2[d]));
+
+        if ((maxCellValue - minCellValue) > 1) {
+            return false;
+        }
+
+        if (approxDir(cell1[d], r1(d)) && approxDir(r1(d) - r2(d), 0.0)) {
             nEqualCoords++;
         }
     }
@@ -718,8 +732,8 @@ bool GridTools::isSegmentOnFace(
         return true;
     }
 
-    if ((isRelativeInCellFace(r1) && isRelativeInCellEdge(r2)) &&
-        (isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2))) {
+    if ((isRelativeInCellFace(r1) && isRelativeInCellEdge(r2)) ||
+        (isRelativeInCellEdge(r1) && isRelativeInCellFace(r2))) {
         return true;
     }
 
