@@ -17,7 +17,7 @@ public:
 	typedef std::vector<Polygon> Polygons;
 	
 	Delaunator(const Coordinates& globalCoordinates);
-	std::vector<Element> mesh(const std::vector<Polygon>& constrainingPolygons = std::vector<Polygon>()) const;
+	std::vector<Element> mesh(const std::vector<Polygon>& constrainingPolygons = std::vector<Polygon>(), bool ignoreCoplanarity = false) const;
 
 
 private:

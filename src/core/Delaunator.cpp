@@ -5,7 +5,7 @@ namespace meshlib::core {
 
 Delaunator::Delaunator(const Coordinates& globalCoordinates) : globalCoordinates_(&globalCoordinates) {}
 
-Elements Delaunator::mesh(const Polygons& constrainingPolygons) const {
+Elements Delaunator::mesh(const Polygons& constrainingPolygons, bool ignoreCoplanarity) const {
     try {
         IdSet targetVertices;
 
@@ -13,8 +13,9 @@ Elements Delaunator::mesh(const Polygons& constrainingPolygons) const {
             targetVertices.insert(polygon.begin(), polygon.end());
         }
 
-        checkConstraintsArePlanar(targetVertices);
-
+        if (!ignoreCoplanarity) {
+            checkConstraintsArePlanar(targetVertices);
+        }
         PointToId pointsToIds;
 
         Triangulation cdt = buildCDT(pointsToIds, targetVertices, constrainingPolygons);

@@ -10,13 +10,14 @@ public:
 	static Coordinates buildCoordinates()
 	{
 		return Coordinates {
-			Coordinate({0.00, 0.00, 0.00}),
-			Coordinate({0.00, 1.00, 0.00}),
-			Coordinate({1.00, 1.00, 0.00}),
-			Coordinate({1.00, 0.00, 0.00}),
-			Coordinate({5.00, 5.00, 5.00}),
-			Coordinate({0.00, 1.00, 0.00}),
-			Coordinate({0.75, 0.25, 0.00})
+			Coordinate({0.00, 0.00, 0.00}),	// 0 
+			Coordinate({0.00, 1.00, 0.00}),	// 1 
+			Coordinate({1.00, 1.00, 0.00}),	// 2 
+			Coordinate({1.00, 0.00, 0.00}), // 3
+			Coordinate({5.00, 5.00, 5.00}), // 4 
+			Coordinate({0.00, 1.00, 0.00}), // 5
+			Coordinate({0.75, 0.25, 0.00}), // 6
+			Coordinate({1.00, 0.00, 0.10})  // 7
 		};
 	}
 
@@ -218,6 +219,26 @@ TEST_F(DelaunatorTest, throw_when_coordinateId_is_out_of_range)
 	Delaunator delaunator(coords);
 
 	EXPECT_ANY_THROW(delaunator.mesh({{ 0, 1, 2, 350 }}));
+}
+	EXPECT_THROW(delaunator.mesh({ { 0, 1, 2, 350 } }), std::runtime_error);
+}
+
+TEST_F(DelaunatorTest, mesh_with_unaligned_but_ignore_coplanarity)
+{
+	auto coords = buildCoordinates();
+	Delaunator delaunator(coords);
+
+	Delaunator::Polygons polygons({ {0, 1, 2, 7} });
+
+	EXPECT_THROW(delaunator.mesh(polygons), std::runtime_error);
+
+	auto tris = delaunator.mesh({ polygons }, true);
+
+	EXPECT_EQ(2, tris.size());
+	for (auto const& tri : tris) {
+		EXPECT_EQ(Element::Type::Surface, tri.type);
+		EXPECT_EQ(3, tri.vertices.size());
+	}
 }
 
 }
