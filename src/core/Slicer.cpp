@@ -44,42 +44,38 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
     opts_(opts)
 {
     // Ensures that all coordinates have a fixed number of decimal places.
-    Mesh collapsed = input;
-    collapsed.coordinates = absoluteToRelative(collapsed.coordinates);
-    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces, dimensionPolicy }.getMesh();
-    collapsed.coordinates = relativeToAbsolute(collapsed.coordinates);
 
     // Slices.
-    mesh_.grid = collapsed.grid;
+    mesh_.grid = input.grid;
     mesh_.coordinates.reserve(mesh_.coordinates.size() * 100);
-    mesh_.groups.resize(collapsed.groups.size());
+    mesh_.groups.resize(input.groups.size());
 
     for (auto& g : mesh_.groups) {
         g.elements.reserve(g.elements.size() * 100);
     }
     Coordinates& sCoords = mesh_.coordinates;
 
-    for (std::size_t g = 0; g < collapsed.groups.size(); g++) {
+    for (std::size_t g = 0; g < input.groups.size(); g++) {
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::seq,
 #endif
-            collapsed.groups[g].elements.begin(), collapsed.groups[g].elements.end(),
+            input.groups[g].elements.begin(), input.groups[g].elements.end(),
             [&](auto const& e) {
                 Elements elements;
                 if (e.type == Element::Type::Surface) {
-                    TriV triV{ Geometry::asTriV(e, collapsed.coordinates) };
+                    TriV triV{ Geometry::asTriV(e, input.coordinates) };
 
                     elements = { sliceTriangle(sCoords, triV) };
                     orient(sCoords, elements, triV);
                 }
                 else if (e.isLine()) {
-                    LinV lineV{ Geometry::asLinV(e, collapsed.coordinates) };
+                    LinV lineV{ Geometry::asLinV(e, input.coordinates) };
 
                     elements = { sliceLine(sCoords, lineV) };
                 }
                 else if (e.isNode()) {
-                    auto& coordinate = collapsed.coordinates[e.vertices[0]];
+                    auto& coordinate = input.coordinates[e.vertices[0]];
                     sCoords.push_back(getRelative(coordinate));
                     elements = { e };
                 }
@@ -96,9 +92,16 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
         );
     }
 
+
     redundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::removeDegenerateElements(mesh_);
+
+    double factor = std::pow(10.0, opts_.initialCollapsingDecimalPlaces);
+    for (auto& coordinate : mesh_.coordinates) {
+
+        coordinate = coordinate.round(factor);
+    }
 
     // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);
