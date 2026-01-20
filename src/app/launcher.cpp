@@ -23,20 +23,25 @@ namespace po = boost::program_options;
 
 Grid parseGridFromJSON(const nlohmann::json &j)
 {
-    std::array<int,3> nCells = {
+    if (j.find("planes") != j.end()) {
+        return j["planes"];
+    }
+    else {
+        std::array<int, 3> nCells = {
         j["numberOfCells"][0],
         j["numberOfCells"][1],
         j["numberOfCells"][2]
-    };
-    std::array<double,3> min, max;
-    min = j["boundingBox"][0];
-    max = j["boundingBox"][1];
+        };
+        std::array<double, 3> min, max;
+        min = j["boundingBox"][0];
+        max = j["boundingBox"][1];
 
-    return {
-        utils::GridTools::linspace(min[0], max[0], nCells[0]+1),
-        utils::GridTools::linspace(min[1], max[1], nCells[1]+1),
-        utils::GridTools::linspace(min[2], max[2], nCells[2]+1)
-    };
+        return {
+            utils::GridTools::linspace(min[0], max[0], nCells[0] + 1),
+            utils::GridTools::linspace(min[1], max[1], nCells[1] + 1),
+            utils::GridTools::linspace(min[2], max[2], nCells[2] + 1)
+        };
+    }
 }
 
 Mesh readMesh(const std::string &fn)
