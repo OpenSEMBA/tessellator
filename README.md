@@ -41,6 +41,56 @@ This can be done using a `CMakeUserPreset.json` file, for example:
 }
 ```
 
+## Usage
+
+The main binary is `tessellator`, which uses a tessellator json format, which will be explained below.
+
+```shell
+    tessellator -i MESH_NAME.tessellator.json
+```
+
+## JSON Format
+The two main entries are as follows:
+
+### `<grid>`
+This object must always be present and contains the structure of the grid, which will be used to slice and adjust the mesh provided. It must contain one of these two sets of entries:
+
+- `<numberOfCells>`: is an array of three positive integers which indicate the number of cells in each Cartesian direction. In case of having this entry, it also must contain a `<boundingBox>`:
+  - `<boundingBox>` is represented by an array which contairs two triplets of integers, representing the minimum and maximum values of the gread in each cartesian direction.
+
+```json
+  "grid": {
+    "numberOfCells": [20, 20, 30],
+    "boundingBox": [
+        [-1, -1, -1],
+        [ 1,  1,  2]
+    ]
+  }
+```
+
+- `planes`: This array contains other three arrays of floating point numbers. Each number must be in sequential order, from lowest to highest, each value representing the position of every plane forming the cells of the grid. This allows the definition of a non-uniform (rectilinear) grid.
+
+```json
+  "grid": {
+    "planes": [
+        [600, 603.25],
+        [25.0, 30.5, 92, 130, 1000],
+        [1000, 1111, 1111.1]
+    ]
+  }
+```
+
+### `<object>`
+This contains the information about the mesh file. It must contain the following entry:
+
+- `filename`: with an string containing the name of the mesh file. Its location is relative to that of the json file.
+
+  Example:
+
+```json
+  "object": {"filename": "thinCylinder.stl"}
+```
+
 ## Contributing
 
 ## Citing this work
