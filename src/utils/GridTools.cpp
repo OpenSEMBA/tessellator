@@ -830,7 +830,7 @@ std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMap(
 {
     std::map<Cell, std::vector<const Element*>> cells;
     for (auto e = elems.begin(); e != elems.end(); ++e) {
-        
+
         Coordinate centroid;
         for (std::size_t i = 0; i < e->vertices.size(); i++) {
             centroid += coords[e->vertices[i]] / double(e->vertices.size());
@@ -840,6 +840,29 @@ std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMap(
         for (auto const& cell : touching) {
             cells[cell].push_back(&(*e));
         }
+    }
+    return cells;
+}
+
+std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMapStrict(
+    const std::vector<Element>& elems,
+    const Relatives& coords) const
+{
+    std::map<Cell, std::vector<const Element*>> cells;
+    for (auto e = elems.begin(); e != elems.end(); ++e) {
+
+        Relative centroid;
+        for (std::size_t i = 0; i < e->vertices.size(); i++) {
+            centroid += coords[e->vertices[i]] / double(e->vertices.size());
+        }
+        Cell local = toCell(centroid);
+        for (Axis axis = X; axis <= Z; ++axis) {
+            if (local(axis) == numCellsDir(axis)) {
+                local(axis)--;
+            }
+        }
+
+        cells[local].push_back(&(*e));
     }
     return cells;
 }
