@@ -155,11 +155,27 @@ std::set<Cell> ConformalMesher::cellsWithOverlappingTriangles(const Mesh& mesh) 
             }           
             auto triv1 = Geometry::asTriV(element1, mesh.coordinates);
             auto triv2 = Geometry::asTriV(element2, mesh.coordinates);
+
             /**/
             auto lowestRelativeIt1 = std::min_element(triv1.begin(), triv1.end());
             auto lowestRelativeIt2 = std::min_element(triv2.begin(), triv2.end());
+            Cell lowest = gridTools.toCell(std::min(*lowestRelativeIt1, *lowestRelativeIt2));
 
-            cellsWithOverlap.insert(gridTools.toCell(std::min(*lowestRelativeIt1, *lowestRelativeIt2)));
+            cellsWithOverlap.insert(Cell{ lowest[X], lowest[Y], lowest[Z] });
+
+            /*
+            
+            auto highestRelativeIt1 = std::max_element(triv1.begin(), triv1.end());
+            auto highestRelativeIt2 = std::max_element(triv2.begin(), triv2.end());
+            Cell highest = gridTools.toCell(std::max(*highestRelativeIt1, *highestRelativeIt2));
+
+            cellsWithOverlap.insert(Cell{ lowest[X], lowest[Y], highest[Z] });
+            cellsWithOverlap.insert(Cell{ lowest[X], highest[Y], lowest[Z] });
+            cellsWithOverlap.insert(Cell{ lowest[X], highest[Y], highest[Z] });
+            cellsWithOverlap.insert(Cell{ highest[X], lowest[Y], lowest[Z] });
+            cellsWithOverlap.insert(Cell{ highest[X], lowest[Y], highest[Z] });
+            cellsWithOverlap.insert(Cell{ highest[X], highest[Y], lowest[Z] });
+            cellsWithOverlap.insert(Cell{ highest[X], highest[Y], highest[Z] });
             
             /*
 
@@ -220,24 +236,65 @@ Mesh ConformalMesher::mesh() const
         res.grid = slicingGrid;
         return res;
     }
-    
+    /*
+    log("Checking before slicing");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /**/
     log("Slicing.", 1);
     res.grid = slicingGrid;
     res = Slicer{ res }.getMesh();
-        
+    /*
+    log("Checking after slicing");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /*
+    std::map<ElementId, Element*> listOfElements;
+    /*
+    for (auto& group : res.groups) {
+        for (ElementId e = 0; e < group.elements.size(); ++e) {
+            auto& element = group.elements[e];
+            auto& v1 = res.coordinates[element.vertices[0]];
+            auto& v2 = res.coordinates[element.vertices[1]];
+            auto& v3 = res.coordinates[element.vertices[2]];
+
+            if (v1[X] >= 2.0  && v1[X] <= 3.0  &&
+                v1[Y] >= 10.0 && v1[Y] <= 11.0 &&
+                v1[Z] >= 6.0  && v1[Z] <= 8.0  &&
+                v2[X] >= 2.0  && v2[X] <= 3.0  &&
+                v2[Y] >= 10.0 && v2[Y] <= 11.0 &&
+                v2[Z] >= 6.0  && v2[Z] <= 8.0  &&
+                v3[X] >= 2.0  && v3[X] <= 3.0  &&
+                v3[Y] >= 10.0 && v3[Y] <= 11.0 &&
+                v3[Z] >= 6.0  && v3[Z] <= 8.0) {
+                listOfElements[e] = &element;
+            }
+        }
+    }
+    */
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
+    redundancyCleaner::fuseCoords(res);
+    redundancyCleaner::removeDegenerateElements(res);
+
+    /**/
     log("Smoothing.", 1);
     SmootherOptions smootherOpts;
     smootherOpts.featureDetectionAngle = 30;
     smootherOpts.contourAlignmentAngle = 0;
     res = Smoother{res, smootherOpts}.getMesh();
+    /*
+    log("Checking after smoothing");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /**/
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
-    
+    /*
     log("Snapping.", 1);
     res = Snapper(res, opts_.snapperOptions).getMesh();
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
+    /*
+    log("Checking after snapping");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /*
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
     log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
@@ -245,8 +302,16 @@ Mesh ConformalMesher::mesh() const
     // Calls structurer to mesh only those cells.
     log("Structuring non-conformal cells.", 1);
     res = Staircaser{ res }.getSelectiveMesh(nonConformalCells,Staircaser::GapsFillingType::Insert);
+    /*
+    log("Checking after selective staircasing");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /**/
     redundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    /*
+    log("Checking after removing redundant geometry");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /*
 
     // Find cells which break conformal FDTD rules after selective structuring.
     // nonConformalCells = findNonConformalCells(res);
@@ -255,11 +320,15 @@ Mesh ConformalMesher::mesh() const
 
     // Merges triangles which are on same cell face.
     
+    /**/
     reduceGrid(res, originalGrid_);
-    
+    /*
+    log("Checking after reducing grid");
+    assert(meshTools::isAClosedTopology(res.groups[0].elements));
+    /**/
     // Converts relatives to absolutes.
     utils::meshTools::convertToAbsoluteCoordinates(res);
-
+    /**/
 
     return res;
 }

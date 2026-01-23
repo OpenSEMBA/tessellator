@@ -241,12 +241,37 @@ VecD Geometry::getLSFPlaneNormal(const Coordinates& inPts)
     // AtA10 * x + AtA11 * y + AtA12 * z = Atb1
     // AtA20 * x + AtA21 * y + AtA22 * z = Atb2
     // 
+    //
+    //
+    //  z = (Atb0 - AtA20 * x - AtA21 * y) / AtA22
+    //
+    //
+    //
+    //   AtA00                 * AtA11     * x + AtA01 * AtA11 * y +         AtA02 * AtA11               * z =   Atb0               * AtA11
+    // -       * AtA01 * AtA10             * x - AtA01 * AtA11 * y - AtA01                 * AtA12       * z = -       Atb1 * AtA01
+    //---------------------------------------------------------------------------------------------------------------------------
+    // ((AtA00 * AtA11) - (AtA01 * AtA10)) * x                     + ((AtA02 * AtA11) - (AtA01 * AtA12)) * z = (Atb0 * AtA11) - (Atb1 * AtA01)
+    //
+    //
+    //
+    //   AtA10 * AtA21 * x                     + AtA11 * AtA21 * y + AtA12 * AtA21                       * z = Atb1 * AtA21
+    // - AtA11 * AtA20 * x                     - AtA11 * AtA21 * y - AtA11 * AtA22                       * z = Atb2 * AtA11
+    //----------------------------------------------------------------------------------
+    // ((AtA10 * AtA21) - (AtA11 * AtA20)) * x                     + ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = (Atb1 * AtA21) - (Atb2 * AtA11)
+    //
+    //
+    //
+    //
+    //
+    //   ((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * x + ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = ((Atb0 * AtA11)  - (Atb1 * AtA01))  * ((AtA12 * AtA21) - (AtA11 * AtA22))
+    // - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20)) * x - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11))
+    //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // (((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20))) x = (((Atb0 * AtA11) - (Atb1 * AtA01)) * ((AtA12 * AtA21) - (AtA11 * AtA22))) - (((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11)))
+    //
     // 
-    // (
-    // 
-    // 
-    // 
-    // 
+    // (((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20))) x = (((Atb0 * AtA11) - (Atb1 * AtA01)) * ((AtA12 * AtA21) - (AtA11 * AtA22))) - (((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11)))
+    //
+    //
     //
 
 

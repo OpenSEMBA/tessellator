@@ -151,7 +151,16 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
             const std::size_t i = &g - &graphs.front();
             for (std::size_t j = i + 1; j < graphs.size(); j++) {
                 auto edge = g.intersect(graphs[j]).getVertices();
+
                 for (auto const id : edge) {
+                    const Coordinate& coordinate = coords[id];
+                    /*
+                    if (!isRelativeInterior(coordinate)) {
+                        const Coordinate& coordinate1 = coords[*edge.begin()];
+                        const Coordinate& coordinate2 = coords[*edge.rbegin()];
+                        bool noop = true;
+                    }
+                    */
                     if (featureIds.count(id)) {
                         cornerIds.insert(id);
                     }
@@ -161,7 +170,7 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
         }
     }
 
-    return SingularIds(featureIds, contourIds, cornerIds);
+    return SingularIds(featureIds, contourIds, cornerIds); // Only thing missing are the internal corners.
 }
 
 
@@ -171,8 +180,22 @@ void SmootherTools::collapsePointsOnCellEdges(
     const SingularIds& singularIds,
     double alignmentAngle)
 {
+    IdSet commonFeatureIds;
+    IdSet commonContourIds;
+    IdSet commonEdgeIds;
     {
         IdSet vertices = CoordGraph(patch).getVertices();
+        for (auto vertexId : vertices) {
+            if (std::find(singularIds.featureIds().begin(), singularIds.featureIds().end(), vertexId) != singularIds.featureIds().end()) {
+                commonFeatureIds.insert(vertexId);
+            }
+            if (std::find(singularIds.contourIds().begin(), singularIds.contourIds().end(), vertexId) != singularIds.contourIds().end()) {
+                commonContourIds.insert(vertexId);
+            }
+            if (std::find(singularIds.edgeIds().begin(), singularIds.edgeIds().end(), vertexId) != singularIds.edgeIds().end()) {
+                commonEdgeIds.insert(vertexId);
+            }
+        }
 
         if (!std::all_of(
             vertices.begin(), vertices.end(),
@@ -295,7 +318,9 @@ bool SmootherTools::patchIsPlanar(
         boundCs.push_back(cs[id]);
     }
 
-    return Geometry::areCoordinatesCoplanar(boundCs.begin(), boundCs.end());
+    return Geometry::areCoordinatesCoplanar(boundCs.begin(), boundCs.end()
+        //, 1.e-4/2);
+        );
 }
 
 void SmootherTools::remeshBoundary(
@@ -495,96 +520,96 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
     const ElementsView& patch,
     const SingularIds& sIds) {
 
-    if (patchIsPlanar(coords, patch)) {
-        CoordGraph g(patch);
+    CoordGraph g(patch);
 
-        auto cPolygons = g.getBoundaryGraph().findCycles();
-        std::vector<CoordinateIds> newCPolygons;
+    auto cPolygons = g.getBoundaryGraph().findCycles();
+    std::vector<CoordinateIds> newCPolygons;
 
-        /*
-        std::map<CoordinateId, CoordinateIds> neighbours;
-        /**/
-        newCPolygons.reserve(cPolygons.size());
-        // Important: FeatureIds,
-        for (const auto& cycle : cPolygons) {
-            CoordinateIds newCycle;
-            
-            if (cycle.size() < 3) {
-                continue;
-            }
+    /*
+    std::map<CoordinateId, CoordinateIds> neighbours;
+    /**/
+    newCPolygons.reserve(cPolygons.size());
+    // Important: FeatureIds,
+    for (const auto& cycle : cPolygons) {
+        CoordinateIds newCycle;
 
-            CoordinateIds filteredRepeated;
-            filteredRepeated.reserve(cycle.size());
-
-            
-            for (std::size_t currentIndex = 0; currentIndex < cycle.size(); ++currentIndex) {
-                auto nextIndex = (currentIndex + 1) % cycle.size();
-
-                if (coords[cycle[currentIndex]] != coords[cycle[nextIndex]]) {
-                    filteredRepeated.push_back(cycle[currentIndex]);
-                }
-            }
-
-            if (filteredRepeated.size() < 3) {
-                continue;
-            }
-
-            Relative center = (coords[filteredRepeated[0]] + coords[filteredRepeated[1]] + coords[filteredRepeated[2]]) / 3;
-            Cell centerCell = toCell(center);
-
-            bool isCycleOnSameFace = true;
-            std::size_t i = 0;
-            while (isCycleOnSameFace && i < filteredRepeated.size()) {
-                isCycleOnSameFace = toCell(coords[filteredRepeated[i]]) == centerCell && areCoordOnSameFace(center, coords[filteredRepeated[i]]);
-                ++i;
-            }
-
-            for (CoordinateId v : filteredRepeated) {
-                if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end()) {
-                    newCycle.push_back(v);
-                }
-                else if (!isCycleOnSameFace && isRelativeInCellEdge(coords[v])) {
-                    newCycle.push_back(v);
-                }
-                else if (isRelativeInCellCorner(coords[v])) {
-                    newCycle.push_back(v);
-                }
-            }
-
-            if (newCycle.size() < 3) {
-                newCycle.clear();
-
-                newCycle.insert(newCycle.begin(), filteredRepeated.begin(), filteredRepeated.end());
-            }
-
-            newCPolygons.push_back(newCycle);
+        if (cycle.size() < 3) {
+            continue;
         }
 
-        if (newCPolygons.size() == 0) {
-            return;
-        }
+        CoordinateIds filteredRepeated;
+        filteredRepeated.reserve(cycle.size());
 
-        Elements remeshedEls = delaunator_.mesh(newCPolygons);
 
-        for (auto& element : remeshedEls) {
-            if (hasWrongOrientation(*patch[0], element, coords)) {
-                reorientSingleElement(element);
+        for (std::size_t currentIndex = 0; currentIndex < cycle.size(); ++currentIndex) {
+            auto nextIndex = (currentIndex + 1) % cycle.size();
+
+            if (coords[cycle[currentIndex]] != coords[cycle[nextIndex]]) {
+                filteredRepeated.push_back(cycle[currentIndex]);
             }
         }
 
-        for (auto comp = remeshedEls.size(); comp < patch.size(); comp++) {
-            remeshedEls.push_back(Element({}, Element::Type::None));
+        if (filteredRepeated.size() < 3) {
+            continue;
+        }
+        Relative center;
+        for (auto coordId : filteredRepeated) {
+            center += coords[coordId];
+        }
+        center /= filteredRepeated.size();
+
+        bool isCycleOnSameFace = true;
+        std::size_t i = 0;
+        while (isCycleOnSameFace && i < filteredRepeated.size()) {
+            isCycleOnSameFace = areCoordOnSameFace(center, coords[filteredRepeated[i]]);
+            ++i;
         }
 
-        if (remeshedEls.size() != patch.size()) {
-            throw std::logic_error("Not all elements have been remeshed");
+        for (CoordinateId v : filteredRepeated) {
+            if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end()) {
+                newCycle.push_back(v);
+            }
+            else if (!isCycleOnSameFace && isRelativeInCellEdge(coords[v])) {
+                newCycle.push_back(v);
+            }
+            else if (isRelativeInCellCorner(coords[v])) {
+                newCycle.push_back(v);
+            }
         }
 
-        const std::lock_guard<std::mutex> lock(writingElements_);
-        for (auto comp = 0; comp < patch.size(); comp++) {
-            ElementId eId = patch[comp] - &elems.front();
-            elems[eId] = remeshedEls[comp];
+        if (newCycle.size() < 3) {
+            newCycle.clear();
+
+            newCycle.insert(newCycle.begin(), filteredRepeated.begin(), filteredRepeated.end());
         }
+
+        newCPolygons.push_back(newCycle);
+    }
+
+    if (newCPolygons.size() == 0) {
+        return;
+    }
+
+    Elements remeshedEls = delaunator_.mesh(newCPolygons, true);
+
+    for (auto& element : remeshedEls) {
+        if (hasWrongOrientation(*patch[0], element, coords)) {
+            reorientSingleElement(element);
+        }
+    }
+
+    for (auto comp = remeshedEls.size(); comp < patch.size(); comp++) {
+        remeshedEls.push_back(Element({}, Element::Type::None));
+    }
+
+    if (remeshedEls.size() != patch.size()) {
+        throw std::logic_error("Not all elements have been remeshed");
+    }
+
+    const std::lock_guard<std::mutex> lock(writingElements_);
+    for (auto comp = 0; comp < patch.size(); comp++) {
+        ElementId eId = patch[comp] - &elems.front();
+        elems[eId] = remeshedEls[comp];
     }
 }
 

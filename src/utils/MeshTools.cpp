@@ -533,6 +533,10 @@ Mesh removeNullAreasKeepingTopology(const Mesh & inputMesh, double tolerance) {
         }
     }
 
+    redundancyCleaner::removeDegenerateElements(resultMesh);
+    redundancyCleaner::fuseCoords(resultMesh);
+    redundancyCleaner::cleanCoords(resultMesh);
+
     return resultMesh;
 }
 

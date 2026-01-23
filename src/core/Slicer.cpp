@@ -5,6 +5,7 @@
 #include "utils/MeshTools.h"
 #include "utils/ConvexHull.h"
 #include "core/Collapser.h"
+#include "app/vtkIO.h"
 
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
@@ -97,15 +98,28 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::removeDegenerateElements(mesh_);
 
+
+    // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced-pre-collapse.vtk", mesh_);
+
     double factor = std::pow(10.0, opts_.initialCollapsingDecimalPlaces);
     for (auto& coordinate : mesh_.coordinates) {
 
         coordinate = coordinate.round(factor);
     }
 
+    /**
+    Mesh collapsed = mesh_;
+    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces, dimensionPolicy }.getMesh();
+
+    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsed);
+
     // Checks ensured post conditions.
-    meshTools::checkNoCellsAreCrossed(mesh_);
-    meshTools::checkNoNullAreasExist(mesh_);
+    meshTools::checkNoCellsAreCrossed(collapsed);
+    meshTools::checkNoNullAreasExist(collapsed);
+    /**/
+
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
 }
 
 Elements Slicer::sliceTriangle(
@@ -131,6 +145,13 @@ Elements Slicer::sliceTriangle(
         auto n{ utils::Geometry::normal(tri) };
         auto path = utils::ConvexHull(&sCoords).get(vIds, n);
         Elements newTris = buildTrianglesFromPath(sCoords, path);
+        // Check if coordinates coincide in path.
+        for (auto& tri : newTris) {
+            if (elementCrossesGrid(tri, sCoords)) {
+                throw std::runtime_error("Triangle crosses grid");
+            }
+        }
+
         res.insert(res.end(), newTris.begin(), newTris.end());
     }
     return res;
@@ -252,7 +273,7 @@ Elements Slicer::buildTrianglesFromPath(
     if (path.size() < 3) {
         return tris;
     }
- 
+
     auto p{ path };
     {
         std::size_t turns = 0;

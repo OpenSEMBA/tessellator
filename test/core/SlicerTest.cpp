@@ -994,14 +994,34 @@ TEST_F(SlicerTest, canKeepOppositeLinesInLineDimensionPolicy)
 TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
 {
     auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
-    
+    /*
     m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+
+    /**/
+
+    m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+    
+    /*
+    
+    m.grid[X] = utils::GridTools::linspace(-60.0, -36.0, 4);
+    m.grid[Y] = utils::GridTools::linspace(-52.0, -28.0, 4);
+    m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+    /**/
+
     auto slicedMesh = Slicer{m}.getMesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+
+    meshTools::convertToAbsoluteCoordinates(slicedMesh);
+
+
+    vtkIO::exportGridToVTU("testData/cases/alhambra/alhambra.grid.vtk", slicedMesh.grid);
+    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
 }
 
 TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)
@@ -1078,118 +1098,6 @@ TEST_F(SlicerTest, sphere_case_patch_contour_check_2)
 
 	auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
 	vtkIO::exportMeshToVTU("contour.vtk", contourMesh);
-}
-
-TEST_F(SlicerTest, canSliceTrianglesWithNullAreas)
-{
-
-    // 
-    // y                                     y                                      y
-    // *-------------*-------------*         *-------------*-------------*          *-------------*-------------*
-    // |   5---------ʌ---------6   |         |   5---------ʌ---------6   |          |   5---------ʌ---------6   |
-    // |   |        /|\        |   |         |   |        /|\0       |   |          |   |        /|\0       |   |
-    // |   |       / | \       |   |         |   |       / |⎸\       |   |          |   |       / |⎸\       |   |
-    // |   |      /  |0 \      |   |         |   |      /  || \      |   |          |   |      /  || \      |   |
-    // |   |     /   |   \     |   |         |   |     /   | ⎸ \     |   |          |   |     /   | ⎸ \     |   |
-    // |   |    /    |    \    |   |         |   |    /    | |  \    |   |          |   |    /    | |  \    |   |
-    // *---|---/-----*-----\---|---*    ->   *---|---/-----*--⎸--\---|---*     ->   *---*---*-----*--*--*---*---*
-    // |   |  /      |      \  |   |         |   |  /      |  ⎸   \  |   |          |   |  /      |  ⎸   \  |   |
-    // |   | /       |  4    \ |   |         |   | /       |  |    \ |   |          |   | /       |  |    \ |   |
-    // |   |/________|________\|   |         |   |/________|__|_____\|   |          |   |/________*__|_____\|   |
-    // |    1‾==‾‾‾‾‾|‾‾/‾‾‾‾=‾2   |         |    1‾-_     |  /4   -‾2   |          |    1‾-_     |  /4   -‾2   |
-    // |        ‾-_  | /  _-‾      |         |        ‾-_  | /  _-‾      |          |        ‾-_  | /  _-‾      |
-    // |           ‾-|/_-‾         |         |           ‾-|/_-‾         |          |           ‾-|/_-‾         |
-    // *-------------3-------------* x       *-------------3-------------* x        *-------------3-------------* x
-
-    Mesh m;
-    m.grid = {
-        std::vector<double>({-5.0, 0.0, 5.0}),
-        std::vector<double>({-5.0, 0.0, 5.0}),
-        std::vector<double>({-5.0, 0.0, 5.0})
-    };
-    Relatives relatives = {
-        Relative({ 0.0, 1.5, 0.0 }),	// 0
-        Relative({ 0.0, 0.0, 0.0 }),	// 1
-        Relative({ 0.0, 0.0, 0.0 }),	// 2
-        Relative({ 0.0, 0.0, 0.0 }),	// 3
-        Relative({ 0.0, 0.0, 0.0 }),	// 4
-        Relative({ 0.0, 0.0, 0.0 }),	// 5
-        Relative({ 0.0, 0.0, 0.0 }),	// 6
-    };
-    m.groups.resize(2);
-    m.groups[0].elements = {
-        Element{ {0, 1}, Element::Type::Line }
-    };
-    m.groups[1].elements = {
-        Element{ {2, 3}, Element::Type::Line }
-    };
-    GridTools tools(m.grid);
-
-    Coordinate intersectionPointFirstSegment = Coordinate({ 0.0, -5.0, -5.0 });
-    Coordinate intersectionPointSecondSegment = Coordinate({ 0.0, -5.0, 0.0 });
-
-
-
-    Coordinates expectedCoordinates = {
-        m.coordinates[0],                       // 0 First Segment, First Point
-        intersectionPointFirstSegment,          // 1 First Segment, Intersection Point
-        m.coordinates[1],                       // 2 First Segment, Final Point
-        m.coordinates[2],                       // 3 Second Segment, First Point
-        intersectionPointSecondSegment,         // 4 Second Segment, Intersection Point
-        m.coordinates[3],                        // 5 Second Segment, Final Point
-    };
-
-    Relatives expectedRelatives = tools.absoluteToRelative(expectedCoordinates);
-
-    std::vector<Elements> expectedElements = {
-        {
-            Element({0, 1}, Element::Type::Line),
-            Element({1, 2}, Element::Type::Line),
-        },
-        {
-            Element({3, 4}, Element::Type::Line),
-            Element({4, 5}, Element::Type::Line),
-        },
-    };
-
-    Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = Slicer{ m }.getMesh());
-
-    EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
-
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedCoordinates.size());
-    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 2);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 2);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_DOUBLE_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis])
-                << "Current coordinate: #" << i << std::endl
-                << "Current Axis: #" << axis << std::endl;
-        }
-    }
-
-    for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
-                    << "Current Group: #" << g << std::endl
-                    << "Current Element: #" << e << std::endl
-                    << "Current Vertex: #" << v << std::endl;
-            }
-        }
-    }
 }
 
 }

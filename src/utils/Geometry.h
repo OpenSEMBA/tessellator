@@ -61,7 +61,8 @@ public:
     template <class CoordinatesIt>
     static bool arePointsInPlane(
         const std::array<Coordinate, 3> plane,
-        const CoordinatesIt ini, const CoordinatesIt end)
+        const CoordinatesIt ini, const CoordinatesIt end,
+        double coplanarTolerance = COPLANARITY_TOLERANCE)
     {
 
         // Calculate vectors AB, AC, and AD
@@ -83,7 +84,7 @@ public:
                 - a2 * (b1 * c3 - b3 * c1)
                 + a3 * (b1 * c2 - b2 * c1);
 
-            const bool isCoplanar{ abs(det) < COPLANARITY_TOLERANCE };
+            const bool isCoplanar{ abs(det) < coplanarTolerance };
 
             if (!isCoplanar) {
                 return false;
@@ -95,13 +96,14 @@ public:
     template <class CoordinatesIt>
     static bool areCoordinatesCoplanar(
         const CoordinatesIt ini, 
-        const CoordinatesIt end)
+        const CoordinatesIt end,
+        double coplanarTolerance = COPLANARITY_TOLERANCE)
     {
         if (std::distance(ini, end) < 3) {
             return false;
         }
         
-        std::array<Coordinate,3> seedPlane;
+        TriV seedPlane;
         {
             auto it = ini;
             while (isDegenerate(TriV{ *it, *std::next(it), *std::next(it,2) })) {

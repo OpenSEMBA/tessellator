@@ -318,6 +318,10 @@ void removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove)
 {
     for (GroupId gId = 0; gId < mesh.groups.size(); gId++) {
         Elements& elems = mesh.groups[gId].elements;
+        auto& toGRemove = toRemove[gId];
+        if (toGRemove.size() != 0) {
+            bool noop = false;
+        }
         Elements newElems;
         newElems.reserve(elems.size() - toRemove[gId].size());
         auto it = toRemove[gId].begin();

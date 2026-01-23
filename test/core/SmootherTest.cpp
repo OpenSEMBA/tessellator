@@ -371,13 +371,13 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
 	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
 
-	/*
+	/**/
 
 	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
 	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
 	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
 
-	/**/
+	/*
 	
 	m.grid[X] = utils::GridTools::linspace(-60.0, -36.0, 4);
 	m.grid[Y] = utils::GridTools::linspace(-52.0, -28.0, 4);
@@ -397,10 +397,12 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
 
     //For debugging.
+	meshTools::convertToAbsoluteCoordinates(slicedMesh);
 	meshTools::convertToAbsoluteCoordinates(smoothedMesh);
 
 
 	vtkIO::exportGridToVTU("testData/cases/alhambra/alhambra.grid.vtk", smoothedMesh.grid);
+	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
 	vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.smoothed.vtk", smoothedMesh);
 	 
 	auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);

@@ -634,16 +634,28 @@ TEST_F(ConformalMesherTest, sphere)
 TEST_F(ConformalMesherTest, alhambra)
 {
     // Input
+    // const std::string inputFilename = "testData/cases/alhambra/alhambraSuperCut.stl";
     const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto inputMesh = vtkIO::readInputMesh(inputFilename);
     /*
     inputMesh.grid[X] = utils::GridTools::linspace(-4.0, -2.0, 2); //  rel: 25 -> 35 (10 cells/11 planes)
     inputMesh.grid[Y] = utils::GridTools::linspace(36.0, 38.0, 2); // rel: 20.0 -> 40.0 | 40 -> 50 (10 cells/11 planes)
     inputMesh.grid[Z] = utils::GridTools::linspace(7.491016, 9.36367, 2); // 0 -> 1.872654
-    /**/
+    /*
 
-    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    inputMesh.grid[X] = utils::GridTools::linspace(36.0, 48.0, 7); // 49 - 55 -> 48 - 54
+    inputMesh.grid[Y] = utils::GridTools::linspace(28.0, 40.0, 7); // 44 - 50
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 3.745468, 4); // 0 - 3
+
+
+    /**/
+    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+
+    /*
+    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61);
+    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61);
     inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
     /**/
     // Mesh
