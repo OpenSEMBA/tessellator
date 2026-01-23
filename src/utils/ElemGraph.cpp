@@ -251,15 +251,58 @@ std::vector<Adjacency> buildTrianglesAdjacenciesList(const ElementsView& es)
 
 void ElemGraph::constructEdgesFromTriangles(const ElementsView& elems, const Coordinates& coords)
 {      
+    std::map<ElementId, ElementId> degenerateTriangleAdjacent;
+
     for (auto const& adj: buildTrianglesAdjacenciesList(elems)) {
-        
-        
         ElementId eId1 = adj.first;
         ElementId eId2 = adj.second;
         const double pi = atan(1) * 4.0;
-        double angle = Geometry::normal(Geometry::asTriV(*elems[eId1], coords))
-            .angle(Geometry::normal(Geometry::asTriV(*elems[eId2], coords)));
-        this->addEdge(eId1, eId2, angle * 360.0 / (2.0 * pi));
+
+        auto triV1 = Geometry::asTriV(*elems[eId1], coords);
+        auto triV2 = Geometry::asTriV(*elems[eId2], coords);
+        auto vector1 = Geometry::normal(triV1);
+        auto vector2 = Geometry::normal(triV2);
+
+        auto furthestAdjacentVector1 = vector1;
+        auto furthestAdjacentVector2 = vector2;
+
+        if (vector1.norm() == 0.0) {
+            ElementId furthestAdjacentId = eId1;
+
+            while (degenerateTriangleAdjacent.find(furthestAdjacentId) != degenerateTriangleAdjacent.end()) {
+                furthestAdjacentId = degenerateTriangleAdjacent[furthestAdjacentId];
+            }
+
+            furthestAdjacentVector1 = Geometry::normal(Geometry::asTriV(*elems[furthestAdjacentId], coords));
+        }
+
+        if (vector2.norm() == 0.0) {
+            ElementId furthestAdjacentId = eId2;
+
+            while (degenerateTriangleAdjacent.find(furthestAdjacentId) != degenerateTriangleAdjacent.end()) {
+                furthestAdjacentId = degenerateTriangleAdjacent[furthestAdjacentId];
+            }
+
+            furthestAdjacentVector2 = Geometry::normal(Geometry::asTriV(*elems[furthestAdjacentId], coords));
+        }
+
+        double angle;
+
+        if (furthestAdjacentVector1.norm() == 0.0 || furthestAdjacentVector2.norm() == 0) {
+            angle = 0;
+        }
+        else {
+            angle = furthestAdjacentVector1.angleDeg(furthestAdjacentVector2);
+        }
+
+        if (vector1.norm() == 0.0 && degenerateTriangleAdjacent.find(eId1) == degenerateTriangleAdjacent.end()) {
+            degenerateTriangleAdjacent[eId1] = eId2;
+        }
+        else if (vector2.norm() == 0.0){
+            degenerateTriangleAdjacent[eId2] = eId1;
+        }
+        
+        this->addEdge(eId1, eId2, angle);
     }
 }
 
