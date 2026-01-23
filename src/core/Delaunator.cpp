@@ -1,5 +1,6 @@
 #include "Delaunator.h"
 #include "utils\Geometry.h"
+#include "cgal\LSFPlane.h"
 
 namespace meshlib::core {
 
@@ -55,24 +56,28 @@ Delaunator::Triangulation Delaunator::buildCDT(
         originalIds.push_back(id);
     }
 
-    VecD normal({ 0.,0.,0. });
+    VecD normal = cgal::LSFPlane(rotatedCoordinates.begin(), rotatedCoordinates.end()).getNormal();
 
-    for (std::size_t i = 0; i + 2 < rotatedCoordinates.size() && normal.norm() == 0.0; ++i) {
-        for (std::size_t j = i + 1; j + 1 < rotatedCoordinates.size() && normal.norm() == 0.0; ++j) {
-            for (std::size_t k = j + 1; k < rotatedCoordinates.size() && normal.norm() == 0.0; ++k) {
-                normal = utils::Geometry::normal(TriV({ rotatedCoordinates[i], rotatedCoordinates[j], rotatedCoordinates[k] }));
-            }
-        }   
-    }
-    
     utils::Geometry::rotateToXYPlane(rotatedCoordinates.begin(), rotatedCoordinates.end(), normal);
 
     
+    std::size_t planarId = 0;
     for (std::size_t index = 0; index < targetVertices.size(); ++index) {
         Point point({ rotatedCoordinates[index][X], rotatedCoordinates[index][Y] });
         
-        PointId pointId(index);
+        PointId pointId(planarId);
+        /*
+        if (pointsToIds.left.find(point) == pointsToIds.left.end()) {
+            pointsToIds.insert(PointToId::value_type(point, originalIds[index]));
+            ++planarId;
+        }
+        else {
+            originalIds[index] = pointsToIds.left.at(point);
+        }
+        /**/
+
         pointsToIds.insert(PointToId::value_type(point, originalIds[index]));
+
     }
 
     std::vector<Point> newVertices;

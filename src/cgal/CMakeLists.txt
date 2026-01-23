@@ -1,7 +1,7 @@
 message(STATUS "Creating build system for tessellator-cgal")
 
 add_library(tessellator-cgal
-    "Delaunator.cpp"
+    "DelaunatorCGAL.cpp"
     "HPolygonSet.cpp"
     "Manifolder.cpp"
     "PolyhedronTools.cpp"

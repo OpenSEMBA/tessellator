@@ -14,12 +14,12 @@ namespace meshlib {
 namespace cgal {
 
  
-class Delaunator {
+class DelaunatorCGAL {
 public:
 	typedef std::vector<CoordinateId> Polygon;
 	typedef std::vector<Polygon> Polygons;
 	
-	Delaunator(const Coordinates* globalCoordinates, const ElementsView& elems = ElementsView());
+	DelaunatorCGAL(const Coordinates* globalCoordinates, const ElementsView& elems = ElementsView());
 
 	std::vector<Element> mesh(
 		const IdSet& vertexIds,

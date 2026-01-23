@@ -52,7 +52,7 @@ if (TESSELLATOR_ENABLE_CGAL)
 
 	target_sources(tessellator_tests PRIVATE
 		"cgal/ArrangmentTest.cpp"
-		"cgal/DelaunatorTest.cpp"
+		"cgal/DelaunatorCGALTest.cpp"
 		"cgal/HPolygonSetTest.cpp"
 		"cgal/ManifolderTest.cpp"
 		"cgal/PolyhedronToolsTest.cpp"
