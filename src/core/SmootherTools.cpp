@@ -591,9 +591,14 @@ void SmootherTools::collapsePointsOnContourWithDelanautor(
     }
 
     Elements remeshedEls = delaunator_.mesh(newCPolygons, true);
+    
+    std::size_t i = 0;
+    while (i < (patch.size() - 1) && Geometry::isDegenerate(Geometry::asTriV(*patch[0], coords))) {
+        ++i;
+    }
 
     for (auto& element : remeshedEls) {
-        if (hasWrongOrientation(*patch[0], element, coords)) {
+        if (hasWrongOrientation(*patch[i], element, coords)) {
             reorientSingleElement(element);
         }
     }
