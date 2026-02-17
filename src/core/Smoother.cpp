@@ -44,7 +44,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             sT_.buildSingularIds(g.elements, mesh_.coordinates, opts_.featureDetectionAngle);
 
         std::vector<ElementsView> patchs;
-        for (auto const& cell : sT_.buildCellElemMapStrict(g.elements, mesh_.coordinates)) {
+        for (auto const& cell : sT_.buildCellElemMapStrict(g.elements, mesh_.coordinates)) { // Check after code review
             bool noop = false;
             for (auto const& p :
                 Geometry::buildDisjointSmoothSets(cell.second, mesh_.coordinates, opts_.featureDetectionAngle)) {

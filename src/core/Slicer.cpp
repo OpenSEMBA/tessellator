@@ -44,7 +44,19 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
     GridTools(input.grid),
     opts_(opts)
 {
+
+    Coordinates auxCoordinates;
+    auxCoordinates.reserve(input.coordinates.size());
+
     // Ensures that all coordinates have a fixed number of decimal places.
+    double factor = std::pow(10.0, opts_.initialCollapsingDecimalPlaces);
+    for (auto& coordinate : input.coordinates) {
+        /*
+        auxCoordinates.push_back(coordinate.round(factor));
+        /**/
+        auxCoordinates.push_back(coordinate);
+    }
+
 
     // Slices.
     mesh_.grid = input.grid;
@@ -65,18 +77,18 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
             [&](auto const& e) {
                 Elements elements;
                 if (e.type == Element::Type::Surface) {
-                    TriV triV{ Geometry::asTriV(e, input.coordinates) };
+                    TriV triV{ Geometry::asTriV(e, auxCoordinates) };
 
                     elements = { sliceTriangle(sCoords, triV) };
                     orient(sCoords, elements, triV);
                 }
                 else if (e.isLine()) {
-                    LinV lineV{ Geometry::asLinV(e, input.coordinates) };
+                    LinV lineV{ Geometry::asLinV(e, auxCoordinates) };
 
                     elements = { sliceLine(sCoords, lineV) };
                 }
                 else if (e.isNode()) {
-                    auto& coordinate = input.coordinates[e.vertices[0]];
+                    auto& coordinate = auxCoordinates[e.vertices[0]];
                     sCoords.push_back(getRelative(coordinate));
                     elements = { e };
                 }
@@ -93,17 +105,15 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
         );
     }
 
-
+    /**/
     redundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::removeDegenerateElements(mesh_);
-
+    /**/
 
     // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced-pre-collapse.vtk", mesh_);
 
-    double factor = std::pow(10.0, opts_.initialCollapsingDecimalPlaces);
     for (auto& coordinate : mesh_.coordinates) {
-
         coordinate = coordinate.round(factor);
     }
 

@@ -10,7 +10,7 @@ namespace meshlib {
 namespace core {
 
 struct SlicerOptions {
-    int initialCollapsingDecimalPlaces = 3;
+    int initialCollapsingDecimalPlaces = 2;
 };
 
 class Slicer : public utils::GridTools {

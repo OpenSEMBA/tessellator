@@ -994,12 +994,12 @@ TEST_F(SlicerTest, canKeepOppositeLinesInLineDimensionPolicy)
 TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
 {
     auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
-    /*
+    /**/
     m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
 
-    /**/
+    /*
 
     m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
     m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
@@ -1022,6 +1022,9 @@ TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
 
     vtkIO::exportGridToVTU("testData/cases/alhambra/alhambra.grid.vtk", slicedMesh.grid);
     vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced.vtk", slicedMesh);
+
+    auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
 }
 
 TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)

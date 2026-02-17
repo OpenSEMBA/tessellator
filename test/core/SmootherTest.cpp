@@ -365,13 +365,20 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	auto m = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
 	EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
 	
-	/*
+	/**/
 
 	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
 	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
 	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+	
+	/*
 
-	/**/
+	m.grid[X] = utils::GridTools::linspace(42.0, 54.0, 7);
+	m.grid[Y] = utils::GridTools::linspace(-52.0, -44.0, 5);
+	m.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
+
+
+	/*
 
 	m.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
 	m.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
