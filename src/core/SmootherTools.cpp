@@ -143,32 +143,13 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
     
     contourIds = CoordGraph(elems).getBoundaryGraph().getVertices();
     
-    for (auto const& c : buildCellElemMap(elems, coords)) {
+    for (auto const& c : buildCellElemMapLax(elems, coords)) {
         const std::vector<CoordGraph> graphs = CoordGraph::buildFromElementsViews(
             Geometry::buildDisjointSmoothSets(c.second, coords, smoothSetAngle));
 
         for (auto const& g : graphs) {
             const std::size_t i = &g - &graphs.front();
-            auto graphIds = g.getVertices();
-            if (graphIds.size() == 0) {
-                continue;
-            }
             for (std::size_t j = i + 1; j < graphs.size(); j++) {
-
-                Relative center;
-                for (auto coordId : graphIds) {
-                    center += coords[coordId];
-                }
-                center /= graphIds.size();
-
-                bool isGraphOnSameFace = true;
-
-                auto graphIt = graphIds.begin();
-                while (isGraphOnSameFace && graphIt != graphIds.end()) {
-                    isGraphOnSameFace = areCoordOnSameFace(center, coords[*graphIt]);
-                    ++graphIt;
-                }
-
                 auto edge = g.intersect(graphs[j]).getVertices();
 
                 for (auto const id : edge) {
@@ -181,10 +162,6 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
                     }
                     */
                     if (featureIds.count(id)) {
-                        cornerIds.insert(id);
-                    }
-                    else if (!isGraphOnSameFace && isRelativeInCellFace(coords[id])) {
-                        featureIds.insert(id);
                         cornerIds.insert(id);
                     }
                 }
