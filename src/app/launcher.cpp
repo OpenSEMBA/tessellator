@@ -2,6 +2,7 @@
 #include "vtkIO.h"
 
 #include "meshers/StaircaseMesher.h"
+#include "meshers/ConformalMesher.h"
 #include "utils/GridTools.h"
 
 #include <boost/program_options.hpp>
@@ -11,30 +12,36 @@
 #include <filesystem>
 #include <fstream>
 #include <array>
-
+#include <memory>
 
 namespace meshlib::app {
 
 using namespace vtkIO;
 
+
 namespace po = boost::program_options;
 
 Grid parseGridFromJSON(const nlohmann::json &j)
 {
-    std::array<int,3> nCells = {
+    if (j.find("planes") != j.end()) {
+        return j["planes"];
+    }
+    else {
+        std::array<int, 3> nCells = {
         j["numberOfCells"][0],
         j["numberOfCells"][1],
         j["numberOfCells"][2]
-    };
-    std::array<double,3> min, max;
-    min = j["boundingBox"][0];
-    max = j["boundingBox"][1];
+        };
+        std::array<double, 3> min, max;
+        min = j["boundingBox"][0];
+        max = j["boundingBox"][1];
 
-    return {
-        utils::GridTools::linspace(min[0], max[0], nCells[0]+1),
-        utils::GridTools::linspace(min[1], max[1], nCells[1]+1),
-        utils::GridTools::linspace(min[2], max[2], nCells[2]+1)
-    };
+        return {
+            utils::GridTools::linspace(min[0], max[0], nCells[0] + 1),
+            utils::GridTools::linspace(min[1], max[1], nCells[1] + 1),
+            utils::GridTools::linspace(min[2], max[2], nCells[2] + 1)
+        };
+    }
 }
 
 Mesh readMesh(const std::string &fn)
@@ -61,6 +68,59 @@ Mesh readMesh(const std::string &fn)
     return res;
 }
 
+
+std::string readMesherType(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    if (j["mesher"].contains("type")) {
+        return j["mesher"]["type"];
+    } else {
+        return meshlib::app::staircase_mesher;
+    }
+}
+
+std::string readExtension(const std::string &fn)
+{
+    auto mesherType = readMesherType(fn);
+    if (mesherType == meshlib::app::staircase_mesher) {
+        return "str";
+    } else if (mesherType == meshlib::app::conformal_mesher) {
+        return "cmsh";
+    } else {
+        throw std::runtime_error("Unsupported mesher type");
+    }
+}
+
+meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    meshlib::meshers::ConformalMesherOptions res;
+    if (j["mesher"].contains("options")) {
+        res.snapperOptions.edgePoints = j["mesher"]["options"]["edgePoints"];
+        res.snapperOptions.forbiddenLength = j["mesher"]["options"]["forbiddenLength"];
+    }
+    return res;
+}
+std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
+{
+    auto mesherType = readMesherType(fn);
+    if (mesherType == meshlib::app::staircase_mesher) {
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in});
+    } else if (mesherType == meshlib::app::conformal_mesher) {
+        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
+    } else {
+        throw std::runtime_error("Unsupported mesher type");
+    }
+}
+
 int launcher(int argc, const char* argv[])
 {
     po::options_description desc("Allowed options");
@@ -84,13 +144,16 @@ int launcher(int argc, const char* argv[])
 
     Mesh mesh = readMesh(inputFilename);
 
+
     // Mesh
-    meshlib::meshers::StaircaseMesher mesher{mesh};
-    Mesh resultMesh = mesher.mesh();
+    auto mesher = buildMesher(mesh, inputFilename);
+    Mesh resultMesh = mesher->mesh();
 
     std::filesystem::path outputFolder = getFolder(inputFilename);
     auto basename = getBasename(inputFilename);
-    exportMeshToVTU(outputFolder / (basename + ".tessellator.str.vtk"), resultMesh);
+    auto extension = readExtension(inputFilename);
+    
+    exportMeshToVTU(outputFolder / (basename + ".tessellator." + extension + ".vtk"), resultMesh);
     exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
 
     return EXIT_SUCCESS;
