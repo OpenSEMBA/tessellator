@@ -12,7 +12,9 @@ build/
 src/*.json
 
 .vs/
-.vscode/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
 
 testData/*_out.stl
 *_out.stl

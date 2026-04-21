@@ -1,0 +1,24 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    pkg-config \
+    curl \
+    wget \
+    zip \
+    unzip
+
+RUN apt-get install -y \
+    libboost-graph-dev \
+    libboost-program-options-dev \
+    libvtk9-dev \
+    nlohmann-json3-dev \
+    libgtest-dev \
+    libgmock-dev \
+    libgmp-dev \
+    libmpfr-dev
+
+WORKDIR /workspace
