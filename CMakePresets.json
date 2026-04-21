@@ -27,12 +27,30 @@
       "displayName": "GNU g++ compiler",
       "generator": "Ninja",
       "inherits": "default"
+    },
+    {
+      "name": "docker",
+      "displayName": "Docker (system libraries)",
+      "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds.",
+      "generator": "Ninja",
+      "binaryDir": "build/",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_PREFIX_PATH": "/usr/local",
+        "CMAKE_FIND_ROOT_PATH": "/usr/local",
+        "TESSELLATOR_ENABLE_TESTS": "ON",
+        "TESSELLATOR_ENABLE_CGAL": "OFF"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "default",
       "configurePreset": "default"
+    },
+    {
+      "name": "docker",
+      "configurePreset": "docker"
     }
   ]
 }
