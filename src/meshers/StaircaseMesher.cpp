@@ -6,6 +6,7 @@
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 #include "core/Staircaser.h"
+#include "core/Compressor.h"
 
 #include "cgal/filler/Filler.h"
 
@@ -19,10 +20,11 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
+StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts, bool compress) :
     MesherBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser),
-    opts_(opts)
+    opts_(opts),
+    compress_(compress)
 {
     log("Preparing surfaces.");
     surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
@@ -78,6 +80,16 @@ void StaircaseMesher::process(Mesh& mesh) const
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    if (compress_) {
+        log("Compressing surfaces.", 1);
+        std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
+        std::size_t merged = Compressor::compressSurfaces(mesh);
+        std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
+        log("Compressed " + std::to_string(beforeQuads) + 
+            " -> " + std::to_string(afterQuads) + 
+            " quads (merged " + std::to_string(merged) + " surfaces)", 1);
+    }
 
     log("Removing repeated and overlapping elements.", 1);   
     RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
