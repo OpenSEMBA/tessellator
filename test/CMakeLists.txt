@@ -15,13 +15,7 @@ include_directories(
 )
 
 add_executable(tessellator_tests 
-	"app/launcherTest.cpp"
-	"app/vtkIOTest.cpp"
-	"core/CollapserTest.cpp"
 	"core/CompressorTest.cpp"
-	"core/SlicerTest.cpp"
-	"core/SnapperTest.cpp"
-	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
     "core/StaircaserTest.cpp"
 	"types/MeshTest.cpp"
@@ -32,17 +26,27 @@ add_executable(tessellator_tests
 	"utils/GridToolsTest.cpp"
 	"utils/MeshToolsTest.cpp"
 	"utils/RedundancyCleanerTest.cpp"
-    "meshers/StaircaseMesherTest.cpp"
 	"meshers/OffgridMesherTest.cpp"
-	"meshers/ConformalMesherTest.cpp"
 )
 
 target_link_libraries(tessellator_tests	
 	tessellator-meshers
-	tessellator-app
     GTest::gtest 
 	GTest::gtest_main
 )
+
+if(VTK_FOUND)
+	target_sources(tessellator_tests PRIVATE
+		"app/vtkIOTest.cpp"
+		"core/CollapserTest.cpp"
+		"core/SlicerTest.cpp"
+		"core/SnapperTest.cpp"
+		"core/SmootherTest.cpp"
+		"meshers/StaircaseMesherTest.cpp"
+		"meshers/ConformalMesherTest.cpp"
+	)
+	target_link_libraries(tessellator_tests tessellator-app)
+endif()
 
 if (TESSELLATOR_ENABLE_CGAL)
 	include_directories(

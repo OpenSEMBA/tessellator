@@ -1,6 +1,5 @@
 #include "vtkIO.h"
 
-#include <vtksys/SystemTools.hxx>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkTriangle.h>
@@ -43,7 +42,7 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
     } 
 
     vtkSmartPointer<vtkUnstructuredGrid> vtu;
-    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
+    std::string extension = fn.substr(fn.find_last_of(".")).empty() ? "" : "." + fn.substr(fn.find_last_of("."));
 
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);

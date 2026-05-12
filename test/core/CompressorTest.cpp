@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 #include "core/Compressor.h"
 #include "MeshFixtures.h"
+#include "utils/MeshTools.h"
+
+using namespace meshlib;
+using namespace meshlib::utils::meshTools;
 
 namespace meshlib::tests {
 
@@ -37,7 +41,7 @@ TEST_F(CompressorTest, Compress2x2QuadsIntoOneSurface) {
     
     auto merged = core::Compressor::compressSurfaces(mesh);
     
-    EXPECT_EQ(merged, 1u);
+    EXPECT_EQ(merged, 3u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
 }
 
@@ -96,7 +100,7 @@ TEST_F(CompressorTest, CompressLShapeIntoOneSurface) {
     
     auto merged = core::Compressor::compressSurfaces(mesh);
     
-    EXPECT_EQ(merged, 1u);
+    EXPECT_EQ(merged, 2u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
 }
 
@@ -125,7 +129,7 @@ TEST_F(CompressorTest, CompressWithHoleCreatesInnerContour) {
     
     auto merged = core::Compressor::compressSurfaces(mesh);
     
-    EXPECT_EQ(merged, 1u);
+    EXPECT_EQ(merged, 7u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
 }
 

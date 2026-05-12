@@ -40,18 +40,20 @@ std::size_t Compressor::compressSurfaces(Mesh& mesh) {
         std::vector<Element> compressedSurfs = compressSurfs_(mesh.coordinates, surfs);
         totalCompressed += compressedSurfs.size();
 
-        // Replace surface elements
+        // Build new elements vector with compressed surfaces
+        std::vector<Element> newElements;
+        ElementId surfIdx = 0;
         for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
             if (mesh.groups[g].elements[e].type == Element::Type::Surface) {
-                auto it = std::find(surfIndices.begin(), surfIndices.end(), e);
-                if (it != surfIndices.end()) {
-                    std::size_t idx = std::distance(surfIndices.begin(), it);
-                    if (idx < compressedSurfs.size()) {
-                        mesh.groups[g].elements[e] = compressedSurfs[idx];
-                    }
+                if (surfIdx < compressedSurfs.size()) {
+                    newElements.push_back(compressedSurfs[surfIdx]);
+                    surfIdx++;
                 }
+            } else {
+                newElements.push_back(mesh.groups[g].elements[e]);
             }
         }
+        mesh.groups[g].elements = std::move(newElements);
     }
 
     return totalOriginal - totalCompressed;
