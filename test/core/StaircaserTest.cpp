@@ -2204,7 +2204,6 @@ TEST_F(StaircaserTest, selectiveStructurerWithEmptySetOfCells)
 
 }
 
-
 TEST_F(StaircaserTest, modifyCoordinateOfASpecificCell)
 {
 

@@ -81,6 +81,12 @@ void StaircaseMesher::process(Mesh& mesh) const
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
+    log("Removing repeated and overlapping elements.", 1);   
+    RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+
+    logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
+    logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
     if (compress_) {
         log("Compressing surfaces.", 1);
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
@@ -90,12 +96,6 @@ void StaircaseMesher::process(Mesh& mesh) const
             " -> " + std::to_string(afterQuads) + 
             " quads (merged " + std::to_string(merged) + " surfaces)", 1);
     }
-
-    log("Removing repeated and overlapping elements.", 1);   
-    RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
-
-    logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
-    logNumberOfLines(countMeshElementsIf(mesh, isLine));
     
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);

@@ -42,7 +42,14 @@ TEST_F(CompressorTest, Compress2x2QuadsIntoOneSurface) {
     auto merged = core::Compressor::compressSurfaces(mesh);
     
     EXPECT_EQ(merged, 3u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
+    ASSERT_EQ(mesh.groups.size(), 1u);
+    ASSERT_EQ(mesh.groups[0].elements.size(), 1u);
+    
+    EXPECT_EQ(
+        CoordinateIds({0, 4, 8, 7}), 
+        mesh.groups[0].elements[0].vertices
+    );
+
 }
 
 TEST_F(CompressorTest, DoesNotCompressNonCoplanarQuads) {
