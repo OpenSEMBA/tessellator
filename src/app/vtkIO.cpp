@@ -42,7 +42,7 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
     } 
 
     vtkSmartPointer<vtkUnstructuredGrid> vtu;
-    std::string extension = fn.substr(fn.find_last_of(".")).empty() ? "" : "." + fn.substr(fn.find_last_of("."));
+    std::string extension = fn.substr(fn.find_last_of(".")).empty() ? "" : fn.substr(fn.find_last_of("."));
 
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);
