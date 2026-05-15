@@ -7,6 +7,7 @@ add_library(tessellator-core
     "Snapper.cpp"
     "Smoother.cpp"
     "SmootherTools.cpp"
+    "Splitter.cpp"
     "Staircaser.cpp"
 )
 

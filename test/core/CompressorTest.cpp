@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "core/Compressor.h"
+#include "core/Splitter.h"
 #include "MeshFixtures.h"
 #include "utils/MeshTools.h"
 
@@ -92,12 +93,18 @@ TEST_F(CompressorTest, DoesNotCompressDisconnectedQuads) {
 
 TEST_F(CompressorTest, CompressWithHoleCreatesInnerContour) {
     // Create 8 quads forming a ring with a hole in the middle
-    // Should be merged into one surface with inner contour
+    // The ring decomposes into 3 rectangles (left col, right col, center cols)
     
     Mesh mesh;
     mesh.grid = grid_;
     
     // Outer ring of quads (leaving center 1,1 to 2,2 empty)
+    // Layout:
+    //    x=0  x=1  x=2  x=3
+    // y=3  [5]   [8]   [6]
+    // y=2  [3]   hole  [4]
+    // y=1  [1]   [7]   [2]
+    // y=0  
     // Bottom row
     addQuad(mesh, {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0});
     addQuad(mesh, {2, 0, 0}, {3, 0, 0}, {3, 1, 0}, {2, 1, 0});
@@ -115,7 +122,14 @@ TEST_F(CompressorTest, CompressWithHoleCreatesInnerContour) {
     
     auto merged = core::Compressor::compressSurfaces(mesh);
 
-    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 4u);
+    auto finalCount = countMeshElementsIf(mesh, isQuad);
+    
+    // Optimal decomposition: 3 rectangles
+    // - Left column (quads 1,3,5): cells x=0, y=0-3
+    // - Right column (quads 2,4,6): cells x=2-3, y=0-3
+    // - Center (quads 7,8): cells x=1-2, y=0 and y=2-3
+    EXPECT_EQ(finalCount, 3u);
+    EXPECT_EQ(merged, 5u); // 8 - 3 = 5 surfaces merged
 }
 
 TEST_F(CompressorTest, DoesNotCompressQuadsWithDifferentNormals) {
@@ -135,6 +149,99 @@ TEST_F(CompressorTest, DoesNotCompressQuadsWithDifferentNormals) {
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
+}
+
+TEST_F(CompressorTest, CompressAndSplit2x2GridRoundTrip) {
+    // Create 4 quads in 2x2 grid, compress to 1 surface, split back to 4 quads
+    
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    // 2x2 grid of quads
+    addQuad(mesh, {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0});
+    addQuad(mesh, {1, 0, 0}, {2, 0, 0}, {2, 1, 0}, {1, 1, 0});
+    addQuad(mesh, {0, 1, 0}, {1, 1, 0}, {1, 2, 0}, {0, 2, 0});
+    addQuad(mesh, {1, 1, 0}, {2, 1, 0}, {2, 2, 0}, {1, 2, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 4u);
+    
+    // Compress: 4 quads -> 1 surface
+    auto merged = core::Compressor::compressSurfaces(mesh);
+    EXPECT_EQ(merged, 3u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
+    
+    // Debug: print compressed surface
+    std::cerr << "Compressed surface vertices: ";
+    for (auto vid : mesh.groups[0].elements[0].vertices) {
+        std::cerr << "(" << mesh.coordinates[vid](0) << "," 
+                  << mesh.coordinates[vid](1) << "," 
+                  << mesh.coordinates[vid](2) << ") ";
+    }
+    std::cerr << std::endl;
+    
+    // Split: 1 surface -> 4 quads
+    auto splitCount = core::Splitter::splitSurfaces(mesh);
+    std::cout << "Split count: " << splitCount << std::endl;
+    EXPECT_EQ(splitCount, 4u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 4u);
+}
+
+TEST_F(CompressorTest, CompressAndSplitRingRoundTrip) {
+    // Create ring of 8 quads, compress, split back
+    
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    // Ring of 8 quads (same as CompressWithHoleCreatesInnerContour)
+    addQuad(mesh, {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0});
+    addQuad(mesh, {2, 0, 0}, {3, 0, 0}, {3, 1, 0}, {2, 1, 0});
+    addQuad(mesh, {0, 1, 0}, {1, 1, 0}, {1, 2, 0}, {0, 2, 0});
+    addQuad(mesh, {2, 1, 0}, {3, 1, 0}, {3, 2, 0}, {2, 2, 0});
+    addQuad(mesh, {0, 2, 0}, {1, 2, 0}, {1, 3, 0}, {0, 3, 0});
+    addQuad(mesh, {2, 2, 0}, {3, 2, 0}, {3, 3, 0}, {2, 3, 0});
+    addQuad(mesh, {1, 0, 0}, {2, 0, 0}, {2, 1, 0}, {1, 1, 0});
+    addQuad(mesh, {1, 3, 0}, {2, 3, 0}, {2, 2, 0}, {1, 2, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 8u);
+    
+    // Compress: 8 quads -> 3 surfaces
+    auto merged = core::Compressor::compressSurfaces(mesh);
+    EXPECT_EQ(merged, 5u);
+    auto compressedCount = countMeshElementsIf(mesh, isQuad);
+    EXPECT_EQ(compressedCount, 3u);
+    
+    // Split: 3 surfaces -> 8 quads
+    auto splitCount = core::Splitter::splitSurfaces(mesh);
+    EXPECT_EQ(splitCount, 8u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 8u);
+}
+
+TEST_F(CompressorTest, CompressAndSplit3x3GridRoundTrip) {
+    // Create 9 quads in 3x3 grid, compress to 1 surface, split back to 9 quads
+    
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    // 3x3 grid of quads
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            addQuad(mesh, 
+                {i, j, 0}, {i+1, j, 0}, 
+                {i+1, j+1, 0}, {i, j+1, 0});
+        }
+    }
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 9u);
+    
+    // Compress: 9 quads -> 1 surface
+    auto merged = core::Compressor::compressSurfaces(mesh);
+    EXPECT_EQ(merged, 8u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
+    
+    // Split: 1 surface -> 9 quads
+    auto splitCount = core::Splitter::splitSurfaces(mesh);
+    EXPECT_EQ(splitCount, 9u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 9u);
 }
 
 }
