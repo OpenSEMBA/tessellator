@@ -30,6 +30,15 @@
             "inherits": "default"
         },
         {
+            "name": "gnu-dbg",
+            "displayName": "GNU g++ compiler - Debug",
+            "inherits": "gnu",
+            "binaryDir": "build-dbg/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
             "name": "docker",
             "displayName": "Docker (system libraries)",
             "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds.",
