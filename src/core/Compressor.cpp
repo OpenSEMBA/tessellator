@@ -59,6 +59,153 @@ std::size_t Compressor::compressSurfaces(Mesh& mesh) {
     return totalOriginal - totalCompressed;
 }
 
+std::size_t Compressor::compressLines(Mesh& mesh) {
+    std::size_t totalOriginal = 0;
+    std::size_t totalCompressed = 0;
+
+    for (GroupId g = 0; g < mesh.groups.size(); g++) {
+        std::vector<Element> lines;
+        
+        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
+            const Element& elem = mesh.groups[g].elements[e];
+            if (elem.type == Element::Type::Line) {
+                lines.push_back(elem);
+            }
+        }
+
+        if (lines.empty()) {
+            continue;
+        }
+
+        totalOriginal += lines.size();
+        std::vector<Element> compressedLines = compressLines_(mesh.coordinates, lines);
+        totalCompressed += compressedLines.size();
+
+        // Build new elements vector with compressed lines
+        std::vector<Element> newElements;
+        ElementId lineIdx = 0;
+        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
+            if (mesh.groups[g].elements[e].type == Element::Type::Line) {
+                if (lineIdx < compressedLines.size()) {
+                    newElements.push_back(compressedLines[lineIdx]);
+                    lineIdx++;
+                }
+            } else {
+                newElements.push_back(mesh.groups[g].elements[e]);
+            }
+        }
+        mesh.groups[g].elements = std::move(newElements);
+    }
+
+    return totalOriginal - totalCompressed;
+}
+
+std::vector<Element> Compressor::compressLines_(
+        const std::vector<Coordinate>& coords,
+        const std::vector<Element>& lines) {
+    std::vector<Element> res;
+    std::map<std::pair<std::array<CellDir, 2>,
+                        std::pair<Sign, Axis>>,
+              std::vector<ElementId>> signDirLines;
+    for (std::size_t l = 0; l < lines.size(); l++) {
+        std::array<Cell, 2> auxCells;
+        auxCells[0] = utils::GridTools::toCell(coords[lines[l].vertices[0]]);
+        auxCells[1] = utils::GridTools::toCell(coords[lines[l].vertices[1]]);
+        std::array<CellDir, 2> gridLine;
+        Sign sign = 1;
+        Axis dir = 0;
+        for (Axis d = 0; d < 3; d++) {
+            if (auxCells[0](d) != auxCells[1](d)) {
+                if (auxCells[0](d) > auxCells[1](d)) {
+                    sign = -1;
+                }
+                dir = d;
+                Axis d1 = (d + 1) % 3;
+                Axis d2 = (d + 2) % 3;
+                gridLine[0] = auxCells[0](d1);
+                gridLine[1] = auxCells[0](d2);
+                break;
+            }
+        }
+        signDirLines[std::make_pair(gridLine,
+                                     std::make_pair(sign, dir))].push_back(l);
+    }
+    for (std::map<std::pair<std::array<CellDir, 2>,
+                             std::pair<Sign, Axis>>,
+                   std::vector<ElementId>>::const_iterator
+          it = signDirLines.begin(); it != signDirLines.end(); ++it) {
+        std::vector<Element> auxElems;
+        for (std::size_t i = 0; i < it->second.size(); i++) {
+            auxElems.push_back(lines[it->second[i]]);
+        }
+        std::vector<Element> auxRes =
+            compressDirSignLines_(coords,
+                                   it->first.second,
+                                   auxElems);
+        res.insert(res.end(), auxRes.begin(), auxRes.end());
+    }
+    return res;
+}
+
+std::vector<Element> Compressor::compressDirSignLines_(
+        const std::vector<Coordinate>& coords,
+        const std::pair<Sign, Axis>& signDir,
+        const std::vector<Element>& lines) {
+    std::vector<Element> res;
+    std::map<CoordinateId, std::set<ElementId>> coordLines;
+    std::map<ElementId, std::set<CoordinateId>> lineCoords;
+    for (std::size_t l = 0; l < lines.size(); l++) {
+        for (std::size_t v = 0; v < 2; v++) {
+            coordLines[lines[l].vertices[v]].insert(l);
+            lineCoords[l].insert(lines[l].vertices[v]);
+        }
+    }
+    std::set<ElementId> vis;
+    for (std::map<ElementId, std::set<CoordinateId>>::const_iterator
+         itExt = lineCoords.begin(); itExt != lineCoords.end(); ++itExt) {
+        if (vis.count(itExt->first) == 0) {
+            CoordinateId minCell = lines[itExt->first].vertices[0];
+            CoordinateId maxCell = lines[itExt->first].vertices[1];
+            std::queue<ElementId> q;
+            q.push(itExt->first);
+            vis.insert(itExt->first);
+            while (!q.empty()) {
+                ElementId elem = q.front();
+                q.pop();
+                for (std::size_t i = 0; i < 2; i++) {
+                    if (coords[minCell] > coords[lines[elem].vertices[i]]) {
+                        minCell = lines[elem].vertices[i];
+                    }
+                    if (coords[maxCell] < coords[lines[elem].vertices[i]]) {
+                        maxCell = lines[elem].vertices[i];
+                    }
+                }
+                for (std::set<CoordinateId>::const_iterator
+                     itCell  = lineCoords[elem].begin();
+                     itCell != lineCoords[elem].end(); ++itCell) {
+                    for (std::set<ElementId>::const_iterator
+                         itLine  = coordLines[*itCell].begin();
+                         itLine != coordLines[*itCell].end(); ++itLine) {
+                        if (vis.count(*itLine) == 0) {
+                            q.push(*itLine);
+                            vis.insert(*itLine);
+                        }
+                    }
+                }
+            }
+            Element newElem;
+            newElem.type = Element::Type::Line;
+            newElem.vertices.push_back(minCell);
+            newElem.vertices.push_back(maxCell);
+            if (signDir.first < 0) {
+                std::swap(newElem.vertices[0], newElem.vertices[1]);
+            }
+            res.push_back(newElem);
+        }
+    }
+    return res;
+}
+
 std::vector<Element> Compressor::compressSurfs_(
         std::vector<Coordinate>& coords,
         const std::vector<Element>& surfs) {

@@ -14,6 +14,10 @@ public:
     // Returns number of surfaces merged (original_count - compressed_count)
     static std::size_t compressSurfaces(Mesh& mesh);
 
+    // Compress collinear line segments that are adjacent
+    // Returns number of lines merged (original_count - compressed_count)
+    static std::size_t compressLines(Mesh& mesh);
+
 private:
     // Group surfaces by (grid_plane, sign, axis) and compress each group
     static std::vector<Element> compressSurfs_(
@@ -31,6 +35,17 @@ private:
         std::vector<Coordinate>& coords,
         const std::pair<Sign, Axis>& signDir,
         const std::vector<Element>& surfs);
+
+    // Group lines by (grid_line, sign, axis) and compress each group
+    static std::vector<Element> compressLines_(
+        const std::vector<Coordinate>& coords,
+        const std::vector<Element>& lines);
+
+    // Compress lines with same direction and sign
+    static std::vector<Element> compressDirSignLines_(
+        const std::vector<Coordinate>& coords,
+        const std::pair<Sign, Axis>& signDir,
+        const std::vector<Element>& lines);
 
     // Merge adjacent surfels into maximal rectangles
     static std::vector<PlaneSurface> compressSurfels_(
