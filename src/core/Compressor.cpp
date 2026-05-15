@@ -185,8 +185,12 @@ std::vector<Element> Compressor::compressSurf_(
             utils::GridTools::toCell(coords[surfs[s].vertices[2]])(d1);
         ext.second[1] =
             utils::GridTools::toCell(coords[surfs[s].vertices[2]])(d2);
-        for (CellDir i = ext.first[0]; i < ext.second[0]; i++) {
-            for (CellDir j = ext.first[1]; j < ext.second[1]; j++) {
+        CellDir i0 = std::min(ext.first[0], ext.second[0]);
+        CellDir i1 = std::max(ext.first[0], ext.second[0]);
+        CellDir j0 = std::min(ext.first[1], ext.second[1]);
+        CellDir j1 = std::max(ext.first[1], ext.second[1]);
+        for (CellDir i = i0; i < i1; i++) {
+            for (CellDir j = j0; j < j1; j++) {
                 PlaneSurfel surfel = {{i, j}};
                 surfels.insert(surfel);
             }
