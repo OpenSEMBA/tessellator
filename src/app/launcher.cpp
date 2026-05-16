@@ -142,12 +142,27 @@ bool readStaircaseMesherCompressOption(const std::string &fn)
     }
     return false;
 }
+
+bool readStaircaseMesherCompressLinesOption(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    if (j["mesher"].contains("options") && 
+        j["mesher"]["options"].contains("compressLines")) {
+        return j["mesher"]["options"]["compressLines"];
+    }
+    return false;
+}
 std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
 {
     auto mesherType = readMesherType(fn);
     if (mesherType == meshlib::app::staircase_mesher) {
         bool compress = readStaircaseMesherCompressOption(fn);
-        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn), compress});
+        bool compressLines = readStaircaseMesherCompressLinesOption(fn);
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn), compress, compressLines});
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
     } else {

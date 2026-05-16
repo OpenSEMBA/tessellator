@@ -13,9 +13,9 @@ class CompressorTest : public ::testing::Test {
 protected:
     void SetUp() override {
         grid_ = {
-            std::vector<double>{0, 1, 2, 3, 4},
-            std::vector<double>{0, 1, 2, 3, 4},
-            std::vector<double>{0, 1, 2, 3, 4}
+            std::vector<double>{0, 1, 2, 3, 4, 5, 6},
+            std::vector<double>{0, 1, 2, 3, 4, 5, 6},
+            std::vector<double>{0, 1, 2, 3, 4, 5, 6}
         };
     }
 
@@ -233,6 +233,133 @@ TEST_F(CompressorTest, CompressAndSplit3x3GridRoundTrip) {
     auto splitCount = core::Splitter::splitSurfaces(mesh);
     EXPECT_EQ(splitCount, 9u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 9u);
+}
+
+// ============== Line Compression Tests ==============
+
+TEST_F(CompressorTest, Compress2CollinearLinesIntoOne) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {1, 0, 0}, {2, 0, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+    
+    auto merged = core::Compressor::compressLines(mesh);
+    
+    EXPECT_EQ(merged, 1u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
+    
+    ASSERT_EQ(mesh.groups[0].elements.size(), 1u);
+    const auto& line = mesh.groups[0].elements[0];
+    EXPECT_EQ(line.type, Element::Type::Line);
+    EXPECT_EQ(line.vertices.size(), 2u);
+}
+
+TEST_F(CompressorTest, DoesNotCompressNonCollinearLines) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {0, 0, 0}, {0, 1, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+    
+    auto merged = core::Compressor::compressLines(mesh);
+    
+    EXPECT_EQ(merged, 0u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+}
+
+TEST_F(CompressorTest, DoesNotCompressDisconnectedLines) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {3, 0, 0}, {4, 0, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+    
+    auto merged = core::Compressor::compressLines(mesh);
+    
+    EXPECT_EQ(merged, 0u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+}
+
+TEST_F(CompressorTest, Compress3LinesIntoOne) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {1, 0, 0}, {2, 0, 0});
+    addLine(mesh, {2, 0, 0}, {3, 0, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 3u);
+    
+    auto merged = core::Compressor::compressLines(mesh);
+    
+    EXPECT_EQ(merged, 2u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
+}
+
+TEST_F(CompressorTest, CompressAndSplit2LineRoundTrip) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {1, 0, 0}, {2, 0, 0});
+    
+    auto originalLines = countMeshElementsIf(mesh, isLine);
+    EXPECT_EQ(originalLines, 2u);
+    
+    core::Compressor::compressLines(mesh);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
+    
+    auto splitCount = core::Splitter::splitLines(mesh);
+    
+    EXPECT_EQ(splitCount, 2u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
+}
+
+TEST_F(CompressorTest, CompressAndSplit5LineRoundTrip) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {1, 0, 0}, {2, 0, 0});
+    addLine(mesh, {2, 0, 0}, {3, 0, 0});
+    addLine(mesh, {3, 0, 0}, {4, 0, 0});
+    addLine(mesh, {4, 0, 0}, {5, 0, 0});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 5u);
+    
+    core::Compressor::compressLines(mesh);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
+    
+    auto splitCount = core::Splitter::splitLines(mesh);
+    
+    EXPECT_EQ(splitCount, 5u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 5u);
+}
+
+TEST_F(CompressorTest, CompressMixedDirections) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    addLine(mesh, {0, 0, 0}, {1, 0, 0});
+    addLine(mesh, {1, 0, 0}, {2, 0, 0});
+    addLine(mesh, {0, 0, 0}, {0, 1, 0});
+    addLine(mesh, {0, 1, 0}, {0, 2, 0});
+    addLine(mesh, {0, 0, 0}, {0, 0, 1});
+    addLine(mesh, {0, 0, 1}, {0, 0, 2});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 6u);
+    
+    auto merged = core::Compressor::compressLines(mesh);
+    
+    EXPECT_EQ(merged, 3u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 3u);
 }
 
 }
