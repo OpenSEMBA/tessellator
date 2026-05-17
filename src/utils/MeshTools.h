@@ -50,4 +50,6 @@ void mergeMeshAsNewGroup(Mesh& lMesh, const Mesh& iMesh);
 
 bool isAClosedTopology(const Elements& es);
 
+Mesh extractGroupsByName(const Mesh& mesh, const std::vector<std::string>& groupNames);
+
 }

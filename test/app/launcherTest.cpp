@@ -160,3 +160,78 @@ TEST_F(LauncherTest, launches_conformal_cone_case)
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
+TEST_F(LauncherTest, readObjectsFromJSON_basic)
+{
+    auto objects = readObjectsFromJSON("testData/cases/multiObject/basic.tessellator.json");
+    EXPECT_EQ(objects.size(), 2);
+    EXPECT_EQ(objects[0].filename, "sphere.stl");
+    EXPECT_EQ(objects[0].group, "sphere_group");
+    EXPECT_FALSE(objects[0].mesherOverride.has_value());
+    EXPECT_EQ(objects[1].filename, "cone.stl");
+    EXPECT_EQ(objects[1].group, "cone_group");
+    EXPECT_FALSE(objects[1].mesherOverride.has_value());
+}
+
+TEST_F(LauncherTest, readObjectsFromJSON_mixedMesher)
+{
+    auto objects = readObjectsFromJSON("testData/cases/multiObject/mixedMesher.tessellator.json");
+    EXPECT_EQ(objects.size(), 2);
+    EXPECT_EQ(objects[0].filename, "sphere.stl");
+    EXPECT_FALSE(objects[0].mesherOverride.has_value());
+    EXPECT_EQ(objects[1].filename, "cone.stl");
+    EXPECT_TRUE(objects[1].mesherOverride.has_value());
+    EXPECT_EQ(objects[1].mesherOverride.value()["type"], "conformal");
+}
+
+TEST_F(LauncherTest, readObjectsFromJSON_singleObject)
+{
+    auto objects = readObjectsFromJSON("testData/cases/multiObject/singleObject.tessellator.json");
+    EXPECT_EQ(objects.size(), 1);
+    EXPECT_EQ(objects[0].filename, "sphere.stl");
+    EXPECT_EQ(objects[0].group, "default_group");
+}
+
+TEST_F(LauncherTest, readObjectsFromJSON_legacyFormat)
+{
+    auto objects = readObjectsFromJSON("testData/cases/sphere/sphere.tessellator.json");
+    EXPECT_EQ(objects.size(), 1);
+    EXPECT_EQ(objects[0].filename, "sphere.stl");
+    EXPECT_EQ(objects[0].group, "sphere");
+}
+
+TEST_F(LauncherTest, launches_multiObject_basic)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/multiObject/basic.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launches_multiObject_mixedMesher)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/multiObject/mixedMesher.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launches_multiObject_singleObject)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/multiObject/singleObject.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launches_multiObject_sameFileMultipleGroups)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/multiObject/sameFileMultipleGroups.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
