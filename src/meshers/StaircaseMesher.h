@@ -8,14 +8,13 @@ namespace meshlib::meshers {
 
 class StaircaseMesher : public MesherBase {
 public:
-	StaircaseMesher(const Mesh& in, int decimalPlacesInCollapser = 4, StaircaseMesherOptions opts = StaircaseMesherOptions(), bool compress = false, bool compressLines = false);
+	StaircaseMesher(const Mesh& in, int decimalPlacesInCollapser = 4, StaircaseMesherOptions opts = StaircaseMesherOptions(), bool compress = false);
 	virtual ~StaircaseMesher() = default;
 	Mesh mesh() const;
 
 private:
 	int decimalPlacesInCollapser_;
 	bool compress_;
-	bool compressLines_;
 
 	Mesh surfaceMesh_;
 	StaircaseMesherOptions opts_;

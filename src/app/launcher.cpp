@@ -143,7 +143,7 @@ bool readStaircaseMesherCompressOption(const std::string &fn)
     return false;
 }
 
-bool readStaircaseMesherCompressLinesOption(const std::string &fn)
+bool readExportGridOption(const std::string &fn)
 {
     nlohmann::json j;
     {
@@ -151,18 +151,17 @@ bool readStaircaseMesherCompressLinesOption(const std::string &fn)
         i >> j;
     }
     if (j["mesher"].contains("options") && 
-        j["mesher"]["options"].contains("compressLines")) {
-        return j["mesher"]["options"]["compressLines"];
+        j["mesher"]["options"].contains("exportGrid")) {
+        return j["mesher"]["options"]["exportGrid"];
     }
-    return false;
+    return true;
 }
 std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
 {
     auto mesherType = readMesherType(fn);
     if (mesherType == meshlib::app::staircase_mesher) {
         bool compress = readStaircaseMesherCompressOption(fn);
-        bool compressLines = readStaircaseMesherCompressLinesOption(fn);
-        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn), compress, compressLines});
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn), compress});
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
     } else {
@@ -203,7 +202,9 @@ int launcher(int argc, const char* argv[])
     auto extension = readExtension(inputFilename);
     
     exportMeshToVTU(outputFolder / (basename + ".tessellator." + extension + ".vtk"), resultMesh);
-    exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
+    if (readExportGridOption(inputFilename)) {
+        exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
+    }
 
     return EXIT_SUCCESS;
 }
