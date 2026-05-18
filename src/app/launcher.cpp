@@ -60,8 +60,8 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
     if (j.contains("objects")) {
         for (const auto& obj : j["objects"]) {
             ObjectDefinition objDef;
-            objDef.filename = obj["filename"];
-            objDef.group = obj.value("group", std::filesystem::path(obj["filename"]).stem().string());
+            objDef.filename = obj["filename"].get<std::string>();
+            objDef.group = obj.value("group", std::filesystem::path(objDef.filename).stem().string());
             if (obj.contains("mesher")) {
                 objDef.mesherOverride = obj["mesher"];
             }
@@ -69,8 +69,8 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
         }
     } else if (j.contains("object")) {
         ObjectDefinition objDef;
-        objDef.filename = j["object"]["filename"];
-        objDef.group = std::filesystem::path(j["object"]["filename"]).stem().string();
+        objDef.filename = j["object"]["filename"].get<std::string>();
+        objDef.group = std::filesystem::path(objDef.filename).stem().string();
         if (j.contains("mesher")) {
             objDef.mesherOverride = j["mesher"];
         }
