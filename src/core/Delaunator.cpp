@@ -1,6 +1,6 @@
 #include "Delaunator.h"
-#include "utils\Geometry.h"
-#include "cgal\LSFPlane.h"
+#include "utils/Geometry.h"
+#include "cgal/LSFPlane.h"
 
 namespace meshlib::core {
 
@@ -83,7 +83,7 @@ Delaunator::Triangulation Delaunator::buildCDT(
     std::vector<Point> newVertices;
     newVertices.reserve(pointsToIds.left.size());
 
-    for (auto& leftPointIt = pointsToIds.left.begin(); leftPointIt != pointsToIds.left.end(); ++leftPointIt) {
+    for (auto leftPointIt = pointsToIds.left.begin(); leftPointIt != pointsToIds.left.end(); ++leftPointIt) {
         const Point& point = leftPointIt->first;
         newVertices.push_back(point);
     }
