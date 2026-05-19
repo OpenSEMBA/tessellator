@@ -143,7 +143,7 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
     
     contourIds = CoordGraph(elems).getBoundaryGraph().getVertices();
     
-    for (auto const& c : buildCellElemMapLax(elems, coords)) {
+    for (auto const& c : buildCellElemMapStrict(elems, coords)) {
         const std::vector<CoordGraph> graphs = CoordGraph::buildFromElementsViews(
             Geometry::buildDisjointSmoothSets(c.second, coords, smoothSetAngle));
 

@@ -878,29 +878,13 @@ std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMapLax(
         std::set<Cell> allTouching;
 
         for (auto v : e->vertices) {
-            Cell targetCell1{ 20, 6, 3 };
-            Cell targetCell2{ 20, 6, 4 };
-            Cell targetCell3{ 20, 6, 5 };
-
             const auto touchingIt = coordTouchingMap.find(v);
 
             if (touchingIt != coordTouchingMap.end()) {
-                if (std::find(touchingIt->second.begin(), touchingIt->second.end(), targetCell1) != touchingIt->second.end()
-                    || std::find(touchingIt->second.begin(), touchingIt->second.end(), targetCell2) != touchingIt->second.end()
-                    || std::find(touchingIt->second.begin(), touchingIt->second.end(), targetCell3) != touchingIt->second.end())
-                {
-                    bool noop = true;
-                }
                 allTouching.insert(touchingIt->second.begin(), touchingIt->second.end());
             }
             else {
                 std::set<Cell> touching = getTouchingCells(coords[v]);
-                if (std::find(touching.begin(), touching.end(), targetCell1) != touching.end()
-                    || std::find(touching.begin(), touching.end(), targetCell2) != touching.end()
-                    || std::find(touching.begin(), touching.end(), targetCell3) != touching.end())
-                {
-                    bool noop = true;
-                }
                 coordTouchingMap[v] = touching;
                 allTouching.insert(touching.begin(), touching.end());
             }
