@@ -931,6 +931,7 @@ TEST_F(SlicerTest, canKeepOppositeLinesInLineDimensionPolicy)
     std::vector<Element::Type> dimensions({ Element::Type::Line, Element::Type::Surface });
 
     ASSERT_NO_THROW(resultMesh = Slicer(m, dimensions).getMesh());
+    resultMesh = Collapser{ resultMesh, 2, dimensions }.getMesh();
 
     EXPECT_FALSE(containsDegenerateTriangles(resultMesh));
     redundancyCleaner::cleanCoords(resultMesh);

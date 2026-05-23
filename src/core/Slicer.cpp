@@ -5,7 +5,6 @@
 #include "utils/MeshTools.h"
 #include "utils/ConvexHull.h"
 #include "core/Collapser.h"
-#include "app/vtkIO.h"
 
 #ifdef TESSELLATOR_EXECUTION_POLICIES
 #include <execution>
@@ -44,51 +43,43 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
     GridTools(input.grid),
     opts_(opts)
 {
-
-    Coordinates auxCoordinates;
-    auxCoordinates.reserve(input.coordinates.size());
-
     // Ensures that all coordinates have a fixed number of decimal places.
-    double factor = std::pow(10.0, opts_.initialCollapsingDecimalPlaces);
-    for (auto& coordinate : input.coordinates) {
-        /*
-        auxCoordinates.push_back(coordinate.round(factor));
-        /**/
-        auxCoordinates.push_back(coordinate);
-    }
-
+    Mesh collapsed = input;
+    collapsed.coordinates = absoluteToRelative(collapsed.coordinates);
+    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces, dimensionPolicy }.getMesh();
+    collapsed.coordinates = relativeToAbsolute(collapsed.coordinates);
 
     // Slices.
-    mesh_.grid = input.grid;
+    mesh_.grid = collapsed.grid;
     mesh_.coordinates.reserve(mesh_.coordinates.size() * 100);
-    mesh_.groups.resize(input.groups.size());
+    mesh_.groups.resize(collapsed.groups.size());
 
     for (auto& g : mesh_.groups) {
         g.elements.reserve(g.elements.size() * 100);
     }
     Coordinates& sCoords = mesh_.coordinates;
 
-    for (std::size_t g = 0; g < input.groups.size(); g++) {
+    for (std::size_t g = 0; g < collapsed.groups.size(); g++) {
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::seq,
 #endif
-            input.groups[g].elements.begin(), input.groups[g].elements.end(),
+            collapsed.groups[g].elements.begin(), collapsed.groups[g].elements.end(),
             [&](auto const& e) {
                 Elements elements;
                 if (e.type == Element::Type::Surface) {
-                    TriV triV{ Geometry::asTriV(e, auxCoordinates) };
+                    TriV triV{ Geometry::asTriV(e, collapsed.coordinates) };
 
                     elements = { sliceTriangle(sCoords, triV) };
                     orient(sCoords, elements, triV);
                 }
                 else if (e.isLine()) {
-                    LinV lineV{ Geometry::asLinV(e, auxCoordinates) };
+                    LinV lineV{ Geometry::asLinV(e, collapsed.coordinates) };
 
                     elements = { sliceLine(sCoords, lineV) };
                 }
                 else if (e.isNode()) {
-                    auto& coordinate = auxCoordinates[e.vertices[0]];
+                    auto& coordinate = collapsed.coordinates[e.vertices[0]];
                     sCoords.push_back(getRelative(coordinate));
                     elements = { e };
                 }
@@ -105,31 +96,13 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
         );
     }
 
-    /**/
     redundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::removeDegenerateElements(mesh_);
-    /**/
-
-    // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.sliced-pre-collapse.vtk", mesh_);
-
-    for (auto& coordinate : mesh_.coordinates) {
-        coordinate = coordinate.round(factor);
-    }
-
-    /**
-    Mesh collapsed = mesh_;
-    collapsed = Collapser{ collapsed, opts_.initialCollapsingDecimalPlaces, dimensionPolicy }.getMesh();
-
-    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsed.vtk", collapsed);
 
     // Checks ensured post conditions.
-    meshTools::checkNoCellsAreCrossed(collapsed);
-    meshTools::checkNoNullAreasExist(collapsed);
-    /**/
-
-    redundancyCleaner::fuseCoords(mesh_);
-    redundancyCleaner::removeDegenerateElements(mesh_);
+    meshTools::checkNoCellsAreCrossed(mesh_);
+    meshTools::checkNoNullAreasExist(mesh_);
 }
 
 Elements Slicer::sliceTriangle(
@@ -155,13 +128,11 @@ Elements Slicer::sliceTriangle(
         auto n{ utils::Geometry::normal(tri) };
         auto path = utils::ConvexHull(&sCoords).get(vIds, n);
         Elements newTris = buildTrianglesFromPath(sCoords, path);
-        // Check if coordinates coincide in path.
-        for (auto& tri : newTris) {
-            if (elementCrossesGrid(tri, sCoords)) {
+        for (auto& slicedTri : newTris) {
+            if (elementCrossesGrid(slicedTri, sCoords)) {
                 throw std::runtime_error("Triangle crosses grid");
             }
         }
-
         res.insert(res.end(), newTris.begin(), newTris.end());
     }
     return res;
@@ -283,7 +254,7 @@ Elements Slicer::buildTrianglesFromPath(
     if (path.size() < 3) {
         return tris;
     }
-
+ 
     auto p{ path };
     {
         std::size_t turns = 0;

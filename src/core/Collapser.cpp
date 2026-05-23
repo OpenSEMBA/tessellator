@@ -3,10 +3,6 @@
 #include "utils/Geometry.h"
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
-#include "app/vtkIO.h"
-#include "utils/GridTools.h"
-
-#include "Collapser.h"
 
 namespace meshlib {
 namespace core {
@@ -15,11 +11,6 @@ using namespace utils;
 
 Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Element::Type>& dimensionPolicy)
 {
-    Grid auxGrid;
-
-    auxGrid[X] = utils::GridTools::linspace(0.0, in.grid[X].size() - 1, in.grid[X].size());
-    auxGrid[Y] = utils::GridTools::linspace(0.0, in.grid[Y].size() - 1, in.grid[Y].size());
-    auxGrid[Z] = utils::GridTools::linspace(0.0, in.grid[Z].size() - 1, in.grid[Z].size());
 
     if (dimensionPolicy.size() == 0) {
         dimensionPolicy_ = std::vector<Element::Type>(in.groups.size(), Element::Type::Surface);
@@ -30,8 +21,6 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Elemen
 
     mesh_ = in;
 
-    vtkIO::exportGridToVTU("testData/cases/alhambra/alhambra.RelativeGrid.vtk", auxGrid);
-
     double factor = std::pow(10.0, decimalPlaces);
     for (auto& v : mesh_.coordinates) {
         v = v.round(factor);
@@ -39,16 +28,10 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Elemen
     
     redundancyCleaner::fuseCoords(mesh_);
     redundancyCleaner::cleanCoords(mesh_);
-
-    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.cleanedAfterRounding.vtk", mesh_);
     
     collapseDegenerateElements(mesh_, 0.4 / (factor * factor));
 
-    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.collapsedAfterRounding.vtk", mesh_);
-
     redundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
-
-    vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.removeOverlapped.vtk", mesh_);
 
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
@@ -114,10 +97,6 @@ void Collapser::collapseDegenerateElements(Mesh& mesh, const double& areaThresho
 
         redundancyCleaner::fuseCoords(mesh);
         redundancyCleaner::cleanCoords(mesh);
-
-        std::string path = "testData/cases/alhambra/alhambra.collapsingStep" + std::to_string(iter) + ".vtk";
-
-        vtkIO::exportMeshToVTU(path, mesh_);
 
         for (auto & group : mesh.groups) {
             for (auto& element : group.elements) {

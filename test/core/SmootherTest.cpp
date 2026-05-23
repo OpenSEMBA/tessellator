@@ -308,52 +308,47 @@ TEST_F(SmootherTest, smoothPointscontour)
 	ASSERT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
 
 	Coordinates expectedCoordinates = {
-			Coordinate({ 0.00, 0.00, 0.00 }), // 0  -> 0
-			Coordinate({ 0.60, 0.00, 0.00 }), // 1  -> 1
-			Coordinate({ 0.20, 0.00, 0.35 }), // 3  -> 2
-			Coordinate({ 1.00, 0.00, 0.35 }), // 5  -> 3
-			Coordinate({ 1.00, 0.00, 1.00 }), // 9  -> 4
-			Coordinate({ 0.00, 0.00, 1.00 }), // 10 -> 5
-			Coordinate({ 0.00, 1.00, 0.00 }), // 11 -> 6
-			Coordinate({ 0.60, 1.00, 0.00 }), // 12 -> 7
-			Coordinate({ 0.20, 1.00, 0.35 }), // 13 -> 8
-			Coordinate({ 1.00, 1.00, 0.35 }), // 15 -> 9
-			Coordinate({ 1.00, 1.00, 1.00 }), // 16 -> 10
-			Coordinate({ 0.00, 1.00, 1.00 }), // 17 -> 11
+			Coordinate({ 0.00, 0.00, 0.00 }),
+			Coordinate({ 0.60, 0.00, 0.00 }),
+			Coordinate({ 0.20, 0.00, 0.35 }),
+			Coordinate({ 0.00, 0.00, 0.40 }),
+			Coordinate({ 1.00, 0.00, 0.35 }),
+			Coordinate({ 0.00, 0.00, 1.00 }),
+			Coordinate({ 1.00, 0.00, 1.00 }),
+			Coordinate({ 0.00, 1.00, 0.00 }),
+			Coordinate({ 0.60, 1.00, 0.00 }),
+			Coordinate({ 0.20, 1.00, 0.35 }),
+			Coordinate({ 1.00, 1.00, 0.35 }),
+			Coordinate({ 1.00, 1.00, 1.00 }),
+			Coordinate({ 0.00, 1.00, 1.00 }),
 	};
 
-
 	Elements expectedElements = {
-		Element({  4,  2,  3 }, Element::Type::Surface), //	0
-		Element({  2,  5,  0 }, Element::Type::Surface), //	1
-		Element({  1,  2,  0 }, Element::Type::Surface), //	2
-		Element({  4,  5,  2 }, Element::Type::Surface), //	3
-
-		Element({  8, 10,  9 }, Element::Type::Surface), //	4
-		Element({ 11,  8,  6 }, Element::Type::Surface), //	5
-		Element({  8,  7,  6 }, Element::Type::Surface), //	6
-		Element({ 11, 10,  8 }, Element::Type::Surface), //	7
-
-		Element({  8,  2,  7 }, Element::Type::Surface), //	8
-		Element({  1,  7,  2 }, Element::Type::Surface), //	9
-		Element({ 10,  4,  9 }, Element::Type::Surface), //	10
-		Element({  9,  4,  3 }, Element::Type::Surface), //	11
-
-		Element({  6,  5, 11 }, Element::Type::Surface), //	12
-		Element({  5,  6,  0 }, Element::Type::Surface), //	13
-
-
-		Element({  7,  1,  6 }, Element::Type::Surface), //	14
-		Element({  6,  1,  0 }, Element::Type::Surface), //	15
-		Element({  9,  3,  8 }, Element::Type::Surface), //	16
-		Element({  8,  3,  2 }, Element::Type::Surface), //	17
-
-		Element({  4, 11,  5 }, Element::Type::Surface), //	18
-		Element({ 11,  4, 10 }, Element::Type::Surface), //	19
+		Element({  5,  2,  6 }, Element::Type::Surface),
+		Element({  3,  0,  2 }, Element::Type::Surface),
+		Element({  4,  6,  2 }, Element::Type::Surface),
+		Element({  2,  0,  1 }, Element::Type::Surface),
+		Element({  5,  3,  2 }, Element::Type::Surface),
+		Element({  7,  9,  8 }, Element::Type::Surface),
+		Element({  9,  7, 11 }, Element::Type::Surface),
+		Element({  9, 11, 10 }, Element::Type::Surface),
+		Element({  7, 12, 11 }, Element::Type::Surface),
+		Element({  1,  8,  9 }, Element::Type::Surface),
+		Element({  1,  9,  2 }, Element::Type::Surface),
+		Element({  4, 10, 11 }, Element::Type::Surface),
+		Element({  4, 11,  6 }, Element::Type::Surface),
+		Element({  0,  3,  7 }, Element::Type::Surface),
+		Element({  3,  5,  7 }, Element::Type::Surface),
+		Element({  5, 12,  7 }, Element::Type::Surface),
+		Element({  0,  7,  1 }, Element::Type::Surface),
+		Element({  1,  7,  8 }, Element::Type::Surface),
+		Element({  2,  9,  4 }, Element::Type::Surface),
+		Element({  4,  9, 10 }, Element::Type::Surface),
+		Element({  6, 11, 12 }, Element::Type::Surface),
+		Element({  6, 12,  5 }, Element::Type::Surface),
 	};
 
 	Mesh result = Smoother(mesh, smootherOpts).getMesh();
-
 
 	assertCoordinatesListEquals(expectedCoordinates, result.coordinates);
 	assertElementsListEquals(expectedElements, result.groups[0].elements);

@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 #include "Types.h"
 
@@ -84,7 +85,7 @@ public:
                 - a2 * (b1 * c3 - b3 * c1)
                 + a3 * (b1 * c2 - b2 * c1);
 
-            const bool isCoplanar{ abs(det) < coplanarTolerance };
+            const bool isCoplanar{ std::abs(det) < coplanarTolerance };
 
             if (!isCoplanar) {
                 return false;

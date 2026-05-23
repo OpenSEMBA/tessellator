@@ -465,7 +465,6 @@ Coordinates SmootherTools::collapsePointsOnContour(
     const double alignmentThresholdAngle)
 {
     Coordinates res{ coords };
-    auto const singularIds = buildSingularIds(elems, coords, alignmentThresholdAngle);
     auto contourIds{ CoordGraph{ elems }.getBoundaryGraph().getVertices() };
     
     for (auto const& c : buildCellElemMap(elems, coords)) {
@@ -488,8 +487,41 @@ Coordinates SmootherTools::collapsePointsOnContour(
             }
 
             if (!validContourIds.empty()) {
-                for (auto const& interiorId : cG.getInterior()) {
-                    res[interiorId] = coords[*validContourIds.begin()];
+                const IdSet interior = cG.getInterior();
+                bool collapseToMinExterior = false;
+                if (interior.size() > 1 && validContourIds.size() == 2) {
+                    const CoordinateId minExt =
+                        *std::min_element(validContourIds.begin(), validContourIds.end());
+                    const CoordinateId maxExt =
+                        *std::max_element(validContourIds.begin(), validContourIds.end());
+                    for (auto const& interiorId : interior) {
+                        if ((coords[interiorId] - coords[maxExt]).norm()
+                            < (coords[interiorId] - coords[minExt]).norm()) {
+                            collapseToMinExterior = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (collapseToMinExterior) {
+                    const CoordinateId anchor =
+                        *std::min_element(validContourIds.begin(), validContourIds.end());
+                    for (auto const& interiorId : interior) {
+                        res[interiorId] = coords[anchor];
+                    }
+                } else {
+                    for (auto const& interiorId : interior) {
+                        if (res[interiorId] != coords[interiorId]) {
+                            continue;
+                        }
+                        IdSet targets = cG.getClosestVerticesInSet(interiorId, validContourIds);
+                        if (targets.empty()) {
+                            continue;
+                        }
+                        const CoordinateId targetId =
+                            *std::min_element(targets.begin(), targets.end());
+                        res[interiorId] = coords[targetId];
+                    }
                 }
             }
             
