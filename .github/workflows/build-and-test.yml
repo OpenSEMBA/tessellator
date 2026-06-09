@@ -27,6 +27,8 @@ jobs:
         
     name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
     runs-on: ${{ matrix.preset.os }}
+    env:
+      VCPKG_BINARY_SOURCES: clear
 
     steps:
     - name: checkout repository
