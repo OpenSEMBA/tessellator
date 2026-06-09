@@ -8,8 +8,6 @@ namespace meshlib::meshers {
 
 class ConformalMesherOptions : public MesherBaseOptions {
 public:
-    core::SnapperOptions snapperOptions;
-    // std::set<GroupId> volumeGroups{};
 };
 
 }
