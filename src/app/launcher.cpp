@@ -95,6 +95,20 @@ std::string readExtension(const std::string &fn)
     }
 }
 
+meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    meshlib::meshers::StaircaseMesherOptions res;
+    if (j["object"].contains("volume")) {
+        res.isVolume = j["object"]["volume"];
+    }
+    return res;
+}
+
 meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::string &fn)
 {
     nlohmann::json j;
@@ -103,6 +117,11 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
         i >> j;
     }
     meshlib::meshers::ConformalMesherOptions res;
+    if (j["object"].contains("volume")) {
+        res.isVolume = j["object"]["volume"];
+    }
+
+
     if (j["mesher"].contains("options")) {
         res.snapperOptions.edgePoints = j["mesher"]["options"]["edgePoints"];
         res.snapperOptions.forbiddenLength = j["mesher"]["options"]["forbiddenLength"];
@@ -113,7 +132,7 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const 
 {
     auto mesherType = readMesherType(fn);
     if (mesherType == meshlib::app::staircase_mesher) {
-        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in});
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn)});
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn)});
     } else {

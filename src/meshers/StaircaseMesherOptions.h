@@ -6,7 +6,7 @@
 
 namespace meshlib::meshers {
 
-class ConformalMesherOptions : public MesherBaseOptions {
+class StaircaseMesherOptions : public MesherBaseOptions {
 public:
 };
 

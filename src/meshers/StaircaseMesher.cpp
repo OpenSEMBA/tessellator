@@ -7,6 +7,8 @@
 #include "core/Collapser.h"
 #include "core/Staircaser.h"
 
+#include "cgal/filler/Filler.h"
+
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
@@ -17,9 +19,10 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
+StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
-    decimalPlacesInCollapser_(decimalPlacesInCollapser)
+    decimalPlacesInCollapser_(decimalPlacesInCollapser),
+    opts_(opts)
 {
     log("Preparing surfaces.");
     surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
@@ -48,6 +51,17 @@ void StaircaseMesher::process(Mesh& mesh) const
     }
 
     auto dimensions = getHighestDimensionByGroup(mesh);
+
+    if (opts_.isVolume){
+        std::cout<<"isvolume"<<std::endl;
+        if (meshTools::isAClosedTopology(mesh.groups[0].elements)){
+            meshlib::cgal::filler::Filler f{ mesh };
+            auto filling = f.getMeshFilling();
+            mergeMesh(mesh, filling);
+        } else {
+            throw std::runtime_error("Input object marked to be meshed as a volume, but surface is not closed");
+        }
+    }
 
     log("Slicing.", 1);
     mesh.grid = slicingGrid;
