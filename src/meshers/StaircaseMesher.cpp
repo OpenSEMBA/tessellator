@@ -53,7 +53,6 @@ void StaircaseMesher::process(Mesh& mesh) const
     auto dimensions = getHighestDimensionByGroup(mesh);
 
     if (opts_.isVolume){
-        std::cout<<"isvolume"<<std::endl;
         if (meshTools::isAClosedTopology(mesh.groups[0].elements)){
             meshlib::cgal::filler::Filler f{ mesh };
             auto filling = f.getMeshFilling();

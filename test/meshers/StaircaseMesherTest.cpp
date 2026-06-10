@@ -317,6 +317,31 @@ TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
 }
 
+TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    
+    mesh.grid[X] = utils::GridTools::linspace(-100.0, 100.0, 51); 
+    mesh.grid[Y] = utils::GridTools::linspace(-100.0, 100.0, 51); 
+    mesh.grid[Z] = utils::GridTools::linspace(-100.0, 100.0, 51);
+
+    meshlib::meshers::StaircaseMesherOptions opts;
+    opts.isVolume = false;
+    auto staircasedMesh = StaircaseMesher{mesh, 4, opts }.mesh();
+    
+    opts.isVolume = true;
+    auto staircasedMeshVolume = StaircaseMesher{mesh, 4, opts }.mesh();
+    
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTetrahedron));
+
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMeshVolume, isTriangle));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMeshVolume, isTetrahedron));
+
+    EXPECT_TRUE(countMeshElementsIf(staircasedMeshVolume, isQuad) > countMeshElementsIf(staircasedMesh, isQuad));
+
+}
+
 TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_alhambra)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
