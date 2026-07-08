@@ -12,5 +12,7 @@ authors:
     orcid: https://orcid.org/0000-0001-7317-1423
   - family-names: Rubio Bretones
     given-names: Amelia 
-    orcid: https://orcid.org/00000-0002-9337-9093
+    orcid: https://orcid.org/0000-0002-9337-9093
+url: "https://github.com/opensemba/tessellator"
 title: "opensemba/tessellator an FDTD meshing tool"
+date-released: 2024-07-10
