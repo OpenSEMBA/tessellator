@@ -1,5 +1,7 @@
 {
   "cmake.configureOnOpen": false,
   "cmake.configureOnEdit": false,
-  "cmake.autoSelectActiveFolder": false
+  "cmake.autoSelectActiveFolder": false,
+  "testMate.cpp.test.executables": "{build,build-dbg,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*",
+  "testMate.cpp.test.workingDirectory": "${workspaceFolder}"
 }

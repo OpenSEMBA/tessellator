@@ -21,4 +21,7 @@ RUN apt-get install -y \
     libgmp-dev \
     libmpfr-dev
 
-WORKDIR /workspace
+RUN chown -R ubuntu:ubuntu /home/ubuntu
+
+USER ubuntu
+WORKDIR /home/ubuntu/dev
