@@ -69,8 +69,6 @@ jobs:
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
-      with:
-        doNotCache: false
 
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'

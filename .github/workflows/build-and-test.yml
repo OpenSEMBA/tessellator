@@ -48,11 +48,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libvtk9-dev
 
-    - name: Install prior dependencies in ubuntu
-      if: matrix.preset.os=='ubuntu-latest'
-      run: |
-        sudo apt install autoconf autoconf-archive automake libtool
-
     - name: Export GitHub Actions cache environment variables
       uses: actions/github-script@v7
       with:
@@ -62,8 +57,6 @@ jobs:
 
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
-      with:
-        doNotCache: false
     
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'

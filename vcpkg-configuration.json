@@ -1,7 +1,7 @@
 {
   "default-registry": {
     "kind": "git",
-    "baseline": "cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3",
+    "baseline": "e2e3f654bc45c28f2696ace32d66f28429bb3b28",
     "repository": "https://github.com/microsoft/vcpkg"
   },
   "registries": [
@@ -10,5 +10,8 @@
       "location": "https://aka.ms/vcpkg-ce-default",
       "name": "microsoft"
     }
+  ],
+  "overlay-ports" : [
+    "./overlayPorts"
   ]
 }
