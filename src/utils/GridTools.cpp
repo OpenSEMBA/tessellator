@@ -505,14 +505,25 @@ std::size_t GridTools::countIntersectingPlanes(const Relative& v) {
 
 bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2) 
 {
-    // This assumes that both relatives belong to the same cell.
+    Cell cell1 = toCell(r1);
+    Cell cell2 = toCell(r2);
+
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
 
+
+
     std::size_t nEqualCoords = 0;
     for (Axis d = 0; d < 3; d++) {
-        if (approxDir(r1(d) - r2(d), 0.0)) {
+        auto minCellValue = std::min(cell1[d], cell2[d]);
+        auto maxCellValue = std::max(ceil(r1[d]), ceil(r2[d]));
+
+        if ((maxCellValue - minCellValue) > 1) {
+            return false;
+        }
+
+        if (approxDir(cell1[d], r1(d)) && approxDir(r1(d) - r2(d), 0.0)) {
             nEqualCoords++;
         }
     }
@@ -526,14 +537,23 @@ bool GridTools::areCoordOnSameFace(const Relative& r1, const Relative& r2)
 }
 bool GridTools::areCoordOnSameEdge(const Relative& r1, const Relative& r2) 
 {
-    // This assumes that both relatives belong to the same cell.
+    Cell cell1 = toCell(r1);
+    Cell cell2 = toCell(r2);
+
     if (isRelativeInterior(r1) || isRelativeInterior(r2)) {
         return false;
     }
 
     std::size_t nEqualCoords = 0;
     for (Axis d = 0; d < 3; d++) {
-        if (approxDir(r1(d) - r2(d), 0.0)) {
+        auto minCellValue = std::min(cell1[d], cell2[d]);
+        auto maxCellValue = std::max(ceil(r1[d]), ceil(r2[d]));
+
+        if ((maxCellValue - minCellValue) > 1) {
+            return false;
+        }
+
+        if (approxDir(cell1[d], r1(d)) && approxDir(r1(d) - r2(d), 0.0)) {
             nEqualCoords++;
         }
     }
@@ -712,8 +732,8 @@ bool GridTools::isSegmentOnFace(
         return true;
     }
 
-    if ((isRelativeInCellFace(r1) && isRelativeInCellEdge(r2)) &&
-        (isRelativeInCellEdge(r1) && isRelativeInCellEdge(r2))) {
+    if ((isRelativeInCellFace(r1) && isRelativeInCellEdge(r2)) ||
+        (isRelativeInCellEdge(r1) && isRelativeInCellFace(r2))) {
         return true;
     }
 
@@ -810,7 +830,7 @@ std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMap(
 {
     std::map<Cell, std::vector<const Element*>> cells;
     for (auto e = elems.begin(); e != elems.end(); ++e) {
-        
+
         Coordinate centroid;
         for (std::size_t i = 0; i < e->vertices.size(); i++) {
             centroid += coords[e->vertices[i]] / double(e->vertices.size());
@@ -818,6 +838,59 @@ std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMap(
 
         std::set<Cell> touching = getTouchingCells(centroid);
         for (auto const& cell : touching) {
+            cells[cell].push_back(&(*e));
+        }
+    }
+    return cells;
+}
+
+std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMapStrict(
+    const std::vector<Element>& elems,
+    const Relatives& coords) const
+{
+    std::map<Cell, std::vector<const Element*>> cells;
+    for (auto e = elems.begin(); e != elems.end(); ++e) {
+
+        Relative centroid;
+        for (std::size_t i = 0; i < e->vertices.size(); i++) {
+            centroid += coords[e->vertices[i]] / double(e->vertices.size());
+        }
+        Cell local = toCell(centroid);
+        for (Axis axis = X; axis <= Z; ++axis) {
+            if (local(axis) == numCellsDir(axis)) {
+                local(axis)--;
+            }
+        }
+
+        cells[local].push_back(&(*e));
+    }
+    return cells;
+}
+
+std::map<Cell, std::vector<const Element*>> GridTools::buildCellElemMapLax(
+    const std::vector<Element>& elems,
+    const std::vector<Coordinate>& coords) const
+{
+    std::map<Cell, std::vector<const Element*>> cells;
+    std::map<CoordinateId, std::set<Cell>> coordTouchingMap;
+    for (auto e = elems.begin(); e != elems.end(); ++e) {
+
+        std::set<Cell> allTouching;
+
+        for (auto v : e->vertices) {
+            const auto touchingIt = coordTouchingMap.find(v);
+
+            if (touchingIt != coordTouchingMap.end()) {
+                allTouching.insert(touchingIt->second.begin(), touchingIt->second.end());
+            }
+            else {
+                std::set<Cell> touching = getTouchingCells(coords[v]);
+                coordTouchingMap[v] = touching;
+                allTouching.insert(touching.begin(), touching.end());
+            }
+        }
+
+        for (auto const& cell : allTouching) {
             cells[cell].push_back(&(*e));
         }
     }

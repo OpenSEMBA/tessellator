@@ -96,9 +96,9 @@ Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPol
         );
     }
 
-    RedundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeElementsWithCondition(mesh_, [](auto e) {return !(e.isTriangle() || e.isLine() || e.isNode()); });
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
 
     // Checks ensured post conditions.
     meshTools::checkNoCellsAreCrossed(mesh_);
@@ -128,6 +128,11 @@ Elements Slicer::sliceTriangle(
         auto n{ utils::Geometry::normal(tri) };
         auto path = utils::ConvexHull(&sCoords).get(vIds, n);
         Elements newTris = buildTrianglesFromPath(sCoords, path);
+        for (auto& slicedTri : newTris) {
+            if (elementCrossesGrid(slicedTri, sCoords)) {
+                throw std::runtime_error("Triangle crosses grid");
+            }
+        }
         res.insert(res.end(), newTris.begin(), newTris.end());
     }
     return res;

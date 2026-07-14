@@ -1,22 +1,23 @@
 #include "gtest/gtest.h"
 
-#include "cgal/Delaunator.h"
+#include "core/Delaunator.h"
 #include "utils/Types.h"
 
-namespace meshlib::cgal {
+namespace meshlib::core {
 
 class DelaunatorTest : public ::testing::Test {
 public:
 	static Coordinates buildCoordinates()
 	{
 		return Coordinates {
-			Coordinate({0.00, 0.00, 0.00}),
-			Coordinate({0.00, 1.00, 0.00}),
-			Coordinate({1.00, 1.00, 0.00}),
-			Coordinate({1.00, 0.00, 0.00}),
-			Coordinate({5.00, 5.00, 5.00}),
-			Coordinate({0.00, 1.00, 0.00}),
-			Coordinate({0.75, 0.25, 0.00})
+			Coordinate({0.00, 0.00, 0.00}),	// 0 
+			Coordinate({0.00, 1.00, 0.00}),	// 1 
+			Coordinate({1.00, 1.00, 0.00}),	// 2 
+			Coordinate({1.00, 0.00, 0.00}), // 3
+			Coordinate({5.00, 5.00, 5.00}), // 4 
+			Coordinate({0.00, 1.00, 0.00}), // 5
+			Coordinate({0.75, 0.25, 0.00}), // 6
+			Coordinate({1.00, 0.00, 0.10})  // 7
 		};
 	}
 
@@ -37,9 +38,9 @@ public:
 TEST_F(DelaunatorTest, mesh_one_triangle_with_constraining_polygon)
 {
 	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 
-	auto tris = delaunator.mesh({}, { {0, 1, 2} });
+	auto tris = delaunator.mesh({ {0, 1, 2} });
 
 	EXPECT_EQ(1, tris.size());
 	for (auto const& tri : tris) {
@@ -59,10 +60,10 @@ TEST_F(DelaunatorTest, mesh_bowtie)
 	coords [4] = Coordinate{{1.0, 0.0  , 0.0 }};
 
 
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 	IdSet cIds = { 0,1,2,3,4,2 };
 	Delaunator::Polygon boundary = { 0,1,2,3,4,2 };
-	auto tris = delaunator.mesh({}, { boundary });
+	auto tris = delaunator.mesh({ boundary });
 
 	EXPECT_EQ(2, tris.size());
 	for (auto const& tri : tris) {
@@ -81,9 +82,9 @@ TEST_F(DelaunatorTest, mesh_bowtie_2)
 	coords [5] = Coordinate{{0.2, 0.2, 0.0 }};
 
 
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 	Delaunator::Polygon boundary = { 0,5,4,1,2,4 };
-	auto tris = delaunator.mesh({}, { boundary });
+	auto tris = delaunator.mesh({ boundary });
 
 	EXPECT_EQ(2, tris.size());
 	for (auto const& tri : tris) {
@@ -103,10 +104,10 @@ TEST_F(DelaunatorTest, mesh_tri_with_hole)
 	coords[5] = Coordinate{ {0.15, 0.2, 0.0 } };
 
 
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 	Delaunator::Polygon outer_boundary = { 0,1,2};
 	Delaunator::Polygon inner_boundary = { 3,4,5 };
-	auto tris = delaunator.mesh({}, { outer_boundary, inner_boundary });
+	auto tris = delaunator.mesh({ outer_boundary, inner_boundary });
 
 	EXPECT_EQ(6, tris.size());
 	for (auto const& tri : tris) {
@@ -118,10 +119,10 @@ TEST_F(DelaunatorTest, mesh_tri_with_hole)
 TEST_F(DelaunatorTest, mesh_one_triangle_other_call)
 {
 	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 	IdSet cIds = { 0,1,2 };
 	Delaunator::Polygon boundary = { 0,1,2 };
-	auto tris = delaunator.mesh(cIds, {boundary});
+	auto tris = delaunator.mesh({boundary});
 
 	EXPECT_EQ(1, tris.size());
 	for (auto const& tri : tris) {
@@ -139,14 +140,14 @@ TEST_F(DelaunatorTest, mesh_with_invalid_constraining_polygon)
 	coords[3] = Coordinate{ {0.25, 0.00, 1.00} };
 	coords[4] = Coordinate{ {1.00, 0.00, 1.00} };
 
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 	{
 		std::vector<CoordinateId> constrainingPolygon = { 0,1,2,3,4 };
-		EXPECT_ANY_THROW(auto tris = delaunator.mesh({}, { constrainingPolygon }));
+		EXPECT_ANY_THROW(auto tris = delaunator.mesh({ constrainingPolygon }));
 	}
 	{
 		std::vector<CoordinateId> constrainingPolygon = { 0,1,2,4,3 };
-		auto tris = delaunator.mesh({}, { constrainingPolygon });
+		auto tris = delaunator.mesh({ constrainingPolygon });
 		for (const auto& tri : tris) {
 			for (const auto& vertex : tri.vertices) {
 				EXPECT_TRUE(find(
@@ -160,9 +161,9 @@ TEST_F(DelaunatorTest, mesh_with_invalid_constraining_polygon)
 TEST_F(DelaunatorTest, mesh_two_triangles)
 {
 	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 
-	auto tris = delaunator.mesh({}, { {0, 1, 2, 3} });
+	auto tris = delaunator.mesh({ {0, 1, 2, 3} });
 
 	EXPECT_EQ(2, tris.size());
 	for (auto const& tri : tris) {
@@ -174,9 +175,9 @@ TEST_F(DelaunatorTest, mesh_two_triangles)
 TEST_F(DelaunatorTest, mesh_example_path)
 {
 	auto coords = buildPathCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 
-	auto tris = delaunator.mesh({}, { { 0, 1, 4, 5, 2, 3 } });
+	auto tris = delaunator.mesh({ { 0, 1, 4, 5, 2, 3 } });
 
 	EXPECT_EQ(4, tris.size());
 	for (auto const& tri : tris) {
@@ -195,29 +196,66 @@ TEST_F(DelaunatorTest, mesh_polygons_cw_or_ccw) {
 			Coordinate({0.8, 0.9, 0.0})
 	};
 
-	Delaunator delaunator(&c);
+	Delaunator delaunator(c);
 	Delaunator::Polygon p1 = { 0, 1, 2 };
 
-	auto trisCW  = delaunator.mesh({}, { p1, { 3, 4, 5 } });
-	auto trisCCW = delaunator.mesh({}, { p1, { 5, 4, 3 } });
+	auto trisCW  = delaunator.mesh({ p1, { 3, 4, 5 } });
+	auto trisCCW = delaunator.mesh({ p1, { 5, 4, 3 } });
 	
 	EXPECT_EQ(trisCW.size(), trisCCW.size());
 }
 
-TEST_F(DelaunatorTest, when_not_aligned)
+TEST_F(DelaunatorTest, throw_when_not_aligned)
 {
 	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 
-	EXPECT_NO_THROW(delaunator.mesh({ 0, 1, 2, 4 }));
+	EXPECT_THROW(delaunator.mesh({ { 0, 1, 2, 4 } }), std::runtime_error);
 }
 
 TEST_F(DelaunatorTest, throw_when_coordinateId_is_out_of_range)
 {
 	auto coords = buildCoordinates();
-	Delaunator delaunator(&coords);
+	Delaunator delaunator(coords);
 
-	EXPECT_ANY_THROW(delaunator.mesh({ 0, 1, 2, 350 }));
+	EXPECT_THROW(delaunator.mesh({ { 0, 1, 2, 350 } }), std::runtime_error);
 }
+
+TEST_F(DelaunatorTest, mesh_with_unaligned_but_ignore_coplanarity)
+{
+	auto coords = buildCoordinates();
+	Delaunator delaunator(coords);
+
+	Delaunator::Polygons polygons({ {0, 1, 2, 7} });
+
+	EXPECT_THROW(delaunator.mesh(polygons), std::runtime_error);
+
+	auto tris = delaunator.mesh({ polygons }, true);
+
+	EXPECT_EQ(2, tris.size());
+	for (auto const& tri : tris) {
+		EXPECT_EQ(Element::Type::Surface, tri.type);
+		EXPECT_EQ(3, tri.vertices.size());
+	}
+}
+/*
+TEST_F(DelaunatorTest, mesh_with_unaligned_but_ignore_coplanarity_2)
+{
+	auto coords = buildCoordinates();
+	Delaunator delaunator(coords);
+
+	Delaunator::Polygons polygons({ {0, 1, 2, 3, 7} });
+
+	EXPECT_THROW(delaunator.mesh(polygons), std::runtime_error);
+
+	auto tris = delaunator.mesh({ polygons }, true);
+
+	EXPECT_EQ(2, tris.size());
+	for (auto const& tri : tris) {
+		EXPECT_EQ(Element::Type::Surface, tri.type);
+		EXPECT_EQ(3, tri.vertices.size());
+	}
+}
+/**/
 
 }

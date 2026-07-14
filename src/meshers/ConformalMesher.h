@@ -23,6 +23,7 @@ public:
     static std::set<Cell> cellsWithMoreThanAPathPerFace(const Mesh& mesh);
     static std::set<Cell> cellsWithInteriorDisconnectedPatches(const Mesh& mesh);
     static std::set<Cell> cellsWithAVertexInAnEdgeForbiddenRegion(const Mesh& mesh);
+    static std::set<Cell> cellsWithOverlappingTriangles(const Mesh& mesh);
 private:
     Mesh inputMesh_;
     ConformalMesherOptions opts_;

@@ -251,15 +251,136 @@ std::vector<Adjacency> buildTrianglesAdjacenciesList(const ElementsView& es)
 
 void ElemGraph::constructEdgesFromTriangles(const ElementsView& elems, const Coordinates& coords)
 {      
+    std::map<ElementId, ElementId> degenerateTriangleAdjacent;
+
     for (auto const& adj: buildTrianglesAdjacenciesList(elems)) {
-        
-        
         ElementId eId1 = adj.first;
         ElementId eId2 = adj.second;
         const double pi = atan(1) * 4.0;
-        double angle = Geometry::normal(Geometry::asTriV(*elems[eId1], coords))
-            .angle(Geometry::normal(Geometry::asTriV(*elems[eId2], coords)));
-        this->addEdge(eId1, eId2, angle * 360.0 / (2.0 * pi));
+
+        auto triV1 = Geometry::asTriV(*elems[eId1], coords);
+        auto triV2 = Geometry::asTriV(*elems[eId2], coords);
+        auto vector1 = Geometry::normal(triV1);
+        auto vector2 = Geometry::normal(triV2);
+
+        auto furthestAdjacentVector1 = vector1;
+        auto furthestAdjacentVector2 = vector2;
+
+        if (vector1.norm() == 0.0) {
+            ElementId furthestAdjacentId = eId1;
+
+            while (degenerateTriangleAdjacent.find(furthestAdjacentId) != degenerateTriangleAdjacent.end()) {
+                furthestAdjacentId = degenerateTriangleAdjacent[furthestAdjacentId];
+            }
+
+            furthestAdjacentVector1 = Geometry::normal(Geometry::asTriV(*elems[furthestAdjacentId], coords));
+        }
+
+        if (vector2.norm() == 0.0) {
+            ElementId furthestAdjacentId = eId2;
+
+            while (degenerateTriangleAdjacent.find(furthestAdjacentId) != degenerateTriangleAdjacent.end()) {
+                furthestAdjacentId = degenerateTriangleAdjacent[furthestAdjacentId];
+            }
+
+            furthestAdjacentVector2 = Geometry::normal(Geometry::asTriV(*elems[furthestAdjacentId], coords));
+        }
+
+        double angle;
+
+        if (furthestAdjacentVector1.norm() == 0.0 || furthestAdjacentVector2.norm() == 0) {
+            angle = 0;
+        }
+        else {
+            angle = furthestAdjacentVector1.angleDeg(furthestAdjacentVector2);
+        }
+
+        if (vector1.norm() == 0.0 && degenerateTriangleAdjacent.find(eId1) == degenerateTriangleAdjacent.end()) {
+            degenerateTriangleAdjacent[eId1] = eId2;
+        }
+        else if (vector2.norm() == 0.0 && degenerateTriangleAdjacent.find(eId2) == degenerateTriangleAdjacent.end()){
+            degenerateTriangleAdjacent[eId2] = eId1;
+        }
+        
+
+        this->addEdge(eId1, eId2, angle);
+    }
+
+    IdSet ignore;
+
+    for (auto it = degenerateTriangleAdjacent.begin(); it != degenerateTriangleAdjacent.end(); ++it) {
+        ElementId nullAreaId = it->first;
+
+        if (ignore.find(nullAreaId) != ignore.end()) {
+            continue;
+        }
+
+        auto adjacents = this->getAdjacentVertices(nullAreaId);
+
+        if (adjacents.size() < 3) {
+            continue;
+        }
+        
+        ElementId firstAdjacent = *adjacents.begin();
+        ElementId secondAdjacent = *std::next(adjacents.begin());
+        ElementId thirdAdjacent = *adjacents.rbegin();
+
+        while (firstAdjacent != it->second) {
+            std::swap(firstAdjacent, secondAdjacent);
+            std::swap(secondAdjacent, thirdAdjacent);
+        }
+
+        auto firstImportant = firstAdjacent;
+        auto secondImportant = secondAdjacent;
+        auto thirdImportant = thirdAdjacent;
+
+        while (degenerateTriangleAdjacent.find(firstImportant) != degenerateTriangleAdjacent.end()) {
+            firstImportant = degenerateTriangleAdjacent[firstImportant];
+        }
+
+        while (degenerateTriangleAdjacent.find(secondImportant) != degenerateTriangleAdjacent.end()) {
+            secondImportant = degenerateTriangleAdjacent[secondImportant];
+        }
+
+        while (degenerateTriangleAdjacent.find(thirdImportant) != degenerateTriangleAdjacent.end()) {
+            thirdImportant = degenerateTriangleAdjacent[thirdImportant];
+        }
+
+        if (ignore.find(firstImportant) != ignore.end() || ignore.find(secondImportant) != ignore.end() || ignore.find(thirdImportant) != ignore.end()) {
+            continue;
+        }
+
+        if (firstAdjacent != firstImportant) {
+            ignore.insert(firstAdjacent);
+        }
+        if (secondAdjacent != secondImportant) {
+            ignore.insert(firstAdjacent);
+        }
+        if (thirdAdjacent != thirdImportant) {
+            ignore.insert(firstAdjacent);
+        }
+
+        auto triangle1 = Geometry::asTriV(*elems[firstImportant], coords);
+        auto triangle2 = Geometry::asTriV(*elems[secondImportant], coords);
+        auto triangle3 = Geometry::asTriV(*elems[thirdImportant], coords);
+
+        auto normal1 = Geometry::normal(triangle1);
+        auto normal2 = Geometry::normal(triangle2);
+        auto normal3 = Geometry::normal(triangle3);
+
+        auto angle12 = normal1.angleDeg(normal2);
+        auto angle13 = normal1.angleDeg(normal3);
+        auto angle23 = normal2.angleDeg(normal3);
+
+        if (angle12 != 0 && angle13 != 0 && angle23 == 0) {
+            this->removeEdge(nullAreaId, firstAdjacent);
+            this->removeEdge(nullAreaId, secondAdjacent);
+            this->removeEdge(nullAreaId, thirdAdjacent);
+
+            this->addEdge(nullAreaId, firstAdjacent, angle12);
+            this->addEdge(nullAreaId, secondAdjacent, 0);
+            this->addEdge(nullAreaId, thirdAdjacent, 0);
+        }
     }
 }
 

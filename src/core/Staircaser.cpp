@@ -8,7 +8,7 @@ namespace meshlib {
 namespace core {
 using namespace utils;
 
-Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid)
+Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid), fillerType_(GapsFillingType::None)
 {
     inputMesh_ = inputMesh;
 
@@ -41,28 +41,28 @@ Mesh Staircaser::getMesh()
         }
     }
 
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
 
     return mesh_;
 }
 
-CoordinateMap buildCoordinateMap(const Coordinates& cs) 
+CoordinateMap buildCoordinateMap(const Coordinates& coordinates) 
 {
-    CoordinateMap res;
-    for (std::size_t c = 0; c < cs.size(); ++c) {
-        res[cs[c]] = c;       
+    CoordinateMap result;
+    for (CoordinateId c = 0; c < coordinates.size(); ++c) {
+        result[coordinates[c]] = c;       
     }
-    return res;
+    return result;
 }
 
 IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId, CoordinateId>& edge)
 {
     IdSet commonNeighborsVertices;
 
-    const auto& vertex1 = edge.first;
-    const auto& vertex2 = edge.second;
+    const CoordinateId& vertex1 = edge.first;
+    const CoordinateId& vertex2 = edge.second;
 
     GridTools gridTools;
     auto cellElemMap = gridTools.buildCellElemMap(mesh.groups[0].elements, mesh.coordinates);
@@ -74,67 +74,68 @@ IdSet findCommonNeighborsVertices(const Mesh& mesh, const std::pair<CoordinateId
     IdSet neighborsOfVertex1;
     IdSet neighborsOfVertex2;
 
-    for (const auto& c : cellsCoord1) {
-        auto it = cellElemMap.find(c);
+    for (const auto& cell : cellsCoord1) {
+        auto it = cellElemMap.find(cell);
         if (it == cellElemMap.end()) {
             continue;
         } else {
-            for (const auto& e : cellElemMap.at(c)) {
+            for (const auto& e : cellElemMap.at(cell)) {
                 const auto& elementVertices = e->vertices;
                 auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex1);
-    
-                if (it != elementVertices.end()) {
-                    auto pos = std::distance(elementVertices.begin(), it);
-                    auto n = elementVertices.size();
-    
-                    neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]); 
-                    neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]); 
-                }        
-            }
-        }
-    }
 
-    for (const auto& c : cellsCoord2) {
-        auto it = cellElemMap.find(c);
-        if (it == cellElemMap.end()) {
-            continue;
-        } else {
-            for (const auto& e : cellElemMap.at(c)) {
-                const auto& elementVertices = e->vertices;
-                auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
-    
                 if (it != elementVertices.end()) {
                     auto pos = std::distance(elementVertices.begin(), it);
                     auto n = elementVertices.size();
-    
-                    neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]); 
-                    neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]); 
+
+                    neighborsOfVertex1.insert(elementVertices[(pos + n - 1) % n]);
+                    neighborsOfVertex1.insert(elementVertices[(pos + 1) % n]);
                 }
             }
         }
     }
 
-    for (const auto& v : neighborsOfVertex1) {
-        if (neighborsOfVertex2.count(v)) {
-            commonNeighborsVertices.insert(v);
+    for (const auto& cell : cellsCoord2) {
+        auto it = cellElemMap.find(cell);
+        if (it == cellElemMap.end()) {
+            continue;
+        } else {
+            for (const auto& e : cellElemMap.at(cell)) {
+                const auto& elementVertices = e->vertices;
+                auto it = std::find(elementVertices.begin(), elementVertices.end(), vertex2);
+
+                if (it != elementVertices.end()) {
+                    auto pos = std::distance(elementVertices.begin(), it);
+                    auto n = elementVertices.size();
+
+                    neighborsOfVertex2.insert(elementVertices[(pos + n - 1) % n]);
+                    neighborsOfVertex2.insert(elementVertices[(pos + 1) % n]);
+                }
+            }
+        }
+    }
+
+    for (const auto& vertexId : neighborsOfVertex1) {
+        if (neighborsOfVertex2.count(vertexId)) {
+            commonNeighborsVertices.insert(vertexId);
         }
     }
 
     return commonNeighborsVertices;
 }
 
-Elements findTrianglesWithEdge(const Mesh& mesh, const std::pair<CoordinateId, CoordinateId>& edge) {
-    Elements foundTriangles;
-    const auto& v1 = edge.first;
-    const auto& v2 = edge.second;
+std::vector<ElementId> findTrianglesWithEdge(const Elements& elements, const std::pair<CoordinateId, CoordinateId>& edge) {
+    std::vector<ElementId> foundTriangles;
+    const CoordinateId& vertex1 = edge.first;
+    const CoordinateId& vertex2 = edge.second;
 
-    for (const auto& element : mesh.groups[0].elements) {
+    for (ElementId e = 0; e < elements.size(); ++e) {
+        const Element& element = elements[e];
         if (element.vertices.size() == 3) {
-            auto it1 = std::find(element.vertices.begin(), element.vertices.end(), v1);
-            auto it2 = std::find(element.vertices.begin(), element.vertices.end(), v2);
+            auto it1 = std::find(element.vertices.begin(), element.vertices.end(), vertex1);
+            auto it2 = std::find(element.vertices.begin(), element.vertices.end(), vertex2);
 
             if (it1 != element.vertices.end() && it2 != element.vertices.end()) {
-                foundTriangles.push_back(element);
+                foundTriangles.push_back(e);
             }
         }
     }
@@ -153,13 +154,13 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
         auto& meshGroup = mesh_.groups[g];
         meshGroup.elements.reserve(inputGroup.elements.size() * 2);
 
-        auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
+        auto inputCellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
-        for (const auto& c : cellsToStructure) {
-            if (!cellElemMap.count(c)) {
+        for (const auto& cell : cellsToStructure) {
+            if (!inputCellElemMap.count(cell)) {
                 continue;
             }
-            for (const auto e:  cellElemMap.at(c)) {
+            for (const auto e:  inputCellElemMap.at(cell)) {
                 if (e->isLine()) {  
                     this->processLineAndAddToGroup(*e, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
                 }
@@ -173,19 +174,19 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
         std::map<Cell, std::vector<const Element*>> cellElemMap_withNewElements;
         CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
 
-        for (const auto& [cell, elements] : cellElemMap) {
+        for (const auto& [cell, elements] : inputCellElemMap) {
             if (cellsToStructure.count(cell) ) {
                 continue;
             }
-            for (const auto e : elements) {
-                auto [newElement, boundaryCoordinates] = obtainNewIndexForElement(*e, cellsToStructure, coordinateMap);              
+            for (const auto elementIt : elements) {
+                auto [newElement, boundaryCoordinates] = obtainNewIndexForElement(*elementIt, cellsToStructure, coordinateMap);
 
-                auto allCoordsOnBoundary = isAllCoordinatesOnTheSameCellBoundary(newElement, cellsToStructure);
+                bool allCoordsOnBoundary = isAllCoordinatesOnTheSameCellBoundary(newElement, cellsToStructure);
 
                 if (!allCoordsOnBoundary) {
                     meshGroup.elements.push_back(newElement);
                     cellElemMap_withNewElements[cell].push_back(&meshGroup.elements.back());
-    
+
                     for (size_t i = 0; i < boundaryCoordinates.size(); ++i) {
                         for (size_t j = i + 1; j < boundaryCoordinates.size(); ++j) {
                             boundaryCoordinatePairs.emplace(boundaryCoordinates[i], boundaryCoordinates[j]);
@@ -197,24 +198,24 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
             auto itCell = cellElemMap_withNewElements.find(cell);
             if (itCell != cellElemMap_withNewElements.end()) {
 
-                auto elementsConvertedInLines = getElementsConvertedInLines(cell, cellElemMap_withNewElements);
+                auto elementsConvertedInLines = getElementsConvertedToLines(cell, cellElemMap_withNewElements);
                 splitLinesWithNeighborTriangle(g, elementsConvertedInLines, meshGroup, cell, cellElemMap_withNewElements, toRemove);
-                
+
             }
         }
     }
-    
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::removeDegenerateElements(mesh_);
-    RedundancyCleaner::removeRepeatedElements(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeRepeatedElements(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
 
     for (auto it = boundaryCoordinatePairs.begin(); it != boundaryCoordinatePairs.end();) {
         const auto& [coord1, coord2] = *it;
         
-        bool alignedInXY = (coord1[2] == coord2[2]) && (coord1[0] == coord2[0] || coord1[1] == coord2[1]);
-        bool alignedInXZ = (coord1[1] == coord2[1]) && (coord1[0] == coord2[0] || coord1[2] == coord2[2]);
-        bool alignedInYZ = (coord1[0] == coord2[0]) && (coord1[1] == coord2[1] || coord1[2] == coord2[2]);
+        bool alignedInXY = (coord1[Z] == coord2[Z]) && (coord1[X] == coord2[X] || coord1[Y] == coord2[Y]);
+        bool alignedInXZ = (coord1[Y] == coord2[Y]) && (coord1[X] == coord2[X] || coord1[Z] == coord2[Z]);
+        bool alignedInYZ = (coord1[X] == coord2[X]) && (coord1[Y] == coord2[Y] || coord1[Z] == coord2[Z]);
 
 
         if (alignedInXY || alignedInXZ || alignedInYZ) {
@@ -224,145 +225,128 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
         }
     }
 
-    fillGaps(boundaryCoordinatePairs);   
+    fillGaps(boundaryCoordinatePairs);
 
     return mesh_;
 }
 
 void Staircaser::fillGaps(const RelativePairSet boundaryCoordinatePairs) {
-    std::set<std::vector<ElementId>> uniqueElementsByVertices;
-    for (const auto& element : mesh_.groups[0].elements) {
-        uniqueElementsByVertices.insert(element.vertices);
-    }
-
     CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
-    for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
-        auto v1 = coordinateMap.at(coord1);
-        auto v2 = coordinateMap.at(coord2);
-        std::pair<CoordinateId, CoordinateId> edge = std::make_pair(v1, v2);
 
-        auto commonNeighbors = findCommonNeighborsVertices(mesh_, edge);
-
-        auto triangles = findTrianglesWithEdge(mesh_, edge);
-        bool correctOrientation;
-        ElementId thirdVertex;
-
-        if (!triangles.empty()) {
-            for (const auto& elem : triangles) {
-                thirdVertex = -1;
-
-                const auto& verts = elem.vertices; 
-                auto it1 = std::find(verts.begin(), verts.end(), v1);
-                auto it2 = std::find(verts.begin(), verts.end(), v2);
-
-                int idx1 = std::distance(verts.begin(), it1);
-                int idx2 = std::distance(verts.begin(), it2);
-
-                int nextIdx1 = (idx1 + 1) % 3;
-                int prevIdx1 = (idx1 + 2) % 3;
-
-                if (idx2 == nextIdx1) {
-                    thirdVertex = verts[(idx2 + 1) % 3];
-                    correctOrientation = true;
-                } else if (idx2 == prevIdx1) {
-                    thirdVertex = verts[(idx1 + 1) % 3];
-                    correctOrientation = false;
-                }
-            }
+    std::vector<IdSet> toRemove(mesh_.groups.size());
+    
+    for (GroupId g = 0; g < mesh_.groups.size(); ++g) {
+        std::set<std::vector<ElementId>> uniqueElementsByVertices;
+        auto& group = mesh_.groups[g];
+        for (const auto& element : group.elements) {
+            uniqueElementsByVertices.insert(element.vertices);
         }
 
-        if (fillerType_ == GapsFillingType::Insert) {
-            for (const auto& neighborVertex : commonNeighbors) {
-                Element triangle;
-                triangle.type = Element::Type::Surface;
-                triangle.vertices = { v1, v2, neighborVertex };
+        for (const auto& [coord1, coord2] : boundaryCoordinatePairs) {
+            auto firstVertexId = coordinateMap.at(coord1);
+            auto secondVertexId = coordinateMap.at(coord2);
+            std::pair<CoordinateId, CoordinateId> edge = std::make_pair(firstVertexId, secondVertexId);
 
-                if (!correctOrientation) {
-                    std::swap(triangle.vertices[1], triangle.vertices[2]);
-                }
+            auto commonNeighbors = findCommonNeighborsVertices(mesh_, edge);
 
-                auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
-                std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
+            auto triangleIds = findTrianglesWithEdge(group.elements, edge);
+            bool correctOrientation = false;
+            ElementId thirdVertexId = -1;
 
-                bool elementAlreadyExists = false;
+            if (!triangleIds.empty()) {
+                for (auto& e : triangleIds) {
+                    const auto& triangle = group.elements[e];
+                    const auto& verts = triangle.vertices;
+                    auto itVertex1 = std::find(verts.begin(), verts.end(), firstVertexId);
+                    auto itVertex2 = std::find(verts.begin(), verts.end(), secondVertexId);
 
-                for (const auto& existing : uniqueElementsByVertices) {
-                    auto existingVerts = existing;
-                    auto minItExisting = std::min_element(existingVerts.begin(), existingVerts.end());
-                    std::rotate(existingVerts.begin(), minItExisting, existingVerts.end());
+                    auto v1 = static_cast<int>(std::distance(verts.begin(), itVertex1));
+                    auto v2 = static_cast<int>(std::distance(verts.begin(), itVertex2));
 
-                    if (existingVerts == triangle.vertices) {
-                        elementAlreadyExists = true;
-                        break;
+                    if (v2 == (v1 + 1) % 3) {
+                        correctOrientation = true;
+                        thirdVertexId = verts[(v2 + 1) % 3];
                     }
-                }
-
-                if (!elementAlreadyExists) {
-                    std::swap(triangle.vertices[1], triangle.vertices[2]);
-                    mesh_.groups[0].elements.push_back(triangle);
-                    uniqueElementsByVertices.insert(triangle.vertices);
+                    else {
+                        correctOrientation = false;
+                        thirdVertexId = verts[(v1 + 1) % 3];
+                    }
                 }
             }
-        } else if (fillerType_ == GapsFillingType::Split) {
-            for (const auto& neighborVertex : commonNeighbors) {
-                if (neighborVertex != thirdVertex) {
-                    Element triangleToRemove;
-                    triangleToRemove.type = Element::Type::Surface;
-                    triangleToRemove.vertices = { v1, v2, thirdVertex };
+            else {
+                continue;
+            }
 
-                    Element triangle1;
-                    triangle1.type = Element::Type::Surface;
-                    triangle1.vertices = { v1, neighborVertex, thirdVertex };
-
-                    Element triangle2;
-                    triangle2.type = Element::Type::Surface;
-                    triangle2.vertices = { neighborVertex, v2, thirdVertex };
+            if (fillerType_ == GapsFillingType::Insert) {
+                for (const auto& neighborVertex : commonNeighbors) {
+                    Element triangle;
+                    triangle.type = Element::Type::Surface;
+                    triangle.vertices = { firstVertexId, secondVertexId, neighborVertex };
 
                     if (!correctOrientation) {
-                        std::swap(triangleToRemove.vertices[1], triangleToRemove.vertices[2]);
-                        std::swap(triangle1.vertices[1], triangle1.vertices[2]);
-                        std::swap(triangle2.vertices[1], triangle2.vertices[2]);
+                        std::swap(triangle.vertices[1], triangle.vertices[2]);
                     }
 
-                    auto minIt = std::min_element(triangleToRemove.vertices.begin(), triangleToRemove.vertices.end());
-                    std::rotate(triangleToRemove.vertices.begin(), minIt, triangleToRemove.vertices.end());
+                    auto minIt = std::min_element(triangle.vertices.begin(), triangle.vertices.end());
+                    std::rotate(triangle.vertices.begin(), minIt, triangle.vertices.end());
 
-                    auto minIt1 = std::min_element(triangle1.vertices.begin(), triangle1.vertices.end());
-                    std::rotate(triangle1.vertices.begin(), minIt1, triangle1.vertices.end());
+                    bool elementAlreadyExists = false;
 
-                    auto minIt2 = std::min_element(triangle2.vertices.begin(), triangle2.vertices.end());
-                    std::rotate(triangle2.vertices.begin(), minIt2, triangle2.vertices.end());
+                    for (const auto& existing : uniqueElementsByVertices) {
+                        auto existingVerts = existing;
+                        auto minItExisting = std::min_element(existingVerts.begin(), existingVerts.end());
+                        std::rotate(existingVerts.begin(), minItExisting, existingVerts.end());
 
-                    mesh_.groups[0].elements.push_back(triangle1);
-                    mesh_.groups[0].elements.push_back(triangle2);
-
-                    std::vector<IdSet> toRemove(mesh_.groups.size());
-                    for (GroupId g = 0; g < mesh_.groups.size(); ++g) {
-                        const auto& elements = mesh_.groups[g].elements;
-                        for (std::size_t i = 0; i < elements.size(); ++i) {
-                            if (elements[i].type != Element::Type::Surface) {
-                                continue;
-                            }
-
-                            auto verts = elements[i].vertices;
-                            auto minIt = std::min_element(verts.begin(), verts.end());
-                            std::rotate(verts.begin(), minIt, verts.end());
-
-                            if (verts == triangleToRemove.vertices) {
-                                toRemove[g].insert(i);
-                            }
+                        if (existingVerts == triangle.vertices) {
+                            elementAlreadyExists = true;
+                            break;
                         }
                     }
 
-                    RedundancyCleaner::removeElements(mesh_, toRemove);
+                    if (!elementAlreadyExists) {
+                        std::swap(triangle.vertices[1], triangle.vertices[2]);
+                        mesh_.groups[0].elements.push_back(triangle);
+                        uniqueElementsByVertices.insert(triangle.vertices);
+                    }
                 }
             }
-        } else {
-            break;
+            else if (fillerType_ == GapsFillingType::Split) {
+                for (const auto& neighborVertex : commonNeighbors) {
+                    if (neighborVertex != thirdVertexId) {
+                        toRemove[g].insert(triangleIds.back());
+
+                        Element triangle1;
+                        triangle1.type = Element::Type::Surface;
+                        triangle1.vertices = { firstVertexId, neighborVertex, thirdVertexId };
+
+                        Element triangle2;
+                        triangle2.type = Element::Type::Surface;
+                        triangle2.vertices = { neighborVertex, secondVertexId, thirdVertexId };
+
+                        if (!correctOrientation) {
+                            std::swap(triangle1.vertices[1], triangle1.vertices[2]);
+                            std::swap(triangle2.vertices[1], triangle2.vertices[2]);
+                        }
+
+                        auto minIt1 = std::min_element(triangle1.vertices.begin(), triangle1.vertices.end());
+                        std::rotate(triangle1.vertices.begin(), minIt1, triangle1.vertices.end());
+
+                        auto minIt2 = std::min_element(triangle2.vertices.begin(), triangle2.vertices.end());
+                        std::rotate(triangle2.vertices.begin(), minIt2, triangle2.vertices.end());
+
+                        mesh_.groups[0].elements.push_back(triangle1);
+                        mesh_.groups[0].elements.push_back(triangle2);
+                    }
+                }
+            }
+            else {
+                break;
+            }
         }
     }
 
-    RedundancyCleaner::removeDegenerateElements(mesh_);
+    redundancyCleaner::removeElements(mesh_, toRemove);   
+    redundancyCleaner::removeDegenerateElements(mesh_);
 }
 
 std::pair<Element, Relatives> Staircaser::obtainNewIndexForElement(const Element& e, const std::set<Cell>& cellsToStructure, CoordinateMap& coordinateMap) {
@@ -373,10 +357,10 @@ std::pair<Element, Relatives> Staircaser::obtainNewIndexForElement(const Element
     Relatives boundaryCoordinates;
 
     for (const auto& vertexIndex : e.vertices) {
-        const auto& vertexCoord = inputMesh_.coordinates[vertexIndex];
+        const auto& vertex = inputMesh_.coordinates[vertexIndex];
 
         bool isOnCellBoundary = false;
-        auto touchingCells = GridTools::getTouchingCells(vertexCoord);
+        auto touchingCells = GridTools::getTouchingCells(vertex);
 
         for (const auto& touchingCell : touchingCells) {
             if (cellsToStructure.count(touchingCell)) {
@@ -387,24 +371,24 @@ std::pair<Element, Relatives> Staircaser::obtainNewIndexForElement(const Element
 
         CoordinateId newIndex;
         if (isOnCellBoundary) {
-            auto relCoord = toRelative(calculateStaircasedCell(vertexCoord));
-            auto it = coordinateMap.find(relCoord);
+            auto relativeCoordinate = toRelative(calculateStaircasedCell(vertex));
+            auto it = coordinateMap.find(relativeCoordinate);
 
             if (it == coordinateMap.end()) {
-                mesh_.coordinates.push_back(relCoord);
+                mesh_.coordinates.push_back(relativeCoordinate);
                 newIndex = int(mesh_.coordinates.size() - 1);
-                coordinateMap.emplace(relCoord, newIndex);
+                coordinateMap.emplace(relativeCoordinate, newIndex);
             } else {
                 newIndex = it->second;
             }
 
-            boundaryCoordinates.push_back(relCoord);
+            boundaryCoordinates.push_back(relativeCoordinate);
         } else {
-            auto it = coordinateMap.find(vertexCoord);
+            auto it = coordinateMap.find(vertex);
             if (it == coordinateMap.end()) {
-                mesh_.coordinates.push_back(vertexCoord);
+                mesh_.coordinates.push_back(vertex);
                 newIndex = int(mesh_.coordinates.size() - 1);
-                coordinateMap.emplace(vertexCoord, newIndex);
+                coordinateMap.emplace(vertex, newIndex);
             } else {
                 newIndex = it->second;
             }
@@ -417,46 +401,48 @@ std::pair<Element, Relatives> Staircaser::obtainNewIndexForElement(const Element
 }
 
 bool Staircaser::isAllCoordinatesOnTheSameCellBoundary(const Element& newElement, const std::set<Cell>& cellsToStructure) {
-    std::set<Cell> commonStructuredCells;
+    std::set<Cell> commonStaircasedCells;
     bool firstVertex = true;
 
-    for (const auto& vertex : newElement.vertices) {
-        const auto& vertexCoord = mesh_.coordinates[vertex];
-        auto touchingCells = GridTools::getTouchingCells(vertexCoord);
+    for (const auto& vertexId : newElement.vertices) {
+        const auto& vertex = mesh_.coordinates[vertexId];
+        auto touchingCells = GridTools::getTouchingCells(vertex);
 
-        std::set<Cell> structuredTouchingCells;
-        for (const auto& c : touchingCells) {
-            if (cellsToStructure.count(c)) {
-                structuredTouchingCells.insert(c);
+        std::set<Cell> staircasedTouchingCells;
+        for (const auto& cell : touchingCells) {
+            if (cellsToStructure.count(cell)) {
+                staircasedTouchingCells.insert(cell);
             }
         }
 
         if (firstVertex) {
-            commonStructuredCells = std::move(structuredTouchingCells);
+            commonStaircasedCells = std::move(staircasedTouchingCells);
             firstVertex = false;
         } else {
             std::set<Cell> intersection;
-            std::set_intersection(commonStructuredCells.begin(), commonStructuredCells.end(),
-                                structuredTouchingCells.begin(), structuredTouchingCells.end(),
+            std::set_intersection(commonStaircasedCells.begin(), commonStaircasedCells.end(),
+                                staircasedTouchingCells.begin(), staircasedTouchingCells.end(),
                                 std::inserter(intersection, intersection.begin()));
-            commonStructuredCells = std::move(intersection);
+            commonStaircasedCells = std::move(intersection);
         }
 
-        if (commonStructuredCells.empty()) break;
+        if (commonStaircasedCells.empty()) {
+            break;
+        }
     }
 
-    return !commonStructuredCells.empty();
+    return !commonStaircasedCells.empty();
 }
 
-std::set<Element> Staircaser::getElementsConvertedInLines(Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap) {
+std::set<Element> Staircaser::getElementsConvertedToLines(Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap) {
     std::set<Element> elementsConvertedInLines;
 
-    for (const auto& e : cellElemMap.at(cell)) {
-        if (!e->vertices.empty()) {
+    for (const auto& element : cellElemMap.at(cell)) {
+        if (!element->vertices.empty()) {
             bool allVerticesAreEqual = std::all_of(
-                e->vertices.begin() + 1,
-                e->vertices.end(),
-                [&](int v) { return v == e->vertices.front(); }
+                element->vertices.begin() + 1,
+                element->vertices.end(),
+                [&](int v) { return v == element->vertices.front(); }
             );
 
             if (allVerticesAreEqual) {
@@ -464,27 +450,27 @@ std::set<Element> Staircaser::getElementsConvertedInLines(Cell cell, std::map<Ce
             }
         }
 
-        if (e->isTriangle()) {
-            const auto& firstVertexCoords  = mesh_.coordinates[e->vertices[0]];
-            const auto& secondVertexCoords = mesh_.coordinates[e->vertices[1]];
-            const auto& thirdVertexCoords  = mesh_.coordinates[e->vertices[2]];
+        if (element->isTriangle()) {
+            const auto& firstVertex  = mesh_.coordinates[element->vertices[0]];
+            const auto& secondVertex = mesh_.coordinates[element->vertices[1]];
+            const auto& thirdVertex  = mesh_.coordinates[element->vertices[2]];
 
             int equalCoords = 0;
 
-            for (int dim = 0; dim < 3; ++dim) {
-                if (firstVertexCoords[dim] == secondVertexCoords[dim] &&
-                    secondVertexCoords[dim] == thirdVertexCoords[dim]) {
+            for (Axis axis = X; axis <= Z; ++axis) {
+                if (firstVertex[axis] == secondVertex[axis] &&
+                    secondVertex[axis] == thirdVertex[axis]) {
                     ++equalCoords;
                 }
             }
 
             bool areTwoVerticesEqual =
-                (firstVertexCoords == secondVertexCoords) ||
-                (secondVertexCoords == thirdVertexCoords) ||
-                (firstVertexCoords == thirdVertexCoords);
+                (firstVertex == secondVertex) ||
+                (secondVertex == thirdVertex) ||
+                (firstVertex == thirdVertex);
 
             if (equalCoords == 2 && !areTwoVerticesEqual) {
-                elementsConvertedInLines.insert(*e);
+                elementsConvertedInLines.insert(*element);
             }
         }
     }
@@ -492,11 +478,11 @@ std::set<Element> Staircaser::getElementsConvertedInLines(Cell cell, std::map<Ce
     return elementsConvertedInLines;
 }
 
-void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::set<Element> elementsConvertedInLines, Group& meshGroup, const Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap, std::vector<std::set<ElementId>> toRemove) {
-    for (const auto& e: elementsConvertedInLines) {
+void Staircaser::splitLinesWithNeighborTriangle(const GroupId groupIndex, std::set<Element> elementsConvertedToLines, Group& meshGroup, const Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap, std::vector<std::set<ElementId>> toRemove) {
+    for (const auto& element: elementsConvertedToLines) {
         bool processed = false;
-        for (const auto& otherElementsInCell: cellElemMap.at(cell)) {
-            if (e == *otherElementsInCell) {
+        for (const auto& otherElementInCell: cellElemMap.at(cell)) {
+            if (element == *otherElementInCell) {
                 continue;
             }
 
@@ -504,10 +490,10 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
             int sharedCount = 0;
             bool correctOrientation = false;
 
-            for (int i = 0; i < otherElementsInCell->vertices.size(); ++i) {
-                int vOther = otherElementsInCell->vertices[i];
+            for (int v = 0; v < otherElementInCell->vertices.size(); ++v) {
+                int vOther = otherElementInCell->vertices[v];
 
-                if (std::find(e.vertices.begin(), e.vertices.end(), vOther) != e.vertices.end()) {
+                if (std::find(element.vertices.begin(), element.vertices.end(), vOther) != element.vertices.end()) {
                     sharedVertices.insert(vOther);
                     ++sharedCount;
                 }
@@ -516,50 +502,52 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 
             bool shareExactlyTwo = (sharedCount == 2);
 
-            if(shareExactlyTwo && otherElementsInCell->isTriangle()) {
-                
-                auto v1 = *sharedVertices.begin();
-                auto v2 = *std::next(sharedVertices.begin());
+            if(shareExactlyTwo && otherElementInCell->isTriangle()) {
 
-                auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
-                auto itV2 = std::find(e.vertices.begin(), e.vertices.end(), v2);
-                correctOrientation = (itV1 < itV2);
+                auto vertexId1 = *sharedVertices.begin();
+                auto vertexId2 = *std::next(sharedVertices.begin());
+
+                auto itV1 = std::find(element.vertices.begin(), element.vertices.end(), vertexId1);
+                auto itV2 = std::find(element.vertices.begin(), element.vertices.end(), vertexId2);
+                auto idx1 = static_cast<int>(std::distance(element.vertices.begin(), itV1));
+                auto idx2 = static_cast<int>(std::distance(element.vertices.begin(), itV2));
+                correctOrientation = (idx2 == (idx1 + 1) % 3);
 
                 if(!correctOrientation) {
-                    std::swap(v1, v2);
-                } 
+                    std::swap(vertexId1, vertexId2);
+                }
 
-                CoordinateId v4 = -1;
-                for (const auto& v : e.vertices) {
-                    if (v != v1 && v != v2) {
-                        v4 = v;
+                CoordinateId vertexId4 = -1;
+                for (const auto& vertexId : element.vertices) {
+                    if (vertexId != vertexId1 && vertexId != vertexId2) {
+                        vertexId4 = vertexId;
                         break;
                     }
                 }
 
-                CoordinateId v3 = -1;
-                for (const auto& v : otherElementsInCell->vertices) {
-                    if (v != v1 && v != v2) {
-                        v3 = v;
+                CoordinateId vertexId3 = -1;
+                for (const auto& vertexId : otherElementInCell->vertices) {
+                    if (vertexId != vertexId1 && vertexId != vertexId2) {
+                        vertexId3 = vertexId;
                         break;
                     }
                 }
 
                 Element triangle1;
                 triangle1.type = Element::Type::Surface;
-                triangle1.vertices = { v3, v2, v4 };
+                triangle1.vertices = { vertexId3, vertexId2, vertexId4 };
 
                 Element triangle2;
                 triangle2.type = Element::Type::Surface;
-                triangle2.vertices = { v4, v1, v3 };
-                
-                auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementsInCell);
+                triangle2.vertices = { vertexId4, vertexId1, vertexId3 };
+
+                auto itOtherElement = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), *otherElementInCell);
                 if (itOtherElement != meshGroup.elements.end()) {
                     ElementId otherElementId = std::distance(meshGroup.elements.begin(), itOtherElement);
                     toRemove[groupIndex].insert(otherElementId);
                 }
 
-                auto itElement      = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), e);
+                auto itElement      = std::find(meshGroup.elements.begin(), meshGroup.elements.end(), element);
                 if (itElement != meshGroup.elements.end()) {
                     ElementId elementId = std::distance(meshGroup.elements.begin(), itElement);
                     toRemove[groupIndex].insert(elementId);
@@ -568,14 +556,16 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
                 meshGroup.elements.push_back(triangle1);
                 meshGroup.elements.push_back(triangle2);
 
-                RedundancyCleaner::removeElements(mesh_, toRemove);
+                redundancyCleaner::removeElements(mesh_, toRemove);
                 toRemove[groupIndex].clear();
 
                 processed = true;
                 break;
             }
         }
-        if(processed) {continue;}
+        if(processed) {
+            continue;
+        }
     }
 }
 
@@ -605,9 +595,9 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
         }
     }
 
-    RedundancyCleaner::fuseCoords(auxiliarMesh);
-    RedundancyCleaner::removeDegenerateElements(auxiliarMesh);
-    RedundancyCleaner::cleanCoords(auxiliarMesh);
+    redundancyCleaner::fuseCoords(auxiliarMesh);
+    redundancyCleaner::removeDegenerateElements(auxiliarMesh);
+    redundancyCleaner::cleanCoords(auxiliarMesh);
 
     std::map<Surfel, IdSet> idSetByCellSurface;
     std::map<Surfel, RelativeIds> relativeIdsByCellSurface;

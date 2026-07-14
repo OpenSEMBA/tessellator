@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+﻿#include "gtest/gtest.h"
 #include "MeshFixtures.h"
 #include "MeshTools.h"
 
@@ -17,9 +17,9 @@ protected:
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
-        opts.snapperOptions.edgePoints = 3;
-        opts.snapperOptions.forbiddenLength = 0.3;
-        
+        opts.snapperOptions.edgePoints = 20;
+        opts.snapperOptions.forbiddenLength = 0.005;
+
         ConformalMesher mesher{inputMesh, opts};
 
         Mesh res = mesher.mesh();
@@ -333,6 +333,275 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_8)
     EXPECT_EQ(2, res.size());
 }
 
+TEST_F(ConformalMesherTest, cellsWithOverlappingTriangles_1)
+{
+    // 2 Surface Triangles with common edge on cell line
+    //  1_
+    //  ║\‾-_
+    //  ║ \  ‾-_
+    //  ║  \    ‾-_v
+    //  0===2------3
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({0.0, 1.0, 1.0}), // 1
+            Relative({0.4, 0.0, 1.0}), // 2
+            Relative({1.0, 0.0, 1.0}), // 3
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({3, 1, 0}),
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    Cell expectedCell = Cell({ 0, 0, 1 });
+
+    ASSERT_EQ(1, res.size());
+    for (Axis axis = X; axis <= Z; ++axis) {
+        const Cell& cell = *res.begin();
+        EXPECT_EQ(expectedCell[axis], cell[axis]) << "Cell Axis #" << axis;
+    }
+}
+
+TEST_F(ConformalMesherTest, cellsWithOverlappingTriangles_2)
+{
+    // 2 Surface Triangles with common edge on surface diagonal
+    //  1
+    //  ⎹=_
+    //  ⎹\‾=_
+    //  ⎹ \ ‾=_
+    //  ⎹  \  ‾=
+    //  0---2===3
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({0.0, 1.0, 1.0}), // 1
+            Relative({0.5, 0.0, 1.0}), // 2
+            Relative({1.0, 0.0, 1.0}), // 3
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 3}),
+            Element({2, 3, 1}),
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    EXPECT_EQ(1, res.size());
+
+    Cell expectedCell = Cell({ 0, 0, 1 });
+
+    ASSERT_EQ(1, res.size());
+    for (Axis axis = X; axis <= Z; ++axis) {
+        const Cell& cell = *res.begin();
+        EXPECT_EQ(expectedCell[axis], cell[axis]) << "Cell Axis #" << axis;
+    }
+}
+
+TEST_F(ConformalMesherTest, cellsWithOverlappingTriangles_3)
+{
+    // 2 Diagonal Triangles with common edge in Cell surface
+    //        *--------------3
+    //       /|            ⫽║
+    //      / |          ╱//║⎸
+    //    z/  |        ╱ //║ ⎸
+    //    *---┼------⌿--*//║ |
+    //    |   |y   ╱    /⎹║  ⎸
+    //    |   *--╱-----⌿-┼║--*
+    //    |  / ╱      / ⎹║  /    
+    //    | /╱       /  ⎹║ /
+    //    |⫽       /    ║/
+    //    0--------1====2 x
+
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({0.6, 0.0, 1.0}), // 1
+            Relative({1.0, 0.0, 1.0}), // 2
+            Relative({1.0, 1.0, 2.0}), // 3
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({1, 2, 3}), // 0
+            Element({3, 2, 0}), // 1
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    EXPECT_EQ(1, res.size());
+
+    Cell expectedCell = Cell({ 0, 0, 1 });
+
+    ASSERT_EQ(1, res.size());
+    for (Axis axis = X; axis <= Z; ++axis) {
+        const Cell& cell = *res.begin();
+        EXPECT_EQ(expectedCell[axis], cell[axis]) << "Cell Axis #" << axis;
+    }
+}
+
+TEST_F(ConformalMesherTest, cellsWithOverlappingTriangles_4)
+{
+    // 2 Diagonal Triangles with common edge in Cell diagonal
+    //        *--------------3
+    //       /|            ⫽⎹⎸
+    //      / |          ⫽ /|⎸
+    //    z/  |        ⫽  /⎹ ⎸
+    //    *---┼------⫽--*/ | ⎸
+    //    |   |y   ⫽    | |  ⎸
+    //    |   *--⫽-----⌿┼-┼--*
+    //    |  / ⫽      / |⎹  /    
+    //    | /⫽       /  |⎸ /
+    //    |⫽       /    ║/
+    //    0========1----2 x
+
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({0.4, 0.0, 1.0}), // 1
+            Relative({1.0, 0.0, 1.0}), // 2
+            Relative({1.0, 1.0, 1.0}), // 3
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 2, 3}),
+            Element({3, 1, 0}),
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    ASSERT_EQ(1, res.size());
+
+    Cell expectedCell = Cell({ 0, 0, 1 });
+
+    EXPECT_EQ(1, res.size());
+    for (Axis axis = X; axis <= Z; ++axis) {
+        const Cell& cell = *res.begin();
+        EXPECT_EQ(expectedCell[axis], cell[axis]) << "Cell Axis #" << axis;
+    }
+}
+
+TEST_F(ConformalMesherTest, cellsWithOverlappingTriangles_5)
+{
+    // 2 Diagonal Triangles with common edge in Cell diagonal
+    //        *--------------3
+    //       /|             /|
+    //      / |            / |
+    //    z/  |           /  |
+    //    *---┼----------0   |
+    //    |   |y      _-‾|   |
+    //    |   *----_-‾---┼---*
+    //    |  /   -‾   _--1  /
+    //    | / _-‾__-‾‾   ║ /
+    //    |/==‾‾‾        ║/
+    //    3==============2 x
+
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({1.0, 0.0, 2.0}), // 0
+            Relative({1.0, 0.0, 1.6}), // 1
+            Relative({1.0, 0.0, 1.0}), // 2
+            Relative({0.0, 0.0, 1.0}), // 3
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 2, 3}), // 0
+            Element({2, 1, 3}), // 1
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    EXPECT_EQ(1, res.size());
+
+    Cell expectedCell = Cell({ 0, 0, 1 });
+
+    ASSERT_EQ(1, res.size());
+    for (Axis axis = X; axis <= Z; ++axis) {
+        const Cell& cell = *res.begin();
+        EXPECT_EQ(expectedCell[axis], cell[axis]) << "Cell Axis #" << axis;
+    }
+}
+
+TEST_F(ConformalMesherTest, allow_identical_triangles_with_opposite_normals_1)
+{
+    // 2 identical triangles in the same surface
+    //  
+    //  1_
+    //  ║‾=_
+    //  ║  ‾=_
+    //  ║    ‾=_
+    //  0=======2
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({0.0, 1.0, 1.0}), // 1
+            Relative({0.1, 0.0, 1.0}), // 2
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({0, 1, 2}),
+            Element({1, 0, 2}),
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    EXPECT_EQ(0, res.size());
+}
+
+TEST_F(ConformalMesherTest, allow_identical_triangles_with_opposite_normals_2)
+{
+    // 2 Diagonal Triangles with common edge in Cell surface
+    //        *---------------2
+    //       /|            ⫽/⎹⎸
+    //      / |          ⫽ /⎹⎸|
+    //    z/  |        ⫽  / ⎹⎸⎸
+    //    *---┼------⫽---*  ║ ⎸
+    //    |   |y   ⫽     | ⎹⎸ ⎸
+    //    |   *--⫽-------┼-║-*
+    //    |  / ⫽         |⎹⎸/
+    //    | /⫽           |║/
+    //    |⫽             ║/
+    //    0===============2 x
+
+    Mesh m;
+    {
+        m.grid = buildUnitLengthGrid(0.1); // 10 x 10 x 10 grid
+        m.coordinates = {
+            Relative({0.0, 0.0, 1.0}), // 0
+            Relative({1.0, 0.0, 1.0}), // 1
+            Relative({1.0, 1.0, 2.0}), // 2
+        };
+        m.groups = { Group() };
+        m.groups[0].elements = {
+            Element({1, 0, 2}), // 0
+            Element({0, 1, 2}), // 1
+        };
+    }
+
+    auto res = ConformalMesher::cellsWithOverlappingTriangles(m);
+
+    EXPECT_EQ(0, res.size());
+}
+
 TEST_F(ConformalMesherTest, sphere)
 {
     // Input
@@ -365,17 +634,36 @@ TEST_F(ConformalMesherTest, sphere)
 TEST_F(ConformalMesherTest, alhambra)
 {
     // Input
+    // const std::string inputFilename = "testData/cases/alhambra/alhambraSuperCut.stl";
     const std::string inputFilename = "testData/cases/alhambra/alhambra.stl";
     auto inputMesh = vtkIO::readInputMesh(inputFilename);
+    /*
+    inputMesh.grid[X] = utils::GridTools::linspace(-4.0, -2.0, 2); //  rel: 25 -> 35 (10 cells/11 planes)
+    inputMesh.grid[Y] = utils::GridTools::linspace(36.0, 38.0, 2); // rel: 20.0 -> 40.0 | 40 -> 50 (10 cells/11 planes)
+    inputMesh.grid[Z] = utils::GridTools::linspace(7.491016, 9.36367, 2); // 0 -> 1.872654
+    /*
 
-    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
-    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
+    inputMesh.grid[X] = utils::GridTools::linspace(36.0, 48.0, 7); // 49 - 55 -> 48 - 54
+    inputMesh.grid[Y] = utils::GridTools::linspace(28.0, 40.0, 7); // 44 - 50
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 3.745468, 4); // 0 - 3
+
+
+    /**/
+    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 16);
+    inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 2);
+
+    /*
+    inputMesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61);
+    inputMesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61);
     inputMesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    
+    /**/
     // Mesh
     auto mesh = launchConformalMesher(inputFilename, inputMesh);
+    // checkNoOverlaps(mesh);
 
     // For Debugging.
+    /**/
     mesh.coordinates = utils::GridTools{mesh.grid}.absoluteToRelative(mesh.coordinates);
     {
         auto cells = ConformalMesher::cellsWithMoreThanAVertexInsideEdge(mesh);
@@ -389,6 +677,7 @@ TEST_F(ConformalMesherTest, alhambra)
         utils::meshTools::convertToAbsoluteCoordinates(dbgMesh);
         exportMeshToVTU("testData/cases/alhambra/alhambra.breaksRuleNo2.vtk", dbgMesh);
     }
+    /**/
 }
 
 TEST_F(ConformalMesherTest, cone)
@@ -474,7 +763,5 @@ TEST_F(ConformalMesherTest, thinCylinder)
     
 //     EXPECT_EQ(4, countMeshElementsIf(p, isTriangle));
 // }
-
-
 
 }

@@ -97,6 +97,12 @@ public:
     std::map<Cell, std::vector<const Element*>> buildCellElemMap(
         const std::vector<Element>& elems,
         const std::vector<Coordinate>& coords) const;
+    std::map<Cell, std::vector<const Element*>> buildCellElemMapLax(
+        const std::vector<Element>& elems,
+        const std::vector<Coordinate>& coords) const;
+    std::map<Cell, std::vector<const Element*>> buildCellElemMapStrict(
+        const std::vector<Element>& elems,
+        const Relatives& coords) const;
     std::map<Cell, std::vector<Coordinate*>> buildCellCoordMap(
         std::vector<Coordinate>& coords) const;
     std::map<Cell, std::vector<const Element*>> buildCellTriMap(

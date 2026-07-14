@@ -1,4 +1,4 @@
-#include "Delaunator.h"
+#include "DelaunatorCGAL.h"
 #include "utils/Geometry.h"
 #include "LSFPlane.h"
 
@@ -6,9 +6,9 @@ namespace meshlib::cgal {
 
 using namespace utils;
 
-const double Delaunator::COPLANARITY_ANGLE_TOLERANCE = 0.1;
+const double DelaunatorCGAL::COPLANARITY_ANGLE_TOLERANCE = 0.1;
 
-Delaunator::Delaunator(const Coordinates* global, const ElementsView& elements)
+DelaunatorCGAL::DelaunatorCGAL(const Coordinates* global, const ElementsView& elements)
 {
     if (global == nullptr) {
         throw std::runtime_error("Global list of coordinates must be defined");
@@ -20,18 +20,18 @@ Delaunator::Delaunator(const Coordinates* global, const ElementsView& elements)
     }
 }
 
-std::vector<Element> Delaunator::mesh(
+std::vector<Element> DelaunatorCGAL::mesh(
     const IdSet& inIds,
     const std::vector<Polygon>& constrainingPolygons) const
 {
     auto ids = filterIdsByConstraints(inIds, constrainingPolygons);
     checkIdsAreInRange(ids, constrainingPolygons);
     const IndexPointToId pointToId = buildPointsInIndex(ids, constrainingPolygons);
-    CDT cdt = buildCDT(pointToId, ids, constrainingPolygons);
+    Triangulation cdt = buildCDT(pointToId, ids, constrainingPolygons);
     return convertFromCDT(cdt, pointToId);
 }
 
-void Delaunator::checkIdsAreInRange(
+void DelaunatorCGAL::checkIdsAreInRange(
     const IdSet& inIds,
     const std::vector<Polygon>& constrainingPolygons) const
 {
@@ -53,8 +53,8 @@ void Delaunator::checkIdsAreInRange(
     }
 }
 
-std::vector<Element> Delaunator::convertFromCDT(
-    const CDT& cdt, const IndexPointToId& pointToId) const
+std::vector<Element> DelaunatorCGAL::convertFromCDT(
+    const Triangulation& cdt, const IndexPointToId& pointToId) const
 {
     for (auto v : cdt.finite_vertex_handles()) {
         if (pointToId.left.count(v->point()) == 0) {
@@ -79,12 +79,12 @@ std::vector<Element> Delaunator::convertFromCDT(
     return res;
 }
 
-Delaunator::CDT Delaunator::buildCDT(
+DelaunatorCGAL::Triangulation DelaunatorCGAL::buildCDT(
     const IndexPointToId& pointToId,
     const IdSet& inIds,
     const Polygons& constrainingPolygons)
 {
-    CDT cdt;
+    Triangulation cdt;
     for (auto const& polygon : constrainingPolygons) {
         Polygon_2 cgalPoly;
         for (auto const& id : polygon) {
@@ -101,7 +101,7 @@ Delaunator::CDT Delaunator::buildCDT(
     return cdt;
 }
 
-void Delaunator::mark_domains(CDT& ct, Face_handle start, int index, std::list<CDT::Edge>& border)
+void DelaunatorCGAL::mark_domains(Triangulation& ct, Face_handle start, int index, std::list<Triangulation::Edge>& border)
 {
     if (start->info().nesting_level != -1) {
         return;
@@ -114,7 +114,7 @@ void Delaunator::mark_domains(CDT& ct, Face_handle start, int index, std::list<C
         if (fh->info().nesting_level == -1) {
             fh->info().nesting_level = index;
             for (int i = 0; i < 3; i++) {
-                CDT::Edge e(fh, i);
+                Triangulation::Edge e(fh, i);
                 Face_handle n = fh->neighbor(i);
                 if (n->info().nesting_level == -1) {
                     if (ct.is_constrained(e)) border.push_back(e);
@@ -125,7 +125,7 @@ void Delaunator::mark_domains(CDT& ct, Face_handle start, int index, std::list<C
     }
 }
 
-IdSet Delaunator::filterIdsByConstraints(
+IdSet DelaunatorCGAL::filterIdsByConstraints(
     const IdSet& ids, const Polygons& polys)
 {
     IdSet res = ids;
@@ -138,15 +138,15 @@ IdSet Delaunator::filterIdsByConstraints(
 }
 
 
-void Delaunator::mark_domains(CDT& cdt)
+void DelaunatorCGAL::mark_domains(Triangulation& cdt)
 {
-    for (CDT::Face_handle f : cdt.all_face_handles()) {
+    for (Triangulation::Face_handle f : cdt.all_face_handles()) {
         f->info().nesting_level = -1;
     }
-    std::list<CDT::Edge> border;
+    std::list<Triangulation::Edge> border;
     mark_domains(cdt, cdt.infinite_face(), 0, border);
     while (!border.empty()) {
-        CDT::Edge e = border.front();
+        Triangulation::Edge e = border.front();
         border.pop_front();
         Face_handle n = e.first->neighbor(e.second);
         if (n->info().nesting_level == -1) {
@@ -155,7 +155,7 @@ void Delaunator::mark_domains(CDT& cdt)
     }
 }
 
-Delaunator::IndexPointToId Delaunator::buildPointsInIndex(
+DelaunatorCGAL::IndexPointToId DelaunatorCGAL::buildPointsInIndex(
     const IdSet& inIds,
     const Polygons& constrainingPolygons) const
 {
@@ -189,7 +189,7 @@ Delaunator::IndexPointToId Delaunator::buildPointsInIndex(
     IndexPointToId res;
     for (std::size_t i = 0; i < cs.size(); i++) {
         res.insert( IndexPointToId::value_type(
-            CDT::Point(cs[i](0), cs[i](1)), 
+            Triangulation::Point(cs[i](0), cs[i](1)), 
             originalIds[i]) 
         );
     }

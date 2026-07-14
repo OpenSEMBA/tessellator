@@ -16,8 +16,8 @@ namespace core {
 
 using namespace utils;
 
-SmootherTools::SmootherTools(const Grid& grid) :
-    GridTools(grid)
+SmootherTools::SmootherTools(const Grid& grid, const Coordinates & globalCoordinates) :
+    GridTools(grid), delaunator_(globalCoordinates)
 {}
 
 CoordinateId SmootherTools::getClosestEndOfPaths(
@@ -143,7 +143,7 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
     
     contourIds = CoordGraph(elems).getBoundaryGraph().getVertices();
     
-    for (auto const& c : buildCellElemMap(elems, coords)) {
+    for (auto const& c : buildCellElemMapStrict(elems, coords)) {
         const std::vector<CoordGraph> graphs = CoordGraph::buildFromElementsViews(
             Geometry::buildDisjointSmoothSets(c.second, coords, smoothSetAngle));
 
@@ -151,7 +151,16 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
             const std::size_t i = &g - &graphs.front();
             for (std::size_t j = i + 1; j < graphs.size(); j++) {
                 auto edge = g.intersect(graphs[j]).getVertices();
+
                 for (auto const id : edge) {
+                    const Coordinate& coordinate = coords[id];
+                    /*
+                    if (!isRelativeInterior(coordinate)) {
+                        const Coordinate& coordinate1 = coords[*edge.begin()];
+                        const Coordinate& coordinate2 = coords[*edge.rbegin()];
+                        bool noop = true;
+                    }
+                    */
                     if (featureIds.count(id)) {
                         cornerIds.insert(id);
                     }
@@ -161,7 +170,7 @@ SmootherTools::SingularIds SmootherTools::buildSingularIds(
         }
     }
 
-    return SingularIds(featureIds, contourIds, cornerIds);
+    return SingularIds(featureIds, contourIds, cornerIds); // Only thing missing are the internal corners.
 }
 
 
@@ -171,8 +180,22 @@ void SmootherTools::collapsePointsOnCellEdges(
     const SingularIds& singularIds,
     double alignmentAngle)
 {
+    IdSet commonFeatureIds;
+    IdSet commonContourIds;
+    IdSet commonEdgeIds;
     {
         IdSet vertices = CoordGraph(patch).getVertices();
+        for (auto vertexId : vertices) {
+            if (std::find(singularIds.featureIds().begin(), singularIds.featureIds().end(), vertexId) != singularIds.featureIds().end()) {
+                commonFeatureIds.insert(vertexId);
+            }
+            if (std::find(singularIds.contourIds().begin(), singularIds.contourIds().end(), vertexId) != singularIds.contourIds().end()) {
+                commonContourIds.insert(vertexId);
+            }
+            if (std::find(singularIds.edgeIds().begin(), singularIds.edgeIds().end(), vertexId) != singularIds.edgeIds().end()) {
+                commonEdgeIds.insert(vertexId);
+            }
+        }
 
         if (!std::all_of(
             vertices.begin(), vertices.end(),
@@ -201,7 +224,7 @@ void SmootherTools::collapsePointsOnCellEdges(
         
         IdSet movable = classifyIds(interior, [&](auto i) {return !protectedIds.count(i); }).first;
         IdSet validIds = mergeIds(cG.getExterior(), interiorValid);
-        
+
         std::map<CoordinateId, Coordinate> toMove;
         for (auto const& i : movable) {
             if (isRelativeInCellCorner(coords[i])) {
@@ -295,7 +318,9 @@ bool SmootherTools::patchIsPlanar(
         boundCs.push_back(cs[id]);
     }
 
-    return Geometry::areCoordinatesCoplanar(boundCs.begin(), boundCs.end());
+    return Geometry::areCoordinatesCoplanar(boundCs.begin(), boundCs.end()
+        //, 1.e-4/2);
+        );
 }
 
 void SmootherTools::remeshBoundary(
@@ -330,17 +355,7 @@ void SmootherTools::remeshWithNoInteriorPoints(
     }
 
     auto cPolygons = g.getBoundaryGraph().findCycles();
-    Elements remeshedEls;
-    for (auto& cPolygon : cPolygons) {
-        for (std::size_t i = 0; i < cPolygon.size() - 2; i++) {
-            remeshedEls.push_back( Element({ 
-                cPolygon[0], 
-                cPolygon[i + 1], 
-                cPolygon[i + 2] 
-            }, 
-            Element::Type::Surface));
-        }
-    }
+    Elements remeshedEls = delaunator_.mesh(cPolygons);
     
     for (auto & element: remeshedEls){
         if (hasWrongOrientation(*patch[0], element, cs)) {
@@ -472,8 +487,41 @@ Coordinates SmootherTools::collapsePointsOnContour(
             }
 
             if (!validContourIds.empty()) {
-                for (auto const& interiorId : cG.getInterior()) {
-                    res[interiorId] = coords[*validContourIds.begin()];
+                const IdSet interior = cG.getInterior();
+                bool collapseToMinExterior = false;
+                if (interior.size() > 1 && validContourIds.size() == 2) {
+                    const CoordinateId minExt =
+                        *std::min_element(validContourIds.begin(), validContourIds.end());
+                    const CoordinateId maxExt =
+                        *std::max_element(validContourIds.begin(), validContourIds.end());
+                    for (auto const& interiorId : interior) {
+                        if ((coords[interiorId] - coords[maxExt]).norm()
+                            < (coords[interiorId] - coords[minExt]).norm()) {
+                            collapseToMinExterior = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (collapseToMinExterior) {
+                    const CoordinateId anchor =
+                        *std::min_element(validContourIds.begin(), validContourIds.end());
+                    for (auto const& interiorId : interior) {
+                        res[interiorId] = coords[anchor];
+                    }
+                } else {
+                    for (auto const& interiorId : interior) {
+                        if (res[interiorId] != coords[interiorId]) {
+                            continue;
+                        }
+                        IdSet targets = cG.getClosestVerticesInSet(interiorId, validContourIds);
+                        if (targets.empty()) {
+                            continue;
+                        }
+                        const CoordinateId targetId =
+                            *std::min_element(targets.begin(), targets.end());
+                        res[interiorId] = coords[targetId];
+                    }
                 }
             }
             
@@ -496,6 +544,110 @@ void SmootherTools::collapseInteriorPointsToBound(
     }
 
     updateCoordinates(coords, toMove);
+}
+
+void SmootherTools::collapsePointsOnContourWithDelanautor(
+    Elements& elems,
+    Coordinates& coords,
+    const ElementsView& patch,
+    const SingularIds& sIds) {
+
+    CoordGraph g(patch);
+
+    auto cPolygons = g.getBoundaryGraph().findCycles();
+    std::vector<CoordinateIds> newCPolygons;
+
+    /*
+    std::map<CoordinateId, CoordinateIds> neighbours;
+    /**/
+    newCPolygons.reserve(cPolygons.size());
+    // Important: FeatureIds,
+    for (const auto& cycle : cPolygons) {
+        CoordinateIds newCycle;
+
+        if (cycle.size() < 3) {
+            continue;
+        }
+
+        CoordinateIds filteredRepeated;
+        filteredRepeated.reserve(cycle.size());
+
+
+        for (std::size_t currentIndex = 0; currentIndex < cycle.size(); ++currentIndex) {
+            auto nextIndex = (currentIndex + 1) % cycle.size();
+
+            if (coords[cycle[currentIndex]] != coords[cycle[nextIndex]]) {
+                filteredRepeated.push_back(cycle[currentIndex]);
+            }
+        }
+
+        if (filteredRepeated.size() < 3) {
+            continue;
+        }
+        Relative center;
+        for (auto coordId : filteredRepeated) {
+            center += coords[coordId];
+        }
+        center /= filteredRepeated.size();
+
+        bool isCycleOnSameFace = true;
+        std::size_t i = 0;
+        while (isCycleOnSameFace && i < filteredRepeated.size()) {
+            isCycleOnSameFace = areCoordOnSameFace(center, coords[filteredRepeated[i]]);
+            ++i;
+        }
+
+        for (CoordinateId v : filteredRepeated) {
+            if (std::find(sIds.cornerIds().begin(), sIds.cornerIds().end(), v) != sIds.cornerIds().end()) {
+                newCycle.push_back(v);
+            }
+            else if (!isCycleOnSameFace && isRelativeInCellEdge(coords[v])) {
+                newCycle.push_back(v);
+            }
+            else if (isRelativeInCellCorner(coords[v])) {
+                newCycle.push_back(v);
+            }
+        }
+
+        if (newCycle.size() < 3) {
+            newCycle.clear();
+
+            newCycle.insert(newCycle.begin(), filteredRepeated.begin(), filteredRepeated.end());
+        }
+
+        newCPolygons.push_back(newCycle);
+    }
+
+    if (newCPolygons.size() == 0) {
+        return;
+    }
+
+    Elements remeshedEls = delaunator_.mesh(newCPolygons, true);
+    
+    std::size_t i = 0;
+    while (i < (patch.size() - 1) && Geometry::isDegenerate(Geometry::asTriV(*patch[0], coords))) {
+        ++i;
+    }
+
+    for (auto& element : remeshedEls) {
+        if (hasWrongOrientation(*patch[i], element, coords)) {
+            reorientSingleElement(element);
+        }
+    }
+
+    for (auto comp = remeshedEls.size(); comp < patch.size(); comp++) {
+        remeshedEls.push_back(Element({}, Element::Type::None));
+    }
+
+    if (remeshedEls.size() != patch.size()) {
+        throw std::logic_error("Not all elements have been remeshed");
+    }
+
+    const std::lock_guard<std::mutex> lock(writingElements_);
+    for (auto comp = 0; comp < patch.size(); comp++) {
+        ElementId eId = patch[comp] - &elems.front();
+        elems[eId] = remeshedEls[comp];
+    }
 }
 
 void SmootherTools::collapseElementsInPatch(

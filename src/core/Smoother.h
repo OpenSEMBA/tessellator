@@ -19,7 +19,6 @@ public:
 
 private:
     SmootherOptions opts_;
-    SmootherTools sT_;
     Mesh mesh_;
     
     Mesh orient(const Mesh& mesh) const;

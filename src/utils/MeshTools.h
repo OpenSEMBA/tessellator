@@ -8,6 +8,7 @@ namespace meshlib::utils::meshTools {
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh);
 Mesh duplicateCoordinatesSharedBySingleTrianglesVertex(const Mesh& mesh);
+Mesh removeNullAreasKeepingTopology(const Mesh& mesh, double tolerance = 0.001);
 
 static bool isNode(const Element& e) { return e.isNode(); }
 static bool isNotNode(const Element& e) { return !e.isNode(); }

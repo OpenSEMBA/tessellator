@@ -100,7 +100,7 @@ Mesh Manifolder::getSurfacesMesh() const
 {
 	Mesh m = getClosedSurfacesMesh();
 	utils::meshTools::mergeMesh(m, getOpenSurfacesMesh());
-	utils::RedundancyCleaner::cleanCoords(m);
+	utils::redundancyCleaner::cleanCoords(m);
 	return m;
 }
 

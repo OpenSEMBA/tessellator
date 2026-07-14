@@ -70,7 +70,7 @@ Mesh OffgridMesher::mesh() const
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
     
     reduceGrid(res, originalGrid_);
-    RedundancyCleaner::cleanCoords(res);
+    redundancyCleaner::cleanCoords(res);
 
     log("Primal mesh built succesfully.", 1);
     return res;

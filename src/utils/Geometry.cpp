@@ -172,12 +172,110 @@ VecD Geometry::getLSFPlaneNormal(const Coordinates& inPts)
 {
     //If you have n data points(x[i], y[i], z[i]), compute the 3x3 symmetric matrix A whose entries are :
 
-    //sum_i x[i] * x[i], sum_i x[i] * y[i], sum_i x[i]
+    //    sum_i x[i] * x[i], sum_i x[i] * y[i], sum_i x[i]
     //    sum_i x[i] * y[i], sum_i y[i] * y[i], sum_i y[i]
-    //    sum_i x[i], sum_i y[i], n
+    //           sum_i x[i],        sum_i y[i],     n 
     //    Also compute the 3 element vector b :
-
+    //
+    // 
     //{sum_i x[i] * z[i], sum_i y[i] * z[i], sum_i z[i]}
+
+
+    double sumX = 0.0;
+    double sumY = 0.0;
+    double sumXX = 0.0;
+    double sumXY = 0.0;
+    double sumYY = 0.0;
+    
+    double sumZ = 0.0;
+    double sumXZ = 0.0;
+    double sumYZ = 0.0;
+
+    for (auto& point : inPts) {
+        sumX += point[X];
+        sumY += point[Y];
+        sumXX += point[X] * point[X];
+        sumXY += point[X] * point[Y];
+        sumYY += point[Y] * point[Y];
+
+        sumZ += point[Z];
+        sumXZ += point[X] * point[Z];
+        sumYZ += point[Y] * point[Z];
+    }
+
+    std::array<std::array<double, 3>, 3> matrix_A({ 
+        std::array<double, 3>({sumXX, sumXY, sumX}),
+        std::array<double, 3>({sumXY, sumYY, sumY}),
+        std::array<double, 3>({sumX, sumY, (double) inPts.size()})
+    });
+
+    std::array<double, 3> vector_b({ sumXZ, sumYZ, sumZ });
+
+    std::array<std::array<double, 3>, 3> transpose_A = matrix_A;
+
+    std::array<std::array<double, 3>, 3> atA;
+
+    for (std::size_t i = 0; i < 3; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            double sum = matrix_A[i][0] * transpose_A[0][j] + matrix_A[i][1] * transpose_A[1][j] + matrix_A[i][2] * transpose_A[2][j];
+            atA[i][j] = sum;
+        }
+    }
+    std::array<double, 3> atb;
+
+    for (std::size_t i = 0; i < 3; ++i) {
+        double sum = transpose_A[i][0] * vector_b[0] + transpose_A[i][1] * vector_b[1] + transpose_A[i][2] * vector_b[2];
+        atb[i] = sum;
+    }
+
+
+    // [AtA00, AtA01, AtA02]         [Atb0]
+    // [AtA10, AtA11, AtA12] * x =   [Atb1]
+    // [AtA20, AtA21, AtA22]         [Atb2]
+
+    // [AtA00, AtA01, AtA02]   [x]   [Atb0]
+    // [AtA10, AtA11, AtA12] * [y] = [Atb1]
+    // [AtA20, AtA21, AtA22]   [z]   [Atb2]
+    // 
+    // AtA00 * x + AtA01 * y + AtA02 * z = Atb0
+    // AtA10 * x + AtA11 * y + AtA12 * z = Atb1
+    // AtA20 * x + AtA21 * y + AtA22 * z = Atb2
+    // 
+    //
+    //
+    //  z = (Atb0 - AtA20 * x - AtA21 * y) / AtA22
+    //
+    //
+    //
+    //   AtA00                 * AtA11     * x + AtA01 * AtA11 * y +         AtA02 * AtA11               * z =   Atb0               * AtA11
+    // -       * AtA01 * AtA10             * x - AtA01 * AtA11 * y - AtA01                 * AtA12       * z = -       Atb1 * AtA01
+    //---------------------------------------------------------------------------------------------------------------------------
+    // ((AtA00 * AtA11) - (AtA01 * AtA10)) * x                     + ((AtA02 * AtA11) - (AtA01 * AtA12)) * z = (Atb0 * AtA11) - (Atb1 * AtA01)
+    //
+    //
+    //
+    //   AtA10 * AtA21 * x                     + AtA11 * AtA21 * y + AtA12 * AtA21                       * z = Atb1 * AtA21
+    // - AtA11 * AtA20 * x                     - AtA11 * AtA21 * y - AtA11 * AtA22                       * z = Atb2 * AtA11
+    //----------------------------------------------------------------------------------
+    // ((AtA10 * AtA21) - (AtA11 * AtA20)) * x                     + ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = (Atb1 * AtA21) - (Atb2 * AtA11)
+    //
+    //
+    //
+    //
+    //
+    //   ((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * x + ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = ((Atb0 * AtA11)  - (Atb1 * AtA01))  * ((AtA12 * AtA21) - (AtA11 * AtA22))
+    // - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20)) * x - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) * z = - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11))
+    //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // (((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20))) x = (((Atb0 * AtA11) - (Atb1 * AtA01)) * ((AtA12 * AtA21) - (AtA11 * AtA22))) - (((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11)))
+    //
+    // 
+    // (((AtA00 * AtA11) - (AtA01 * AtA10)) * ((AtA12 * AtA21) - (AtA11 * AtA22)) - ((AtA02 * AtA11) - (AtA01 * AtA12)) * ((AtA10 * AtA21) - (AtA11 * AtA20))) x = (((Atb0 * AtA11) - (Atb1 * AtA01)) * ((AtA12 * AtA21) - (AtA11 * AtA22))) - (((AtA02 * AtA11) - (AtA01 * AtA12)) * ((Atb1 * AtA21)  - (Atb2 * AtA11)))
+    //
+    //
+    //
+
+
+
 
     throw std::runtime_error("Not implemented");
     VecD res({ 0.0, 0.0, 0.0 });

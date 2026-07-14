@@ -19,6 +19,43 @@ namespace meshlib::core {
 
 class StaircaserTest : public ::testing::Test {
 protected:
+    static void assertCoordinatesListEquals(const Coordinates& expectedCoordinates, const Coordinates& resultCoordinates) {
+        ASSERT_EQ(expectedCoordinates.size(), resultCoordinates.size());
+
+        for (CoordinateId c = 0; c < expectedCoordinates.size(); ++c) {
+            auto& expectedCoordinate = expectedCoordinates[c];
+            auto& resultCoordinate = resultCoordinates[c];
+
+            for (Axis axis = X; axis <= Z; ++axis) {
+                EXPECT_EQ(expectedCoordinate[axis], resultCoordinate[axis])
+                    << "Current coordinate: #" << c << std::endl
+                    << "Current Axis: #" << axis << std::endl;
+            }
+        }
+    }
+
+    static void assertElementsListEquals(const Elements& expectedElements, const Elements& resultElements, GroupId g = 0) {
+        ASSERT_EQ(expectedElements.size(), resultElements.size());
+
+        for (ElementId e = 0; e < expectedElements.size(); ++e) {
+            const Element& expectedElement = expectedElements[e];
+            const Element& resultElement = resultElements[e];
+
+            EXPECT_EQ(resultElement.vertices.size(), expectedElement.vertices.size())
+                << "Current Group: #" << g << std::endl
+                << "Current Element: #" << e << std::endl;
+            EXPECT_EQ(resultElement.type, expectedElement.type)
+                << "Current Group: #" << g << std::endl
+                << "Current Element: #" << e << std::endl;
+
+            for (std::size_t v = 0; v < resultElement.vertices.size(); ++v) {
+                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v])
+                    << "Current Group: #" << g << std::endl
+                    << "Current Element: #" << e << std::endl
+                    << "Current Vertex: #" << v << std::endl;
+            }
+        }
+    }
 };
 
 TEST_F(StaircaserTest, calculateStaircasedRelativeInExactSteps)
@@ -92,7 +129,8 @@ TEST_F(StaircaserTest, calculateStaircasedRelativeBetweenSteps)
                 auto resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
-                    EXPECT_EQ(resultCell[axis], expectedLowerCell[axis]);
+                    EXPECT_EQ(resultCell[axis], expectedLowerCell[axis])
+                        << "Relative: (" << newRelative[X] << ", " << newRelative[Y] << ", " << newRelative[Z] << ")" << std::endl;
                 }
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
@@ -102,7 +140,8 @@ TEST_F(StaircaserTest, calculateStaircasedRelativeBetweenSteps)
                 resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
-                    EXPECT_EQ(resultCell[axis], expectedUpperCell[axis]);
+                    EXPECT_EQ(resultCell[axis], expectedUpperCell[axis])
+                        << "Relative: (" << newRelative[X] << ", " << newRelative[Y] << ", " << newRelative[Z] << ")" << std::endl;
                 }
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
@@ -112,7 +151,8 @@ TEST_F(StaircaserTest, calculateStaircasedRelativeBetweenSteps)
                 resultCell = staircaser.calculateStaircasedCell(newRelative);
 
                 for (std::size_t axis = 0; axis < 3; ++axis) {
-                    EXPECT_EQ(resultCell[axis], expectedUpperCell[axis]);
+                    EXPECT_EQ(resultCell[axis], expectedUpperCell[axis])
+                        << "Relative: (" << newRelative[X] << ", " << newRelative[Y] << ", " << newRelative[Z] << ")" << std::endl;
                 }
             }
         }
@@ -192,30 +232,13 @@ TEST_F(StaircaserTest, transformNodesBySnappingThemIntoCellIntersections)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-
-    for (std::size_t index = 0; index < expectedRelatives.size(); ++index) {
-        for (std::size_t axis = X; axis <= Z; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[index][axis], expectedRelatives[index][axis]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
 
-        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size());
-
-        for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            EXPECT_TRUE(resultElement.isNode());
-
-            EXPECT_EQ(resultElement.vertices[0], expectedElement.vertices[0]);
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -227,7 +250,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoSingleStaircasedElements)
 	// |  |      |      ║         |
     // |  |  _-1 |  ->  ║         |
 	// |  0-‾    |      ║         |
-    // *---------*      0=========1
+    // *---------*      0═════════1
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -261,47 +284,36 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoSingleStaircasedElements)
         Relative({ 0.0, 0.0, 1.0 }),
     };
 
-    Elements expectedElements = {
-        Element({0, 1}, Element::Type::Line),
-        Element({0, 2}, Element::Type::Line),
-        Element({0, 3}, Element::Type::Line)
+    std::vector<Elements> expectedElements = {
+        {
+            Element({0, 1}, Element::Type::Line)
+        },
+        {
+            Element({0, 2}, Element::Type::Line),
+        },
+        {
+            Element({0, 3}, Element::Type::Line)
+        },
     };
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
-    ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 1);
-    }                                 
-
-    for (std::size_t g = 0; g < expectedRelatives.size(); ++g) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[g][axis], expectedRelatives[g][axis]);
-        }
-    }
-    
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedElement = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultGroup.elements[0].vertices[v], expectedElement.vertices[v]);
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
 TEST_F(StaircaserTest, transformSingleSegmentsIntoTwoStaircasedElements)
 {
 
-    // *-----------*  {0.5->1}======{1->2}     *-----------*       *----------{3->2}
+    // *-----------*  {0.5->1}══════{1->2}     *-----------*       *----------{3->2}
     // |      1    |      ║           |        |        3  |       |            ║
     // |     /     |      ║           |        |       /   |       |            ║
     // |    /      |  ->  ║           |        |      /    |   ->  |            ║
     // |  0        |      ║           |        |    2      |       |            ║
-    // *-----------*      0-----------*        *-----------*    {2->0}======={2.5->3}
+    // *-----------*      0-----------*        *-----------*    {2->0}═══════{2.5->3}
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -382,34 +394,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoTwoStaircasedElements)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 2);
-    }
 
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -419,23 +409,23 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoTwoStaircasedEle
 {
 
     // y                y                       y               y
-    // *-------*        *--------{1->2}         *-------*    {0.5->1}====={1->2}
+    // *-------*        *--------{1->2}         *-------*    {0.5->1}═════{1->2}
     // |      1|        |          ║            |      1|        ║           |
     // |    ╱  |        |          ║            |    ╱  |        ║           |
     // |  ╱    |   ->   |          ║            |  ╱    |   ->   ║           |
     // |0      |        |          ║            |0      |        ║           |
-    // *-------* x      0======{0.5->1} x       *-------* z      0-----------* z
+    // *-------* x      0══════{0.5->1} x       *-------* z      0-----------* z
 
     // y                y                       y               y
-    // *-------*        *----------0            *-------*    {0.5->1}========0
+    // *-------*        *----------0            *-------*    {0.5->1}════════0
     // |      0|        |          ║            |      3|        ║           |
     // |    ╱  |        |          ║            |    ╱  |        ║           |
     // |  ╱    |   ->   |          ║            |  ╱    |   ->   ║           |
     // |1      |        |          ║            |4      |        ║           |
-    // *-------* x    {1->2}==={0.5->1} x       *-------* z    {1->2}--------* z
+    // *-------* x    {1->2}═══{0.5->1} x       *-------* z    {1->2}--------* z
 
     // y                y                      y                y               
-    // *-------*     {1->2}===={0.5->1}         *-------*      {1->2}======{0.5->1} 
+    // *-------*     {1->2}════{0.5->1}         *-------*      {1->2}══════{0.5->1}
     // |1      |        |          ║            |1      ⎸         |            ║    
     // |  \    |        |          ║            |  \    ⎸         |            ║    
     // |    \  |   ->   |          ║            |    \  ⎸   ->    |            ║    
@@ -443,7 +433,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoTwoStaircasedEle
     // *-------* x      *----------0 x          *-------* z       *------------0 z  
 
     // y                y                      y                y               
-    // *-------*        0======{0.5->1}         *-------*         0======={0.5->1} 
+    // *-------*        0══════{0.5->1}         *-------*         0═══════{0.5->1}
     // |0      |        |          ║            |0      |         ⎹           ║    
     // |  \    |        |          ║            |  \    |         ⎹           ║    
     // |    \  |   ->   |          ║            |    \  |   ->    ⎹           ║    
@@ -577,31 +567,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoTwoStaircasedEle
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 2);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-            EXPECT_TRUE(resultElement.isLine());
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -615,7 +586,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoThreeStaircasedElements)
     // z/  |        1 /  |           z/  |          /  ║    
     // *---┼-----==‾+*   |    ->     *---┼---------*   ║    
     // |   |y _-‾   ¦|   |           |   |y        |   ║    
-    // |  _*==------┴┼---*           |{0.33->1}===={0.67->2}    
+    // |  _*==------┴┼---*           |{0.33->1}════{0.67->2}
     // |0‾/          |  /            |  ⫽          ⎸  /
     // |¦/           | /             | ⫽           ⎸ /
     // |/            |/              |⫽            ⎸/
@@ -687,35 +658,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoThreeStaircasedElements)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-        EXPECT_TRUE(resultGroup.elements[2].isLine());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e)
-        {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -723,17 +671,17 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoThreeStaircasedElements)
 TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedElements)
 {
 
-    //     *-------------*               *----------{1->3}  
-    //    /|           1/|              /|            /║    
-    //   / |          ╱¦ |             / |           / ║    
-    // z/  |        ╱ /¦ |           z/  |          /  ║    
-    // *---┼------╱--* ¦ |    ->     *---┼---------*   ║    
-    // |   |y   ╱    | ¦ |           |   |y        |   ║    
+    //     *-------------*               *----------{1->3}
+    //    /|           1/|              /|            /║
+    //   / |          ╱¦ |             / |           / ║
+    // z/  |        ╱ /¦ |           z/  |          /  ║
+    // *---┼------╱--* ¦ |    ->     *---┼---------*   ║
+    // |   |y   ╱    | ¦ |           |   |y        |   ║
     // |   *--╱------┼-┼-*           |   *---------{0.67->2}    
-    // |  / ╱        |  /            |  /          |  ⫽     
-    // | /╱          | /             | /           | ⫽      
-    // |⌿0           |/              |/            |⫽
-    // *-------------* x             0========={0.33->1} x
+    // |  / ╱        |  /            |  /          |  ⫽
+    // | /╱          | /             | /           | ⫽
+    // |⌿0           ⎹/              ⎹/            ⎹⫽
+    // *-------------* x             0═════════{0.33->1} x
 
     float lowerRelativeValue = -5.0;
     float upperRelativeValue = 5.0;
@@ -835,34 +783,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedE
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-        EXPECT_TRUE(resultGroup.elements[2].isLine());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -870,7 +796,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsWithinDiagonalIntoThreeStaircasedE
 TEST_F(StaircaserTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStaircasedElements)
 {
 
-    //     *----------1--*          {0.67->2}======={1->3}  
+    //     *----------1--*          {0.67->2}═══════{1->3}
     //    /|         ╱¦ /|              /║            /|    
     //   / |       ╱  ¦╱ |             / ║           / |    
     // z/  |     ╱    ╱  |           z/  ║          /  |    
@@ -879,7 +805,7 @@ TEST_F(StaircaserTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStair
     // |   ╱---------┼┼--*           {0.67->2}-----┼---*   
     // | ╱/          |  /            |  ⫽          ⎸  /     
     // |0/           | /             | ⫽           ⎸ /      
-    // |∤            ⎹/              ⎹⫽            |/       
+    // |∤            ⎸/              ⎸⫽           ⎹ /       
     // *-------------* x             0-------------* x
 
     float lowerCoordinateValue = -5.0;
@@ -970,34 +896,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsParallelWithDiagonalIntoThreeStair
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isLine());
-        EXPECT_TRUE(resultGroup.elements[1].isLine());
-        EXPECT_TRUE(resultGroup.elements[2].isLine());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -1012,8 +916,8 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoNodes)
     // |         3   |             |  ->      |             |             | 
     // |   1         |             |          |             |             | 
     // |  /          |  _6         |          |             |             | 
-    // | 0   4-------5-‾           |          |             |             | 
-    // *-------------*-------------*       {0|1->0}======={5->3}----------* 
+    // | 0   4───────5-‾           |          |             |             | 
+    // *-------------*-------------*       {0|1->0}═══════{5->3}----------*
     //                                      {4->2}       {5|6->3}
 
     float lowerCoordinateValue = -5.0;
@@ -1068,34 +972,12 @@ TEST_F(StaircaserTest, transformSingleSegmentsIntoNodes)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), 1);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 1);
-    ASSERT_EQ(resultMesh.groups[2].elements.size(), 2);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    EXPECT_TRUE(resultMesh.groups[0].elements[0].isNode());
-    EXPECT_TRUE(resultMesh.groups[1].elements[0].isNode());
-    ASSERT_TRUE(resultMesh.groups[2].elements[0].isLine());
-    EXPECT_TRUE(resultMesh.groups[2].elements[1].isNode());
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        for (std::size_t e = 0; e < resultGroup.elements.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedElements[g][e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -1110,8 +992,8 @@ TEST_F(StaircaserTest, transformGroupsWithMultipleLines)
     // |             |        _2   |  ->      |             |             ║ 
     // |             |     _-‾     |          |             |             ║ 
     // |             |  _-‾        |          |             |             ║ 
-    // |     0-------1-‾           |          |             |             ║ 
-    // *-------------*-------------*          0=============1=========={1.5->2}
+    // |     0───────1-‾           |          |             |             ║ 
+    // *-------------*-------------*          0═════════════1══════════{1.5->2}
     //                                        
 
     float lowerCoordinateValue = -5.0;
@@ -1149,28 +1031,10 @@ TEST_F(StaircaserTest, transformGroupsWithMultipleLines)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
 
@@ -1179,12 +1043,12 @@ TEST_F(StaircaserTest, transformTriangleIntoStaircasedSurface)
 {
 
     // y                y                         y                y
-    // *----------*     {2->3}====={1->2}         *----------*                1==========2
+    // *----------*     {2->3}═════{1->2}         *----------*                1══════════2
     // |      __1 |        ║\\\\\\\\\\║           |    __->2 |                ║//////////║
     // | 2<-‾‾ ╱  |        ║\\\\\\\\\\║           | 1--   /  |                ║//////////║
     // |  \   ╱   |   ->   ║\\\\\\\\\\║           |  \   ╱   |     ->         ║//////////║
     // |    0     |        ║\\\\\\\\\\║           |    0     |                ║//////////║
-    // *----------* x      0======{0.5->1} x      *----------* x              0======(2.5->3) x
+    // *----------* x      0══════{0.5->1} x      *----------* x              0══════(2.5->3) x
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1221,33 +1085,12 @@ TEST_F(StaircaserTest, transformTriangleIntoStaircasedSurface)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 2);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isQuad());
-        EXPECT_TRUE(resultGroup.elements[1].isQuad());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -1261,7 +1104,7 @@ TEST_F(StaircaserTest, transformTriangleIntoNode)
     //   / |           ╱ |             / |           / |    
     // z/  |          ╱  |           z/  |          /  |    
     // *---2---------*   |    ->     *---┼---------*   |    
-    // |  ||y⟍       ⎸   ⎸           |   | y       |   |    
+    // |  ||y⟍       ⎸   ⎸           ⎸   ⎸ y       ⎸   ⎸    
     // | ⎹ *-_=1-----┼---*           | {0|1|2}-----┼---*   
     // | 0/-‾        |  /            |  /          |  /     
     // | /           | /             | /           | /      
@@ -1300,32 +1143,12 @@ TEST_F(StaircaserTest, transformTriangleIntoNode)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
-    for (std::size_t g = 0; g < resultMesh.groups.size(); ++g) {
-        ASSERT_EQ(resultMesh.groups[g].elements.size(), 3);
-    }
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
 
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-        EXPECT_TRUE(resultGroup.elements[0].isNode());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
@@ -1334,16 +1157,16 @@ TEST_F(StaircaserTest, transformTriangleIntoNode)
 TEST_F(StaircaserTest, transformTriangleIntoLines)
 {
     //     *-------------*                2-------------*           *-------------*              {4->2}----------*        
-    //    /|            /|               /⦀            /|          /|            /|               /⦀           /⎹        
-    //   /┄|┄┄┄2       ╱ |              / ⫼           / |         / |  4        ╱ |              / ⦀          / ⎹        
-    // z/  |  ⎹|      ╱  |            z/  ⦀          /  |       z/  |  ⎸⎸      ╱  |            z/  ⦀         /  ⎹        
-    // *---┼--┼┼-----*   |     ->     *---⫵---------*   ⎸       *---┼-┼-┼----*    ⎸     ->     *---⫵--------*   |       
-    // |   |y⎹ |     |   |            ⎹   ⦀ y       |   |       |   |y|  ⎸   |    |            |   ⫵        ⎹   ⎹        
-    // |  ┄*┄⎸┄1-----┼---*            ⎹   1---------┼---*       |   *-⎸--⎹-⋰-┼----*            |{3.5->1}≡≡≡≡≡╪{5->3}        
-    // |  / ⎹ ⟋      ⎸  /             |  ⫻         |  /        |  / ⎹  _-5   ⎸  /             ⎹  ⫻          |  /      
-    // | ┄┄┄0        | /              ⎹ ⫻          ⎹ /         ⎹ ┄┄┄3-‾      | /              ⎹ ⫻           ⎹ /       
-    // |/            |/               ⎹⫻           ⎹/          ⎹/            |/               ⎹⫻            ⎹/        
-    // *-------------* x              0-------------* x         *------------* x            {3->0}-----------* x    
+    //    /|            /|               /⦀            /|          /⎹            /|               /⦀            /⎹        
+    //   /┄|┄┄┄2       ╱ |              / ⫼           / |         / ⎹  4        ╱ |              / ⦀           / ⎹        
+    // z/  |  ⎹|      ╱  |            z/  ⦀          /  |       z/  ⎹  ⎸⎸      ╱  |            z/  ⦀          /  ⎹
+    // *---┼--┼┼-----*   |     ->     *---⫵---------*   ⎸       *---┼-┼-┼-----*   ⎸     ->     *---⫵---------*   ⎸
+    // |   |y⎹ |     |   |            ⎹   ⦀ y       |   |       |   ⎹y|  ⎸    ⎸   |            |   ⫵         ⎹   |
+    // |  ┄*┄⎸┄1-----┼---*            ⎹   1---------┼---*       |   *-⎸--⎹-⋰-┼---*            ⎹{3.5->1}≡≡≡≡≡≡╪{5->3}
+    // |  / ⎹ ⟋      ⎸  /             |  ⫻         |  /        |  / ⎹  _-5   ⎸  /             |  ⫻          |  /
+    // | ┄┄┄0        | /              ⎹ ⫻          ⎹ /         ⎹ ┄┄┄3-‾      | /              ⎹ ⫻           ⎹ /
+    // |/            |/               ⎹⫻           ⎹/          ⎹/            |/               ⎹⫻            ⎹/
+    // *-------------* x              0-------------* x         *-------------* x            {3->0}-----------* x    
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1391,49 +1214,28 @@ TEST_F(StaircaserTest, transformTriangleIntoLines)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    EXPECT_EQ(resultMesh.groups[0].elements.size(), 4);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 6);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-            EXPECT_TRUE(expectedElement.isLine());
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
 TEST_F(StaircaserTest, transformTriangleIntoSurfacesAndLines)
 {
-    //     *-------------*                 *-----------{2->3}         *-------------*                 *-------------{1->3}
-    //    /|            /|                /|            ⫽║           /|            / ⎸               /|             / ⦀
-    //   / |           ╱_2               / |           ⫽/║          / |           /  ⎸              / |            /  ⦀
-    // z/  |         _/‾||             z/  |          ⫽//║        z/  |         ⌿-1 |           z /  |           /   ⦀
-    // *---┼------=-‾* | |      ->     *---┼----{1.5->2}/║        *---┼------_-‾* ⎹┆ |     ->     *---┼-----{1.5->2}  ⦀
-    // |   |y  _-‾   | ⎸ |             |   | y       ║///║        |   |y  _-‾   | |┆ |            |   | y        |    ⦀
-    // |   *_-=------┼┼--*             |   *---------╫{3.5->4}    |   *_-=------┼⎹-┴-*            |{0.33->1}=====╪={0.66->2}
-    // | _-‾    __ --1  /              |  /          ║//⫽         | 0⌿=-___    ||  /             |  ⫽///////////|///⫽
-    // ├0-- ‾‾       | /               | /           ║/⫽          | ∤      ‾‾‾--2  /              ⎹ ⫽////////////⎹//⫽
-    // |/            |/                |/            ║⫽           |/            |/                |⫽/////////////|⫽
-    // *-------------* x               0≡≡≡≡≡≡≡≡≡≡≡≡≡1 x          *-------------* x               0============{2->4} x
+    //     *-------------*                 *-----------{2->3}         *--------------*                *-------------{1->3}
+    //    /|            /|                /|            ⫽║           /⎸            / ⎸               /|             / ⦀
+    //   / |           ╱_2               / |           ⫽/║          / ⎸           /  ⎸              / |            /  ⦀
+    // z/  |         _/‾||             z/  |          ⫽//║        z/  ⎸          ⌿-1 |           z /  |           /   ⦀
+    // *---┼------=-‾* | |      ->     *---┼----{1.5->2}/⎹⎸       *---┼------_-‾* ⎹┆ |     ->     *---┼-----{1.5->2}  ⦀
+    // |   |y  _-‾   | ⎸ |             |   | y       ║///⎹⎸       ⎹   |y  _-‾   | |┆ |            |   | y        |    ⦀
+    // |   *_-=------┼┼--*             |   *---------╫{3.5->4}    ⎹   *_-=------┼⎹-┴-*            |{0.33->1}═════╪={0.66->2}
+    // | _-‾    __ --1  /              |  /          ║//⫽         ⎸ 0⌿=-___     ||  /             |  ⫽//////////⎹///⫽
+    // ├0-- ‾‾       | /               | /           ║/⫽          ⎸ ∤      ‾‾‾--2 /              ⎹ ⫽///////////⎹//⫽
+    // |/            |/                |/            ║⫽           ⎸/            |/                ⎸⫽////////////⎸⫽
+    // *-------------* x               0≡≡≡≡≡≡≡≡≡≡≡≡≡1 x          *-------------* x               0════════════{2->4} x
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1479,56 +1281,28 @@ TEST_F(StaircaserTest, transformTriangleIntoSurfacesAndLines)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    EXPECT_EQ(resultMesh.groups[0].elements.size(), 3);
-    ASSERT_EQ(resultMesh.groups[1].elements.size(), 3);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-
-    EXPECT_TRUE(resultMesh.groups[0].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    EXPECT_TRUE(resultMesh.groups[1].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[1].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[1].elements[2].isLine());
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
 TEST_F(StaircaserTest, transformTriangleIntoTwoSurfaces)
 {
-    //     *--------------*                *-----------{2->3}                *---------------*                *---------------0    
-    //    /|             /|                /⎹             ⫽║                /|              /|               /|              ⫽║      
-    //   / |            /⟋2               / ⎹            ⫽/║               / |            /⟋2              / |             ⫽\║     
-    // z/  |          ⟋/ ⎹|             z/  |           ⫽//║             z/  ⎸          ⟋/ ⎹|            z/  |            ⫽\\║     
-    // *---┼--------⟋-*  ⎸|      ->     *---┼-----{1.5->2}/║             *---┼--------⟋-*  ⎸|     ->      *--┼-----{0.5->1}\\║    
-    // |   |y    ⟋    | | |             |   | y        ║///║             |   |y    ⟋    | | |            ⎹   |y          ║\\\║   
-    // |   *--⟋-------┼┼--*             |{2.66->5}=====║{2.33->4}        |   *--⟋-------┼┼--*            ⎹{2.33->4}======║{2.66->5}
-    // |  /⟋       __-1  /              |  ⫽\\\\\\\\\\\║//⫽              ⎸  /⟋       __-1  /             |  ⫽///////////║\\⫽     
-    // |⟋/   __--‾‾   | /               | ⫽\\\\\\\\\\\\║/⫽               ⎸⟋/   __--‾‾   | /              | ⫽////////////║\⫽      
-    // 0⌿-‾‾         ⎹/                ⎹⫽\\\\\\\\\\\\\║⫽                0⌿-‾‾          |/               |⫽/////////////║⫽         
-    // *--------------* x               0==============1 x               *--------------* x             {2->3}========={1->2} x
+    //     *--------------*                 *-------------{2->3}              *---------------*                *----------------0    
+    //    /|             /|                /⎹              ⫽║                /|              /⎸               /⎸              ⫽⎹⎸      
+    //   / |            /⟋2               / |            ⫽/⎹⎸               / ⎸            /⟋2              / |             ⫽\\║     
+    // z/  |          ⟋/ ⎹|             z/  |           ⫽//⎹⎸             z/  ⎸          ⟋/ |⎸            z/  ⎸            ⫽\\\║     
+    // *---┼--------⟋-*  ⎸|      ->     *---┼-----{1.5->2}//║             *---┼--------⟋-*  ⎸|     ->     *---┼-----{0.5->1}\\\\║    
+    // |   |y    ⟋    | | |             ⎸   | y        ║////║             |   |y    ⟋    | | |            ⎸   |y          ║\\\\\║   
+    // |   *--⟋-------┼┼--*             ⎸{2.66->5}═════║{2.33->4}         |   *--⟋-------┼┼--*            ⎸{2.33->4}══════║{2.66->5}
+    // |  /⟋       __-1  /              ⎸  ⫽\\\\\\\\\\⎹⎸//⫽              |  /⟋      __--1  /             ⎸  ⫽///////////⎹⎸\\\⫽     
+    // |⟋/   __--‾‾   ⎸ /               ⎸ ⫽\\\\\\\\\\\⎹⎸/⫽               |⟋/  __--‾‾    ⎸ /              ⎸ ⫽////////////⎹⎸\⫽      
+    // 0⌿-‾‾          ⎹/                ⎹⫽\\\\\\\\\\\\\║/⫽                0⌿-‾‾          |/               |⫽//////////////║⫽         
+    // *--------------* x               0═══════════════1 x               *--------------* x             {2->3}═════════{1->2} x
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1569,175 +1343,149 @@ TEST_F(StaircaserTest, transformTriangleIntoTwoSurfaces)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    EXPECT_EQ(resultMesh.groups[0].elements.size(), 2);
-    EXPECT_EQ(resultMesh.groups[1].elements.size(), 2);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-
-    EXPECT_TRUE(resultMesh.groups[0].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[0].elements[1].isQuad());
-    EXPECT_TRUE(resultMesh.groups[1].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[1].elements[1].isQuad());
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
 TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
 {
-    // T0   *-------------1                  *-----------{1->0}          T2      2-------------*               {2->3}-----------*
-    //     /|            ⫽║                 /|             /║                   /║\           /|                /║             /|
-    //    / |          ╱/⎹|                / |            / ║                  /⎹| \         / |               / ║            / |
-    //  z/  |        ╱ / ||              z/  |           /  ║                z/ ||  \       /  |             z/  ║           /  |
-    //  *---┼------⌿--* ||       ->     *---┼----------*   ║                *--┼┼---------*   |      ->     *---╫----------*   |
-    //  |   |y   ╱    | ⎹ |              ⎸   |     ->   |   ║                | | |y   \    |   |             |   ║ y   ->   |   |
-    //  |   *--╱------┼-┼-*              ⎸{0.33->4}=====╪{1.5|0.66->1}       | ⎸ *-----\---┼---*            {1.5|2.33->2}===╪{2.66->4}
-    //  |  / ╱        |⎹ /               ⎸⩘ ⫽///////////|//⫽                ⎹ ⎸ /       \  ⎸  /             ⎹ ⩘⫽///////////|//⫽
-    //  | /╱          |⎸/                ⎸/⫽////////////|/⫽ /               ⎹| /         \ | /              ⎹/⫽////////////⎹/⫽/ 
-    //  |⫽            ║/                 ⎸⫽/////////////|⫽ ⩗                ║/            \⎸/               |⫽/////////////|⫽ ⩗ 
-    //  0=============2 x             {0->3}============2 x                  1=============0 x               1==============0 x
+    // T0   *--------------1                  *-----------{1->0}          T2      2-------------*               {2->3}----------*
+    //     /|            ⫽⎹⎸                 /⎸             /⎹⎸                 /⎹⎸\           /|              /⎹⎸             /|
+    //    / |          ╱/ ⎹|                / |            /  ║                / || \         / |              / ║            / ⎹
+    //  z/  |        ╱ /  ⎸|              z/  |           /   ║              z/ | |  \       /  |            z/  ║           /  ⎹
+    //  *---┼------/--*  | |       ->     *---┼----------*    ║              *--┼-┼---------*   |      ->    *---╫----------*   ⎹
+    //  |   |y   ╱    | ⎹  |              ⎸   |     ->   |    ║              ⎸ |  |y   \    |   |            |   ║ y   ->   |   ⎹
+    //  |   *--╱------┼-┼--*              ⎸{0.33->4}═════╪{1.5|0.66->1}      ⎸ ⎸  *-----\---┼---*            {1.5|2.33->2}══╪{2.66->4}
+    //  |  / ╱        ⎹⎹  /               ⎸⩘ ⫽//////////⎹///⫽              ⎹ ⎸ /        \  ⎸  /             ⎸ ⩘⫽//////////|///⫽
+    //  | /╱          ⎹⎸ /                ⎸/⫽////////////⎸/⫽ /              ⎸⎸/          \ | /              |/⫽////////////|/⫽ / 
+    //  |⫽            ║/                 ⎹⫽/////////////|⫽ ⩗               ║/            \|/               ⎹⫽/////////////|⫽ ⩗ 
+    //  0═════════════2 x             {0->3}═════════════2 x                 1══════════════0 x              1══════════════0 x
     //                                         <-                                                                  <-
     // 
-    // T1   *-------------1                  *-----------{1->2}         T2      0-------------*                    0--------------*
-    //     /|            ⫽║                 /|             /║                  /║\           /|                   / ║            /|
-    //    / |          ╱/⎹|                / |            / ║                 /⎹| \         / |                  /  ║           / |
-    //  z/  |        ╱ / ||              z/  |           /  ║               z/ ||  \       /  |               z /   ║          /  |
-    //  *---┼------⌿--* ||       ->     *---┼----------*   ║               *--┼┼---------*   |       ->       *----╫---------*   |
-    //  |   |y   ╱    | ⎹ |              ⎸   |     <-   |   ║               | | |y   \    |   |                |    ║ y   <-  |   |
-    //  |   *--╱------┼-┼-*              ⎸{1.66->4}=====╪{0.5|1.33->1}      | ⎸ *-----\---┼---*               {0.5|2.66->1}==={2.33->4}
-    //  |  / ╱        |⎹ /               ⎸ /⫽\\\\\\\\\\\|\\⫽               ⎹ ⎸ /       \  ⎸  /                ⎹  /⫽\\\\\\\\\\\|\\\⫽
-    //  | /╱          |⎸/                ⎸⩗⫽\\\\\\\\\\\\|\⫽ ⩘              |⎸/         \ |  /                 |⩗⫽\\\\\\\\\\\\\⎸\⫽⩘
-    //  |⫽            ║/                 ⎸⫽\\\\\\\\\\\\\|⫽ /               ║/            \⎸/                  |⫽\\\\\\\\\\\\\\|⫽ /
-    //  1=============0 x             {2->3}============0 x                 1=============2 x                {1->2}=========={2->3} x
+    // T1   *--------------1                   *-----------{1->2}         T3      2-------------*               {2->3}-----------*
+    //     /|            ⫽⎹⎸                  /⎸             /⎹⎸                /⎹⎸\           /⎸               /⎹⎸             /|
+    //    / |          ╱/ ⎹|                 / |            /  ║               / ||  \        / |              /  ║            / ⎹
+    //  z/  |        ╱ /  ⎸|               z/  |           /   ║             z/ | |   \      /  |            z/   ║           /  ⎹
+    //  *---┼------/--*  | |      ->       *---┼----------*    ║             *--┼-┼---------*   |      ->    *----╫----------*   ⎹
+    //  |   |y   ╱    | ⎹  |               ⎸   |     <-   |    ║             | |  |y    \   |   |            |    ║ y   ->   |   ⎹
+    //  |   *--╱------┼-┼--*               ⎸{1.66->4}═════╪{0.5|1.33->1}     | ⎸  *------\--┼---*            {1.5|2.33->2}═══╪{2.66->4}
+    //  |  / ╱        ⎹⎹  /                ⎸ /⫽\\\\\\\\\\⎹\\\⫽              ||  /        \ ⎹   /            |  ⩘⫽\\\\\\\\\\⎹\\\⫽
+    //  | /╱          ⎹⎸ /                 ⎸⩗⫽\\\\\\\\\\\|\\⫽⩘             ⎹| /          \ ⎸ /             ⎹ /⫽\\\\\\\\\\\\|\⫽ /
+    //  |⫽            ║/                  ⎹⫽\\\\\\\\\\\\\|⫽ /              ⎹⎸/            \⎸/               ⎸⫽\\\\\\\\\\\\\|⫽ ⩗
+    //  2═════════════0 x              {0->3}═════════════2 x                1══════════════0 x              1═══════════════0 x
     //                                          ->                                                                  ->
     // 
-    // T4    *--------------*                 *-----------{1->4}           T6      1-------------*               {1->0}====={0.66|1.5->1}
-    //      /|             /|                /|           ⩘ ⫽║                    /\⟍          /⎹                 /|             ⫽║
-    //     / |            / |               / |          / ⫽/║                   / |\  ⟍      /  ⎸               / |          ⩘ ⫽/║
-    //  z /  |           /  |             z/  |           ⫽//║  |              z/  | \    ⟍  /   ⎸             z/  |         / ⫽//║ ⎸
-    //   1===|----------*   |     ->    {1->2}╪===={0.5|1.33->1}v              *---┼--\-----*⟍  ⎹       ->    *----┼------{0.33->4}║ v
-    //   | ⟍ |‾‾⎻⎻⎼⎼__  |   |             |   |    ->    ║///║                 |   ⎸   \    ⎹  ⟍ ⎸            ⎹    ⎸          ║////║
-    //   |   *⟍-------⎺⎺|===2             |   *----------║/{2->3}              |   *----\--⎻┼---2              ⎸   *----------║////2
-    //   |  /    ⟍      |  ⫽              ⎸  /         ᐱ ║//⫽                 |  /       \  ⎸  ⫽              |  /         ᐱ ║///⫽
-    //   | /        ⟍   | ⫽               ⎸ /          ⎹ ║/⫽ /                ⎹ /         \ | ⫽               ⎹ /          ⎹  ║//⫽ /
-    //   |/           ⟍ |⫽                ⎸/             ║⫽ ⩗                 |/           \⎸⫽                |/              ║⫽  ⩗
+    // T4    *--------------*                 *-----------{1->4}           T6      1-------------*               {1->0}═════{0.66|1.5->1}
+    //      /|             /|                /|           ⩘ ⫽⎹⎸                   /\ ⟍         /⎹                 /|             ⫽/⎹⎸
+    //     / |            / |               / |          / ⫽//║                  / ⎸\   ⟍     /  ⎸               / ⎹          ⩘ ⫽//⎹⎸
+    //  z /  |           /  |             z/  |           ⫽///║ |              z/  ⎸ \     ⟍ /   ⎸             z/  ⎹         / ⫽////║ ⎸
+    //   1===|----------*   |     ->    {1->2}╪════{0.5|1.33->1}v              *---┼---\-----*⟍  |       ->    *----┼------{0.33->4}/║ v
+    //   | ⟍ ⎸‾‾⎻⎻⎻⎻--⎼⎼⎼⎼__⎹   |             |   |    ->    ║////║                ⎸   |    \    ⎹  ⟍|             ⎸    |          ║/////║
+    //   |   *⟍---------|===2             ⎸   *---------⎹⎸/{2->3}             ⎹    *-----\---┼---2             ⎸    *----------║/////2
+    //   |  /    ⟍      |  ⫽             ⎹  /         ᐱ ║///⫽                ⎹   /       \  ⎸  ⫽             |   /         ᐱ ║////⫽
+    //   | /        ⟍   | ⫽              ⎹ /          ⎹ ⎹⎸/⫽ /                ⎸ /         \ | ⫽              ⎹  /          ⎹ ⎹⎸//⫽ /
+    //   |/           ⟍ |⫽               ⎹/             ⎹⎸⫽ ⩗                ⎹/            \⫽                |/              ║/⫽  ⩗
     //   *--------------0 x               *--------------0 x                   *-------------0 x               *-------------{0->3} x
     //                          
     // 
-    // T4    *--------------*               *----------{1.33->4}          T6       2-------------*              {2->3}====={2.33|1.5->2}
-    //      /|             /|              /|              ⫽║                     /\⟍          /⎹                /|        / ⫽/║
-    //     / |            / |             / |           / ⫽\║                    /| \  ⟍      /  ⎸              / |       ⩗ ⫽//║
-    //  z /  |           /  |           z/  |          ⩗ ⫽\\║ ᐱ               z/  ⎸ \     ⟍ /   |            z/  ⎹         ⫽///║ ᐱ 
-    //   2===|----------*   |     ->    2===╪===={2.5|1.66->3}⎹               *---┼---\-----*⟍   |       ->   *---┼----{2.66->4}║ ⎸
-    //   | ⟍ |‾‾⎻⎻⎼⎼__  |   |           |   |    ->     ║\\\║                ⎹    |    \    |  ⟍ ⎸           ⎹    ⎸        ║////║
-    //   |   *⟍-------⎺⎺|===1           |   *-----------║\\\1                ⎹    *-----\---┼----1            ⎸   *--------║////1
-    //   |  /    ⟍      |  ⫽            ⎸  /          | ║\\⫽                 |  /        \  ⎸   ⫽            |  /        ⎹ ║///⫽
-    //   | /        ⟍   | ⫽             ⎸ /           V ║\⫽ ⩘                | /          \⎹  ⫽              | /         V ║/⫽ ⩘
-    //   |/           ⟍ |⫽              ⎸/              ║⫽ /                 |/            \⎸⫽               |/            ║⫽ /
-    //   *--------------0 x             *-------------0 x                     *-------------0 x               *-------------0 x
+    // T5    *--------------*                 *-----------{1->4}           T7      2-------------*               {2->3}═════{2.33|1.5->2}
+    //      /|             /|                /|             ⫽⎹⎸                   /|\⟍          /⎸                /|           / ⫽///║ 
+    //     / |            / |               / |          / ⫽\⎹⎸                  / ⎸ \  ⟍      / ⎸               / ⎸          ⩗ ⫽///⎹⎸ 
+    //  z /  |           /  |             z/  |         ⩗⫽\\\║ ᐱ              z/  |  \    ⟍  /  |             z/  |           ⫽/////║ ᐱ
+    //   2===|----------*   |     ->      2═══╪════{2.5|1.66->3}|              *---┼---\-----*⟍  |       ->   *----┼------{2.66->4}//⎹⎸ ⎸
+    //   | ⟍ ⎸‾‾⎻⎻⎻⎻--⎼⎼⎼⎼__⎹   |             |   |    ->   ⎹⎸\\\\║               ⎹    |    \    ⎹  ⟍|            |    |           ║/////⎹⎸
+    //   |   *⟍---------|===1             ⎸   *---------⎹⎸\\\\1               ⎹    *-----\---┼---1            ⎹    *-----------║/////1
+    //   |  /    ⟍      |  ⫽             ⎹  /         | ║\\\⫽                ⎹   /       \  |  ⫽             |  /         |  ⎹⎸////⫽
+    //   | /        ⟍   | ⫽              ⎹ /          V ║\⫽ ⩘                ⎸ /          \ ⎸ ⫽              ⎸ /          V  ║///⫽ ⩘
+    //   |/           ⟍ |⫽               ⎹/             ║⫽ /                 |/            \|⫽               |/              ⎹⎸/⫽  /
+    //   *--------------0 x               *--------------0 x                  *--------------0 x               *---------------0 x
     // 
     //                                            ->                                                            ->
-    // T8    *------------*             {1.33->4}===={1.66|2.5->3}      T10      *------------*          {1.5|2.33->2}======{2.66->4}
-    //      /|           /|                /║╱╱╱╱╱╱╱╱╱╱╱╱╱⫻║                   /|           /|                 ⫽ ║╱╱╱╱╱╱╱╱╱╱╱╱⫽║
-    //     / |          / |               /ᐱ║╱╱╱╱╱╱╱╱╱╱╱╱⫻╱║                  / ⎸          / |                ⫽ᐱ║╱╱╱╱╱╱╱╱╱╱╱⫽╱║
-    //  z /  |         /  |             z/ |║╱╱╱╱╱╱╱╱╱╱╱⫻╱╱║  ⎸              /  |         /   ⎸             z⫽  ⎸║/////////╱⫽╱╱║ |
-    //   0---┼-------=2   |       ->    *---║⌿⌿⌿⌿⌿⌿2╱╱╱║ v              2==__--------*   |     ->   {2->3}--║⌿⌿⌿⌿⌿*╱╱╱╱║ v
-    //   |   | __⎼⎼‾‾ | ⟍ |             ⎸   ║╱╱╱╱╱╱╱╱╱╱⎹╱╱╱╱║                | ⟍ ⎸‾‾‾⎼⎼___|   |             ⎸    ║╱╱╱╱╱╱╱╱╱⎸╱╱╱╱║
-    //   |   1≡=======╪===0             |   1==========╪====0                |   1========|‾‾≡0             |    1=========╪====0
-    //   |  /         |  /              |  /      <-   |   /                 |  /         |  /              |   /      <-  |   /
-    //   | /          | /               | /            |  /                  | /          | /               |  /           |  /
-    //   |/           |/                |/             | /                   |/           |/                | /            | /
-    //   *------------* x               *--------------* x                   *------------* x               *--------------* x
+    // T8    *------------*             {1.33->4}════{1.66|2.5->3}      T10       *--------------*          {1.5|2.33->2}══════{2.66->4}
+    //      /|           /|                /║╱╱╱╱╱╱╱╱╱╱╱╱╱⫻║                    /⎹             /⎹                 ⫽║╱╱╱╱╱╱╱╱╱╱╱╱⫽║
+    //     / |          / |               /^║╱╱╱╱╱╱╱╱╱╱╱╱⫻ ║                   / ⎹            / ⎹                ⫽^║╱╱╱╱╱╱╱╱╱╱╱⫽╱║
+    //  z /  |         /  |             z/ |║╱╱╱╱╱╱╱╱╱╱╱⫻╱ ║ ⎸               z/  ⎹           /  ⎹             z ⫽ ⎸║/////////╱⫽╱╱║ |
+    //   0---┼--------2   |       ->    *---╫-----------2╱╱⎹⎸ v               2===⎹----------*   |     ->   {2->3}--║---------*╱╱╱⎹⎸ v
+    //   |   |__⎼⎼⎼⎼⎻⎻⎻⎻‾‾⎹ ⟍ |             |   ║╱╱╱╱╱╱╱╱╱╱|╱╱╱⎹⎸                 | ⟍‾⎸‾⎻⎻⎻⎻⎻--⎼⎼⎼⎼⎼⎼⎼_⎸__ ⎸              |   ║╱╱╱╱╱╱╱╱╱|╱╱╱⎹⎸
+    //   |   1════════╪═══0             |   1══════════╪════0                 |   1══════════╪═══0              |   1═════════╪════0
+    //   |  /         |  /              |  /      <-   |   /                  |  /           |  /               |  /      <-  |   /
+    //   | /          | /               | /            |  /                   | /            | /                | /           |  /
+    //   |/           |/                |/             | /                    |/             |/                 |/            | /
+    //   *------------* x               *--------------* x                    *--------------* x                *-------------* x
     //                                                                                                           
     //                                            <-                                                                    <-
-    // T9    *------------*             {1.66->4}===={0.5|1.33->1}      T11      *------------*          {1.5|0.33->1}======{0.33->4}
-    //      /|           /|                /║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽║                   /|           /⎸                ⫽║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍/║
-    //     / |          / |               /|║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍║                  / |          / ⎸               ⫽|║⟍⟍⟍⟍⟍⟍⟍⟍⟍/⟍║
-    // z  /  |         /  |             z/ v║⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍⟍║ ᐱ               /  ⎸         / |             z⫽  v║⟍⟍⟍⟍⟍⟍⟍⟍/⟍⟍║ ᐱ
-    //   0---┼-------=1   |       ->    *---║⍀⍀⍀⍀{1->2}⟍\║ |              1==__--------*  |      ->   {1->0}-║⍀⍀⍀⍀⍀⍀*⟍⟍║ |
-    //   |   | __⎼⎼‾‾ | ⟍ ⎸             ⎸   ║⟍⟍⟍⟍⟍⟍⟍⟍⎸⟍⟍⟍║                | ⟍ ⎸‾‾‾⎼⎼___⎸   ⎸             ⎹   ║⟍⟍⟍⟍⟍⟍⟍⟍|⟍⟍║
-    //   |   2≡=======╪===0             |{2->3}========╪====0                ⎹   2========|‾‾≡0              |   2==========╪={0->3}
-    //   |  /         |  /              |  /      ->   |   /                 ⎹  /         |  /               |  /      ->   |  /
-    //   | /          | /               | /            |  /                  ⎹ /          | /                | /            | /
-    //   |/           |/                |/             | /                   ⎹/           |/                 |/             |/
-    //   *------------* x               *--------------* x                    *-----------* x                *--------------* x
+    // T9    *------------*             {1.66->4}════{0.5|1.33->1}      T11       *--------------*          {1.5|0.33->1}══════{0.33->4}
+    //      /|           /|                /║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽║                    /⎹             /⎹                 ⫽║⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽║
+    //     / |          / |               /|║⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍║                   / ⎹            / ⎹                ⫽^║⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍║
+    //  z /  |         /  |             z/ v║⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍⟍║ ᐱ               z/  ⎹           /  |             z ⫽ ⎸║⟍⟍⟍⟍⟍⟍⟍⫽⟍⟍║ ᐱ
+    //   0---┼--------1   |       ->    *---╫----------2⟍⟍⟍║ |               1===⎹----------*   |     ->   {1->0}--⎹⎸--------*⟍⟍⟍║ |
+    //   |   |__⎼⎼⎼⎼⎻⎻⎻⎻‾‾⎹ ⟍ |             |   ║⟍⟍⟍⟍⟍⟍⟍⎹⟍⟍⟍⎹⎸                 ⎸ ⟍‾⎸‾⎻⎻⎻⎻⎻--⎼⎼⎼⎼⎼⎼⎼_⎸__ ⎸              |   ║⟍⟍⟍⟍⟍⟍⎹⟍⟍⟍⎹⎸
+    //   |   2════════╪═══0             |{2->3}════════╪════0                 |   2══════════╪═══0              |   1═════════╪═══{0->3}
+    //   |  /         |  /              |  /      ->   |   /                  |  /           |  /               |  /      ->  |   /
+    //   | /          | /               | /            |  /                   | /            | /                | /           |  /
+    //   |/           |/                |/             | /                    |/             |/                 |/            | /
+    //   *------------* x               *--------------* x                    *--------------* x                *-------------* x
     //                                                                   
     // 
-    // T12   *-------------*                 *-------------*           T14       *--------------1                 *-----------{1->2}     
-    //      /|           / |                /|            /|                    /|            ⫻ ⎸                /|             /║
-    //     / |          /  |               / |           / |                   / |         ⟋ ╱/ |               / ⎹            / ║
-    //  z /  |         /   |             z/  |          /  |               z  /  |      ⟋  ╱ /  |             z/  ⎹           /  ║
-    //   *---┼-------=2    |      ->    *----┼---------2   |                 *---┼---⌿--⌿-*    ⎸     ->     *----┼----------*   ║
-    //   |   | __⎼⎼‾‾⟋|    ⎸            |    ⎸    ->   ║   |                ⎹    ⎸⟋    ╱   ⎹    ⎸            ⎹    ⎹    ->    ⎸   ║
-    //   |   1=----⌿-┼----*            ⎹    1=========║{1.33->4}            |   0---╱------┼----*            |    0========={0.5|1.33->1}
-    //   |  ⫽    ⟋    ⎸  /              ⎸ ⩘⫽//////////║//⫽                  |  ⫽ ╱        ⎹   /              ⎸⩘ ⫽//////////|//⫽
-    //   | ⫽  ⟋       ⎸ /               ⎸/⫽///////////║/⫽ /                 | ⫽╱          ⎹  /               ⎸/⫽///////////⎹/⫽ /
-    //   |⫽⟋         ⎹ /                ⎸⫽////////////║⫽ ⩗                  |⫻            |/                |⫽////////////⎹⫽ ⩗
-    //   0------------* x               0========{2.5|1.66->3} x             2--------------* x            {2->3}========{1.66->4} x
+    // T12   *-------------*                  *-------------*           T14         *---------------1                *-----------{1->2}     
+    //      /|           / |                / |            /|                     / |            ⟋⫽⎸               /⎹             /⎹⎸
+    //     / |          /  |               /  |           / |                    /  |          ⟋ ╱/|              /  |           /  ║
+    //  z /  |         /   |             z/   |          /  |                  z/   |       ⟋  ╱ / |            z/   |          /   ║
+    //   *---┼-------==2   |      ->     *----┼---------2   |                  *----┼----⟋---/-*   |      ->    *----┼---------*    ║
+    //   |   | _⎼⎼⎼⎼⎻⎻⎻⎻‾⟋⎹    ⎸             ⎸    |    ->   ║   |                  |    | ⟋    ╱   |   |            |    |    ->   ⎸    ║
+    //   |   1=----⟋--┼----*             ⎸    1═════════║{1.33->4}             ⎸    0---╱------┼---*            |    0═════════{0.5|1.33->1}
+    //   |  ⫽   ⟋     ⎸  /              | ⩘⫽//////////⎹⎸//⫽                  |   ⫽ ╱         ⎸  /             | ⩘ ⫽/////////|///⫽
+    //   | ⫽ ⟋        ⎸ /               |/⫽/////////// ║/⫽ /                 ⎹  ⫽╱           | /              ⎹ /⫽///////////⎸/⫽ /
+    //   |⫽⟋          ⎸/                |⫽//////////// ║⫽ ⩗                  |⫻             ⎹/                ⎸⫽////////////⎹⫽ ⩗
+    //   0-------------* x               0════════{2.5|1.66->3} x              2---------------* x            {2->3}════════{1.66->4} x
     //                                          <-                                                          
     // 
     // 
     // 
-    // T13   *-------------*                 *--------------*           T15       *--------------2                *------------2     
-    //      /|           / |                /|             /|                    /|            ⫻⎹               /⎹           /║
-    //     / |          /  |               / |            / |                   / |         ⟋ ╱/ ⎸             / ⎹          / ║
-    //  z /  |         /   |             z/  |           /  |               z  /  |      ⟋  ╱ /  ⎸           z/  ⎹         /  ║
-    //   *---┼-------=3    |      ->    *----┼--------{1->2}|                 *---┼---⌿--⌿-*   |      ->   *----┼--------*   ║
-    //   |   | __⎼⎼‾‾⟋|    ⎸            |    |    <-    ║   ⎸                 |   ⎸⟋    ╱   ⎹   |           ⎹    ⎹    <-  ⎹   ║
-    //   |   2=----⌿-┼----*            ⎹  {2->3}=======║{1.66->4}            ⎹   0---╱------┼---*           |    0========╪{2.5|1.66->3}
-    //   |  ⫽    ⟋    ⎸  /              ⎸ /⫽\\\\\\\\\\\║\\⫽ ⩘                |  ⫽ ╱        ⎹  /            ⎹  /⫽\\\\\\\\\|\\⫽ ⩘
-    //   | ⫽  ⟋       ⎸ /               ⎸⩗⫽\\\\\\\\\\\\║\⫽ /                 | ⫽╱          ⎹ /             ⎹ ⩗⫽\\\\\\\\\\|\⫽ /
-    //   |⫽⟋         ⎹ /                ⎸⫽\\\\\\\\\\\\\║⫽                    |⫻            ⎹/              ⎹ ⫽\\\\\\\\\\\|⫽ 
-    //   0------------* x               0========{0.5|1.33->1} x              1--------------* x             1========{1.33->4} x
+    // T13   *-------------*                  *--------------*           T15       *---------------2                 *--------------2
+    //      /|           / |                / |             /|                    / |            ⟋⫽⎸               / ⎸            /⎹⎸
+    //     / |          /  |               /  |            / |                   /  |          ⟋ ╱/|              /  |           /  ║
+    //  z /  |         /   |             z/   |           /  |                 z/   |       ⟋  ╱ / |            z/   |          /   ║
+    //   *---┼-------==1   |      ->     *----┼--------{1->2}|                 *----┼----⟋---/-*   |      ->    *----┼---------*    ║
+    //   |   | _⎼⎼⎼⎼⎻⎻⎻⎻‾⟋⎹    ⎸             ⎸    |    ->   ║    |                 |    | ⟋    ╱   |   |            ⎹    |    ->   ⎸    ║
+    //   |   2=----⟋--┼----*             ⎸  {2->3}══════║{1.66->4}             ⎸    0---╱------┼---*            ⎹    0═════════{2.5|1.66->3}
+    //   |  ⫽   ⟋     ⎸  /              | /⫽\\\\\\\\\\\║\\\⫽⩘                |  ⫽  ╱         ⎸  /             ⎹ / ⫽\\\\\\\\\|\\\⫽ ⩘
+    //   | ⫽ ⟋        ⎸ /               |⩗⫽\\\\\\\\\\\⎹⎸\⫽ /                 ⎸ ⫽╱            ⎸ /              ⎸⩗⫽\\\\\\\\\\\⎸\⫽ /
+    //   |⫽⟋          ⎸/                |⫽\\\\\\\\\\\\\║⫽                    |⫻              ⎸/               |⫽\\\\\\\\\\\\⎹⫽
+    //   0-------------* x               0════════{0.5|1.33->1} x              1---------------* x              1════════{1.33->4} x
     //                                          ->                                                                 ->
     // 
     //                                             <-                                                                  
-    // T16  *-------------*          {2.5|1.66->3}====={1.33->4}         T18     *-------------*                   *------------*    
-    //     /|            /|                /⫽\\\\\\\\\\\\⫽⎹                     /|            /|                 /⎹            /|   
-    //    / |           / |               ⩗⫽\\\\\\\\\\\\⫽⩘|                   / ⎹            /⎹                 / |           / ⎸   
-    //  z/  |          /  |              z⫽\\\\\\\\\\\\⫽ /⎹                 z/   ⎸          /  |              z/   ⎸ ->      /  |   
-    //  0============≡1   |       ->     0============1    ⎸                 1===╪---------*   ⎹      ->       1===╧==={1.33->4}⎹   
-    //  | ⟍ |y__⎼⎼‾‾  ⎸   ⎸              |   ║    ->  |    ⎸                 ║  y|‾‾‾⎼⎼⎼___|   ⎹             ᐱ ║╱╱╱╱╱╱╱╱╱╱╱╱║   |
-    //  |   2=--------┼---*              |   2--------┼----*                 ║   *---------╪=≡≡2             | ║╱╱╱╱╱╱╱╱╱╱╱╱╟---2    
-    //  |  /          |  /               |  /         |   /                  ║  /        _⎼┼‾ /                ║╱╱╱╱╱╱╱╱╱╱╱╱║| ⫽     
-    //  | /           | /                | /          |  /                   ║ /    __⎼‾‾  | /                 ║╱╱╱╱╱╱╱╱╱╱╱╱║v⫽      
-    //  |/            |/                 |/           | /                    ║/ _⎼⎼‾       |/                  ║╱╱╱╱╱╱╱╱╱╱╱╱║⫽       
-    //  *-------------* x                *------------* x                    0=‾-----------* x                 0======{2.5|1.66->3} x      
+    // T16   *------------*           {2.5|1.66->3}═════{1.33->4}         T18    *---------------*                 *-------------*
+    //      /⎹           /|                / ⫽\\\\\\\\\\\\⫽⎸                   /|              /⎸                /|            /|
+    //     / ⎹          / |               ⩗⫽\\\\\\\\\\\\⫽ |                   / |            / ⎹                / ⎸          /  ⎸
+    //  z /  ⎹         /  |              z⫽\\\\\\\\\\\\⫽⩘ |                 z/  ⎸           /  ⎹             z /  ⎸ ->      /   ⎸
+    //   0════════════1   |        ->    0════════════1 /  ⎹                 1===┼----------*    ⎸     ->      1═══╧═══{1.33->4} |
+    //   | ⟍y|__⎼⎼⎼⎼⎻⎻⎻⎻‾‾|   |              |   ║    ->  |    ⎹                 ║  y|‾‾⎻⎻⎻⎻--⎼⎼⎼⎼__|    ⎸           ᐱ ║╱╱╱╱╱╱╱╱╱╱╱╱║    ⎸
+    //   |   2--------┼---*              |   2--------┼----*                 ║   *----------┼==≡2            | ║╱╱╱╱╱╱╱╱╱╱╱╱╟----2
+    //   |  /         |  /               |  /         |   /                  ║  /        __-┼‾‾/               ║╱╱╱╱╱╱╱╱╱╱╱╱║|  ⫽
+    //   | /          | /                | /          |  /                   ║ /    __-‾‾   | /                ║╱╱╱╱╱╱╱╱╱╱╱╱║v ⫽
+    //   |/           |/                 |/           | /                    ║/__-‾‾        |/                 ║╱╱╱╱╱╱╱╱╱╱╱╱║⫽
+    //   *------------* x                *------------* x                    0=-------------*x                 0══════{2.5|1.66->3} x
     //                                                                                                               <-
     //                                                                    
     //                                             <-
-    // T17  *-------------*          {0.5|1.33->1}====={1.66->4}          T19     *--------------*                  *-------------*
-    //     /|            /|                ⩘⫽\\\\\\\\\\\\⫽⎸                     / ⎸            /|                 / ⎸           /⎹
-    //    / |           / |               /⫽\\\\\\\\\\\\⫽/⎸                    /  |           / |                /  ⎸          / ⎹
-    //  z/  |          /  |              z⫽\\\\\\\\\\\\⫽⩗ ⎸                  z/   ⎸          /  ⎸              z/   ⎸ <-      /  ⎹
-    //  0============≡2   |       ->     0=========={2->3}|                   2===╪---------*   |      ->     {2->3}╧==={1.66->4} |
-    //  | ⟍ |y__⎼⎼‾‾  ⎸   ⎸              |   ║    ->  |   |                   ║  y⎸‾‾‾⎼⎼⎼___|   |               ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║   |
-    //  |   1=--------┼---*              |{1->2}------┼---*                   ║   *---------╪=≡≡1             | ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍╟-{1->2}
-    //  |  /          |  /               |  /         |  /                    ║  /        _⎼┼‾ /              v ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║ᐱ ⫽
-    //  | /           | /                | /          | /                     ║ /    __⎼‾‾  | /                 ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║|⫽
-    //  |/            |/                 |/           |/                      ║/ _⎼⎼‾       |/                  ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║⫽
-    //  *-------------* x                *------------* x                     0=‾-----------* x                 0======{0.5|1.33->1} x
+    // T17   *------------*           {0.5|1.33->1}═════{1.66->4}         T19    *---------------*                 *-------------*
+    //      /⎹           /|                / ⫽\\\\\\\\\\\\⫽⎸                   /|              /⎸                /|            /|
+    //     / ⎹          / |               ⩗⫽\\\\\\\\\\\\⫽/|                   / |            / ⎹                / ⎸          /  ⎸
+    //  z /  ⎹         /  |              z⫽\\\\\\\\\\\\⫽⩗ |                 z/  ⎸           /  ⎹             z /  ⎸ <-      /   ⎸
+    //   0════════════2   |        ->    0═════════{2->3}  ⎹                 2===┼----------*    ⎸     ->    {2->3}╧══════{1.66->4}
+    //   | ⟍y|__⎼⎼⎼⎼⎻⎻⎻⎻‾‾|   |              |   ║    ->  |    ⎹                 ║  y|‾‾⎻⎻⎻⎻--⎼⎼⎼⎼__|    ⎸             ║⟍⟍⟍⟍⟍⟍⟍⟍⟍║    ⎸
+    //   |   1--------┼---*              |{1->2}------┼----*                 ║   *----------┼==≡1            | ║⟍⟍⟍⟍⟍⟍⟍⟍⟍╟-{1->2}
+    //   |  /         |  /               |  /         |   /                  ║  /        __-┼‾‾/             v ║⟍⟍⟍⟍⟍⟍⟍⟍⟍║ᐱ ⫽
+    //   | /          | /                | /          |  /                   ║ /    __-‾‾   | /                ║⟍⟍⟍⟍⟍⟍⟍⟍⟍║|⫽
+    //   |/           |/                 |/           | /                    ║/__-‾‾        |/                 ║⟍⟍⟍⟍⟍⟍⟍⟍⟍║⫽
+    //   *------------* x                *------------* x                    0=-------------*x                 0══════{0.5|1.33->1} x
     //                                         <-                                                                      ->
 
     float lowerCoordinateValue = -5.0;
@@ -1876,152 +1624,87 @@ TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    EXPECT_EQ(resultMesh.groups[0].elements.size(), 2);
-    EXPECT_EQ(resultMesh.groups[1].elements.size(), 2);
-    EXPECT_EQ(resultMesh.groups[2].elements.size(), 2);
-
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-
-    EXPECT_TRUE(resultMesh.groups[0].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[1].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[1].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[2].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[2].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[3].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[3].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[4].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[4].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[5].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[5].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[6].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[6].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[7].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[7].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[8].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[8].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[9].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[9].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[10].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[10].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[11].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[11].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[12].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[12].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[13].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[13].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[14].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[14].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[15].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[15].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[16].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[16].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[17].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[17].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[18].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[18].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[19].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[19].elements[1].isLine());
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
-}
-
 }
 
 TEST_F(StaircaserTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
 {
     //                                              
-    // T0   *-{2}---------*               {2->4}========={0.33->1} 
-    //     /|  |\        /|               / ⫽\\\\\\\\\\\\\⫽/║      
-    //    / |  ⎹ \      / |              ⩗ ⫽\\\\\\\\\\\\\⫽//║      
-    //  z/  |  ⎹  \    /  |              z⫽\\\\\\\\\\\\\⫽///║⎹     
-    //  *---┼---┼{0}--*   |     ->   {2.5->5}=========={0}//║ v     
-    //  |   |y  ⎹/    |   |              ⎸   ║//////////|///║       
-    //  |   *--{1}----┼---*              {1->3}=========╪=={0.66->2}
-    //  |  /          |  /               ⎸  /      <-   |  /        
-    //  | /           | /                ⎸ /            | /         
-    //  |/            |/                 ⎸/             |/          
+    // T0   *-{2}---------*               {2->4}═════════{0.33->1} 
+    //     /|  |\        /|                / ⫽\\\\\\\\\\\\\⫽/║      
+    //    / |  ⎹ \      / |               ⩗⫽\\\\\\\\\\\\\⫽//⎹⎸      
+    //  z/  |  ⎹  \    /  |              z⫽\\\\\\\\\\\\\⫽////║ ⎹     
+    //  *---┼---┼{0}--*   |     ->   {2.5->5}══════════{0}////║ v
+    //  |   |y  ⎹/    |   |              ⎸   ║//////////|/////║       
+    //  |   *--{1}----┼---*              {1->3}═════════╪═{0.66->2}
+    //  |  /          |  /               ⎸  /      <-   |   /        
+    //  | /           | /                ⎸ /            |  /         
+    //  |/            |/                 ⎸/             | /          
     //  *-------------* x                *--------------* x         
     //                                                              
     //                                            <-                
-    // T1   *--------{1}--*               {2->4}=========={1->3}    
-    //     /|     ⟋  /   /|               / ⫽\\\\\\\\\\\\\⫽║       
-    //    / |  ⟋    /   / |              ⩗ ⫽\\\\\\\\\\\\\⫽\║       
-    //  z/  ⟋      /   /  |              z⫽\\\\\\\\\\\\\⫽\\║ ^     
-    //  *{2}┼-----⌿--*   |     ->   {2.5->5}=========={6}\\║ |     
-    //  | | |y   /    |   |              ║\\\\\\\\\\\\\\║\\\║       
-    //  | ⎹ *---⌿----┼---*              ║\\\\\\\\\\\\\\║\{0.66->2}       
-    //  |  |   /      |  /             | ║\\\\\\\\\\\\\\║\\⫽ ⩘      
-    //  | / ⎸ /       | /              v ║\\\\\\\\\\\\\\║\⫽ /        
+    // T1   *--------{1}--*               {2->4}══════════{1->3}
+    //     /|     ⟋  /   /⎸               / ⫽\\\\\\\\\\\\\\⫽║       
+    //    / |  ⟋    /   / ⎸              ⩗ ⫽\\\\\\\\\\\\\⫽\⎹⎸       
+    //  z/  ⟋      /   /  ⎸              z⫽\\\\\\\\\\\\\⫽\\\║  ᐱ     
+    //  *{2}┼-----/---*   |     ->   {2.5->5}══════════{6}\\\⎹⎸ ⎹
+    //  | | |y   /    |   |              ║\\\\\\\\\\\\\\║\\\\⎹⎸       
+    //  | ⎹ *---/-----┼---*              ║\\\\\\\\\\\\\\║\{0.66->2}       
+    //  |  |   /      |  /             | ║\\\\\\\\\\\\\\║\\\⫽ ⩘      
+    //  | / ⎸ /       | /              v ║\\\\\\\\\\\\\\║\\⫽ /        
     //  |/  |/        |/                 ║\\\\\\\\\\\\\\║⫽          
-    //  *--{0}--------* x               {0}========={0.33->1} x
+    //  *--{0}--------* x               {0}═════════{0.33->1} x
     //                                          ->                                                                 
     //                                            <-                
-    // T2    *---------------*            {1->3}-------------*    
-    //      {1}             /|              ⫽║              /|    
-    //     /⎹|\            / |           ⩘ ⫽/║             / |
-    //    / ⎹| \          /  |          / ⫽//║|           /  |   
-    //  z/  ⎹|  \        /   |          z⫽///║V <-       /   |   
-    //  *---⎹┼---⍀-----*    |  ->  {0.66->2}======={0.33->1}|    
-    //  |   {2}y  \     |    |          ║\\\\\\\\\\\\\\\║    |   
-    //  |    *-----⍀---┼----*    {2->4}║\\\\\\\\\\\\\\\╟=={2.5->5}     
+    // T2    *---------------*            {1->3}--------------*    
+    //      {1}             /|               ⫽║              /⎸    
+    //     /⎹|\            / |           ⩘ ⫽/⎹⎸             /⎹ 
+    //    / ⎹| \          /  |          / ⫽///║|           /  ⎸   
+    //  z/  ⎹|  \        /   |          z⫽////║V <-       /   ⎸   
+    //  *---⎹┼---\------*    |  ->  {0.66->2}═══════{0.33->1} |
+    //  |   {2}y  \     |    |          ⎹⎸\\\\\\\\\\\\\\⎹⎸    |   
+    //  |    *-----\----┼----*    {2->4}⎹⎸\\\\\\\\\\\\\\⎹⎸══{2.5->5}     
     //  |   /  ⟍    \   ⎸   /           ║\\\\\\\\\\\\\\\║///⫽    
     //  |  /      ⟍  \  ⎸  /            ║\\\\\\\\\\\\\\\║//⫽ /
     //  | /         ⟍ \ ⎸ /             ║\\\\\\\\\\\\\\\║/⫽ ⩗  
     //  |/            ⟍\⎸/              ║\\\\\\\\\\\\\\\║⫽     
-    //  *--------------{0} x           {6}============={0} x   
+    //  *--------------{0} x           {6}═════════════{0} x
     //                                                                                                             
     //                                            <-                
-    // T3    *---------------*           {0.66->2}-----------*    
-    //      /|        /     /|              ⫽║              /⎸    
-    //     / |       /     / |           ⩘ ⫽/║             / ⎸
-    //    /  |      /     /  |          / ⫽//║|           /  ⎸   
-    //  z/   |    {0}----/   |          z⫽///║V <-       /   ⎸   
-    //  *----┼---⌿┼-----*   |  ->  {0.33->1}=========={0}   |    
-    //  |    |y /  ⎸    |    |          ║\\\\\\\\\\\\\\\║    |   
-    //  |    *-{1}┼-----┼----*    {1->3}║\\\\\\\\\\\\\\\╟={1.33->4}     
+    // T3    *---------------*           {0.66->2}------------*    
+    //      /|        /     /|               ⫽║              /⎸    
+    //     / |       /     / |           ⩘ ⫽/⎹⎸             /⎹ 
+    //    /  |      /     /  |          / ⫽///║|           /  ⎸   
+    //  z/   |    {0}----/   |          z⫽////║V <-       /   ⎸   
+    //  *----┼---/-┼----*    |  ->  {0.33->1}══════════{0}    |
+    //  |    |y / ⎹     |    |          ║\\\\\\\\\\\\\\\║     |   
+    //  |    *-{1}┼-----┼----*    {1->3}║\\\\\\\\\\\\\\\║═{1.33->4}     
     //  |   /   \ ⎸     |   /           ║\\\\\\\\\\\\\\\║///⫽    
     //  |  /    {2}-----┼--/            ║\\\\\\\\\\\\\\\║//⫽ /
     //  | /             | /             ║\\\\\\\\\\\\\\\║/⫽ ⩗  
     //  |/              |/              ║\\\\\\\\\\\\\\\║⫽     
-    //  *-------------- * x           {6}============{1.66->5} x   
+    //  *-------------- * x           {6}════════════{1.66->5} x   
     //                                                                                                             
     //                                                   <-                
-    // T4    *--{2}----------*                 {1->3}========={0.66->2} 
+    // T4    *--{2}----------*                 {1->3}═════════{0.66->2} 
     //      /|   ║          /|                   ⫽///////////////⫽|    
     //     / |  ||         / |                  ⫽///////////////⫽ |
-    //    /  | | |        /  |                 ⫽///////////////⫽ ⩘|   
+    //    /  | | |        /  |                 ⫽///////////////⫽ ⩘⎸   
     //  z/   |⎹  |       /   |               z⫽///////////////⫽ / |   
-    //  *----{1}-┼------*    |  ->       |  {6}========={0.33->1} ⎹    
-    //  |   y||   ⎸     |    |           V   ║\\\\\\\\\\\\\\\║    ⎹   
-    //  |    *-┼--┼-----┼----*      {1.33->4}║\\\\\\\\\\\\\\\╟----*     
-    //  |   /   | |     |   /           /    ║\\\\\\\\\\\\\\\║^  /    
-    //  |  /     ||     |  /           ⩗     ║\\\\\\\\\\\\\\\║| / /
+    //  *----{1}-┼------*    |  ->       |  {6}═════════{0.33->1}  |    
+    //  |   y||   ⎸     |    |           V   ║\\\\\\\\\\\\\\\║     |   
+    //  |    *-┼--┼-----┼----*      {1.33->4}║\\\\\\\\\\\\\\\╟-----*     
+    //  |   /   | |     |   /           /    ║\\\\\\\\\\\\\\\║ᐱ   /    
+    //  |  /     ||     |  /           ⩗    ⎹⎸\\\\\\\\\\\\\\⎹⎸| / /
     //  | /       ║     | /                  ║\\\\\\\\\\\\\\\║ / ⩗  
     //  |/       {0}----┼/                   ║\\\\\\\\\\\\\\\║/     
-    //  *-------------- * x            {1.66->5}============={0} x   
+    //  *---------------* x             {1.66->5}═══════════{0} x
     //                                         ->                     
 
     float lowerCoordinateValue = -5.0;
@@ -2096,43 +1779,16 @@ TEST_F(StaircaserTest, transformTriangleWithDiagonalsPreventingHexagonOfDeath)
 
     auto resultMesh = Staircaser{ mesh }.getMesh();
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
 
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
-        
-        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size());
-
-        for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
-
-            EXPECT_EQ(resultElement.isLine(), expectedElement.isLine());
-            EXPECT_EQ(resultElement.isNode(), expectedElement.isNode());
-            EXPECT_EQ(resultElement.isNone(), expectedElement.isNone());
-            EXPECT_EQ(resultElement.isTriangle(), expectedElement.isTriangle());
-            EXPECT_EQ(resultElement.isTetrahedron(), expectedElement.isTetrahedron());
-            EXPECT_EQ(resultElement.isQuad(), expectedElement.isQuad());
-
-            ASSERT_EQ(resultElement.vertices.size(), resultElement.vertices.size());
-
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
-        }
+        assertElementsListEquals(expectedElements[g], resultMesh.groups[g].elements, g);
     }
 }
 
-TEST_F(StaircaserTest, selectiveStructurerWithEmptySetOfCells)
+TEST_F(StaircaserTest, selectiveStaircaserWithEmptySetOfCells)
 {
 
     // *-------------*-------------*          *-------------*-------------* 
@@ -2141,7 +1797,7 @@ TEST_F(StaircaserTest, selectiveStructurerWithEmptySetOfCells)
     // |             |        _2   |  ->      |             |        _2   | 
     // |             |     _-‾     |          |             |     _-‾     | 
     // |             |  _-‾        |          |             |  _-‾        | 
-    // |     0-------1-‾           |          |     0-------1-‾           | 
+    // |     0───────1-‾           |          |     0───────1-‾           | 
     // *-------------*-------------*          *-------------*-------------*
     //
     
@@ -2167,41 +1823,16 @@ TEST_F(StaircaserTest, selectiveStructurerWithEmptySetOfCells)
         Element({1, 2}, Element::Type::Line),
     };
 
-    Relatives expectedRelatives = {
-        Relative({ 0.4, 0.1, 0.7 }), // 0 First Segment, First Point
-        Relative({ 1.0, 0.1, 0.7 }), // 1 First Segment, Second Point
-        Relative({ 1.8, 0.6, 0.7 }), // 2 Second Segment, Final Point
-    };
+    Relatives expectedRelatives(mesh.coordinates);
 
-    Elements expectedElements = {
-            Element({0, 1}, Element::Type::Line),
-            Element({1, 2}, Element::Type::Line),
-    };
+    Elements expectedElements(mesh.groups[0].elements);
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
 
@@ -2214,8 +1845,8 @@ TEST_F(StaircaserTest, modifyCoordinateOfASpecificCell)
     // |             |        _2   |  ->      |               |          _2   | 
     // |             |     _-‾     |          |               |       _-‾     | 
     // |             |  _-‾        |          |               |    _-‾        | 
-    // |     0-------1-‾           |          |               | _-‾           | 
-    // *-------------*-------------*          0===============1‾--------------*
+    // |     0───────1-‾           |          |               | _-‾           | 
+    // *-------------*-------------*          0═══════════════1=--------------*
     //
     
     float lowerCoordinateValue = -5.0;
@@ -2254,47 +1885,29 @@ TEST_F(StaircaserTest, modifyCoordinateOfASpecificCell)
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
-
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, structureMoreThanOneCell) 
+TEST_F(StaircaserTest, staircaseMoreThanOneCell)
 {
     // *-------------*-------------*          *---------------*-------------(4->3) 
     // |             |             |          |               |               ║ 
     // |             |             |          |               |               ║ 
     // |             |         4   |  ->      |               |               ║ 
-    // |             |         |   |          |               |               ║ 
-    // |             |         |   |          |               |               ║ 
-    // |             |         |   |          |               |               ║ 
+    // |             |         │   |          |               |               ║ 
+    // |             |         │   |          |               |               ║ 
+    // |             |         │   |          |               |               ║ 
     // *-------------*---------3---*          *---------------*-------------(3->2)
-    // |             |         |   |          |               |               ║ 
-    // |             |         |   |          |               |             |‾| 
+    // |             |         │   |          |               |               ║ 
+    // |             |         │   |          |               |             |‾| 
     // |             |        _2   |  ->      |               |         (2->4)| 
     // |             |     _-‾     |          |               |       _-‾     | 
     // |             |  _-‾        |          |               |    _-‾        | 
-    // |     0-------1-‾           |          |               | _-‾           | 
-    // *-------------*-------------*          0===============1‾--------------*
+    // |     0───────1-‾           |          |               | _-‾           | 
+    // *-------------*-------------*          0═══════════════1‾--------------*
     //
 
     float lowerCoordinateValue = -5.0;
@@ -2342,42 +1955,22 @@ TEST_F(StaircaserTest, structureMoreThanOneCell)
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(cellSet.size(), 2);
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
+TEST_F(StaircaserTest, verifyOrderInSelectiveStaircaser)
 {
-    // *-------------*-------------*        (4->3)==========(3->2)-------------* 
-    // |     4-------3-_           |          |               | ‾-_           | 
+    // *-------------*-------------*        (4->3)══════════(3->2)-------------*
+    // |     4───────3-_           |          |               | ‾-_           | 
     // |             |  ‾-_        |          |               |    ‾-_        | 
     // |             |     ‾--_2   |  ->      |               |       ‾(2->4) | 
     // |             |     _-‾     |          |               |       _-      | 
     // |             |  _-‾        |          |               |    _-‾        | 
-    // |     0-------1-‾           |          |               | _-‾           | 
-    // *-------------*-------------*          0===============1‾--------------*
+    // |     0───────1-‾           |          |               | _-‾           | 
+    // *-------------*-------------*          0═══════════════1‾--------------*
     //
 
     float lowerCoordinateValue = -5.0;
@@ -2424,41 +2017,22 @@ TEST_F(StaircaserTest, verifyOrderInSelectiveStructurer)
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, structureSpecificTriangles)
+TEST_F(StaircaserTest, staircaseSpecificTriangles)
 {
-    // *-------------*-------------*       (4->3)==========(3->2)-------------* 
+    // *-------------*-------------*       (4->3)══════════(3->2)-------------*
     // |     4-------3-_           |          ║///////////////║ ‾-_           | 
-    // |     |      /║  ‾-_        |          ║///////////////║    ‾-_        | 
-    // |     |    /  ║     ‾--_2   |  ->      ║///////////////║       ‾(2->4) |
-    // |     |  /    ║     _-‾     |          ║///////////////║       _-      | 
-    // |     |/      ║  _-‾        |          ║///////////////║    _-‾        | 
-    // |     0-------1-‾           |          ║///////////////║ _-‾           | 
-    // *-------------*-------------*          0===============1‾--------------*
+    // |     │      /║  ‾-_        |          ║///////////////║    ‾-_        | 
+    // |     │    /  ║     ‾--_2   |  ->      ║///////////////║       ‾(2->4) |
+    // |     │  /    ║     _-‾     |          ║///////////////║       _-      | 
+    // |     │/      ║  _-‾        |          ║///////////////║    _-‾        | 
+    // |     0───────1-‾           |          ║///////////////║ _-‾           | 
+    // *-------------*-------------*          0═══════════════1‾--------------*
     //
 
     float lowerCoordinateValue = -5.0;
@@ -2506,48 +2080,28 @@ TEST_F(StaircaserTest, structureSpecificTriangles)
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[5].isTriangle());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Split)
+TEST_F(StaircaserTest, selectiveStaircaserFillingGapsInFrontier_Split)
 {
-    //         4==========_-=2               5=============3   
-    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽║     
-    //       ⫽ |  __-‾     / ║             ⫽\\\\\\\\\\\\\⫽/║       
-    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽//║       
-    //     0=‾-┼---------*  |║           0=============1////║ 
-    //    /║⟍  |        /| | ║          /║   |       ⫽/║///║
-    //   / ║  ⟍*-------╱-┼-┼-3         / ║   *------╱╱-║///4 
-    //  / ||  /  ⟍    ╱  || ⫽         / ||  /     ╱ ╱  ║//⫽  
-    // *--┼┼--------⟍*   ||⫽         *--┼┼------⌿-*   ║/⫽  
-    // | | |/        | ⟍ ║⫽          | | |/   ╱    |   ║⫽    
-    // | | *---------┼-_=1           | | *--╱------┼-_=2   
-    // || /       _-‾|‾ /            || / ╱     _-‾|‾ /     
-    // ||/    __-‾   | /             ||/╱   __-‾   | /      
-    // ║/ __-‾       |/              ║⫽ __-‾       |/       
+    //         4══════════_-=2               5═══════════════3
+    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽/║     
+    //       ⫽ |  __-‾     /⎹║             ⫽\\\\\\\\\\\\\⫽//║       
+    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽///║       
+    //     0=‾-┼---------*  |⎹⎸           0═════════════1////⎹⎸
+    //    /║⟍  |        /| ⎹ ║          /║   |        ⫽║/////║
+    //   /⎹|  ⟍*-------╱-┼-┼-3         /⎹|   *------╱╱-⎹⎸////4 
+    //  / ||  /  ⟍    ╱  |⎹ ⫽         / ||  /    ╱ ╱   ║///⫽  
+    // *--┼┼--------⟍*   |⎸⫽        *--┼┼------/--*    ║//⫽  
+    // | ⎹ |/        | ⟍ ║⫽         ⎹ ⎹ |/   ╱    |    ║⫽    
+    // | ⎸ *---------┼-_=1           ⎹ ⎸ *--╱------┼-_-=2   
+    // || /       _-‾|‾ /            || / ╱     _-‾|‾  /     
+    // |⎸/    __-‾   | /             |⎸/╱   __-‾   |  /      
+    // ║/ __-‾       |/              ║⫽ __-‾       ⎸/       
     // 5=‾-----------*               6=‾-----------*
 
     float lowerCoordinateValue = -5.0;
@@ -2605,55 +2159,29 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Split)
     
     auto resultMesh = staircaser.getSelectiveMesh(cellSet, Staircaser::GapsFillingType::Split);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[5].isLine());
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[6].isQuad());
-    ASSERT_TRUE(resultMesh.groups[0].elements[7].isQuad());
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[8].isTriangle());
-    ASSERT_TRUE(resultMesh.groups[0].elements[9].isTriangle());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Insert)
+TEST_F(StaircaserTest, selectiveStaircaserFillingGapsInFrontier_Insert)
 {
-    //         4==========_-=2               5=============3   
-    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽║     
-    //       ⫽ |  __-‾     / ║             ⫽\\\\\\\\\\\\\⫽/║       
-    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽//║       
-    //     0=‾-┼---------*  |║           0=============1////║ 
-    //    /║⟍  |        /| | ║          /║⟍  |        /║///║
-    //   / ║  ⟍*-------╱-┼-┼-3         / ║  ⟍*-------╱-║///4 
-    //  / ||  /  ⟍    ╱  || ⫽         / ||  /  ⟍    ╱  ║//⫽  
-    // *--┼┼--------⟍*   ||⫽         *--┼┼--------⟍*   ║/⫽  
-    // | | |/        | ⟍ ║⫽          | | |/        | ⟍ ║⫽    
-    // | | *---------┼-_=1           | | *---------┼-_=2   
-    // || /       _-‾|‾ /            || /       _-‾|‾ /     
-    // ||/    __-‾   | /             ||/    __-‾   | /      
-    // ║/ __-‾       |/              ║/ __-‾       |/       
-    // 5=‾-----------*               6=‾-----------*
+    //         4══════════_-=2                5══════════════3
+    //        ⫽|      _-‾‾  /║              ⫽\\\\\\\\\\\\\⫽⎹⎸     
+    //       ⫽ |  __-‾     /⎹║             ⫽\\\\\\\\\\\\\⫽/⎹⎸       
+    //      ⫽ _┼-‾        / |║            ⫽\\\\\\\\\\\\\⫽//⎹⎸       
+    //     0=‾-┼---------*  |⎹⎸          0═══════════════1///║
+    //    /║⟍  |z       /| ⎹ ║          /║⟍  |         /║///⎹⎸
+    //   /⎹|  ⟍*-------╱-┼-┼-3         / ║  ⟍*--------╱-║///4 
+    // y/ ||  /  ⟍    ╱  |⎹ ⫽         / ||  /  ⟍    ╱  ⎹⎸//⫽
+    // *--┼┼--------⟍*   |⎸⫽         *--┼┼--------⟍*   ⎹⎸/⫽  
+    // | | |/        | ⟍ ║⫽          | | |/        | ⟍ ⎹⎸⫽    
+    // |⎹  *---------┼-_=1           | | *---------┼-_==2   
+    // || /       _-‾|‾ /            || /       _-‾|‾  /     
+    // |⎸/    __-‾   | /             ||/    __-‾   |  /      
+    // ║/ __-‾       |/              ║/ __-‾       | /       
+    // 5=‾-----------* x             6=‾-----------*
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -2710,54 +2238,28 @@ TEST_F(StaircaserTest, selectiveStructurerFillingGapsInFrontier_Insert)
 
     auto resultMesh = staircaser.getSelectiveMesh(cellSet, Staircaser::GapsFillingType::Insert);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[5].isLine());
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[6].isQuad());
-    ASSERT_TRUE(resultMesh.groups[0].elements[7].isQuad());
-
-    ASSERT_TRUE(resultMesh.groups[0].elements[8].isTriangle());
-    ASSERT_TRUE(resultMesh.groups[0].elements[9].isTriangle());
-
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
-
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
 }
 
-TEST_F(StaircaserTest, selectiveStructurer_SplitLinesWithNeighborTriangle)
+TEST_F(StaircaserTest, selectiveStaircaser_SplitLinesWithNeighborTriangle)
 {
-    // *----0========2=============5          *---(0->3)==(2->5)========(5->6)  
-    // |     ‾-_     ║|\           ║          |     ‾-_     ║ \           ║ 
-    // |        ‾-_  ║ | \         ║          |        ‾-_  ║   \         ║ 
-    // |           - ║  |  \       ║          |           - ║     \       ║ 
-    // |            ‾1   |   \     ║          |           (1->4)    \     ║ 
-    // |             |‾-  |    \   ║          |             ║‾‾--__   \   ║ 
-    // |             |  ‾-_|     \ ║          |             ║      ‾‾--_\ ║ 
-    // *-------------*-----3=======4    ->    *-----------(3->0)========(4->1)
-    // |             |      \      |          |             |             ║ 
-    // |             |       \     |          |             |             ║ 
-    // |             |        \    |          |             |             ║ 
-    // |             |         \   |          |             |             ║ 
-    // |             |          \  |          |             |             ║ 
-    // |             |           \ |          |             |             ║
+    // *----0════════2═════════════5          *---(0->3)══(2->5)════════(5->6)
+    // |     ‾-_     ║\\           ║          |     ‾-_     ║ \           ║ 
+    // |        ‾-_  ║ \ \         ║          |        ‾-_  ║   \         ║ 
+    // |           - ║  \  \       ║          |           - ║     \       ║ 
+    // |            ‾1   \   \     ║          |           (1->4)    \     ║ 
+    // |             |‾-  \    \   ║          |             ║‾‾--__   \   ║ 
+    // |             |  ‾-_\     \ ║          |             ║      ‾‾--_\ ║ 
+    // *-------------*-----3═══════4    ->    *-----------(3->0)════════(4->1)
+    // |             |      \      ║          |             |             ║ 
+    // |             |       \     ║          |             |             ║ 
+    // |             |        \    ║          |             |             ║ 
+    // |             |         \   ║          |             |             ║ 
+    // |             |          \  ║          |             |             ║ 
+    // |             |           \ ║          |             |             ║
     // *-------------*-------------6          *-------------*-----------(6->2)
 
     float lowerCoordinateValue = -5.0;
@@ -2813,33 +2315,324 @@ TEST_F(StaircaserTest, selectiveStructurer_SplitLinesWithNeighborTriangle)
 
     auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
 
-    ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), 1);
-    ASSERT_EQ(resultMesh.groups[0].elements.size(), expectedElements.size());
 
-    for (std::size_t i = 0; i < resultMesh.coordinates.size(); ++i) {
-        for (std::size_t axis = 0; axis < 3; ++axis) {
-            EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
-        }
-    }
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
 
-    ASSERT_TRUE(resultMesh.groups[0].elements[0].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[2].isLine());
-    ASSERT_TRUE(resultMesh.groups[0].elements[3].isLine());
+TEST_F(StaircaserTest, selectiveStaircaser_staircase_overlapping_1)
+{
+ 
+    // z                                                          z
+    // *---------------*---------------*---------------*          *---------------*---------------*---------------*  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |   _-10-__     |               |          |               |   _-8--__     |               |  
+    // |               |_-‾       ‾‾--_|               |          |               |_-‾       ‾‾--_|               |  
+    // 9═══════8═══════5═══════════════4---------------*          7═══════6═══════3═══════════════2---------------*  
+    // |\      │      /║              ╱║‾--__          |          |\      │      /║      ->       ║‾--__          |  
+    // | \     │     / ║            ╱  ║    _=11       |          | \     │     / ║               ║     ‾9        |  
+    // |  \    │    /  ║          ╱    ║  _-           |          |  \    │    /  ║               ║     /         |  
+    // |   \   │   /   ║   1 ───╱────==3-‾             |    ->    |   \   │   /   ║ ^           | ║    /          |  
+    // |    \  │  /    ║  /⟍ ╱  __-‾   ⎸               ⎸          ⎸    \  ⎸  /    ║ |           v ║   /           ⎸  
+    // |     \ │ /     ║ / ╱_⟍-‾       ⎸               ⎸          ⎸     \ ⎸ /     ║               ║  /            ⎸  
+    // |      \│/      ║/╱-‾   ⟍       ⎸               ⎸          ⎸      \⎸/      ║       <-      ║ /             ⎸  
+    // *-------7═══════0═════════2-----*---------------*          *-------5═══════0═══════════════1---------------*  
+    // |        \      ║        /      |               |          |        \      ║             / |               |  
+    // |         \     ║       /       |               |          |         \     ║           /   |               |  
+    // |          \    ║     /         |               |          |          \    ║         /     |               |  
+    // |           \   ║    /          |               |          |           \   ║       /       |               |  
+    // |            \  ║   /           |               |          |            \  ║     /         |               |  
+    // |             \ ║ /             |               |          |             \ ║   /           |               |  
+    // |              \║/              |               |          |              \║ /             |               |  
+    // *---------------6---------------*---------------* x        *---------------4---------------*---------------* x
+    //
+    float lowerCoordinateValue = -5.0;                                    
+    float upperCoordinateValue = 10.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / numberOfCells == step);
 
-    ASSERT_TRUE(resultMesh.groups[0].elements[4].isTriangle());
-    ASSERT_TRUE(resultMesh.groups[0].elements[5].isTriangle());
-    ASSERT_TRUE(resultMesh.groups[0].elements[6].isTriangle());
-    ASSERT_TRUE(resultMesh.groups[0].elements[7].isTriangle());
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({ 1, 0, 1 }));
 
-    for (std::size_t e = 0; e < expectedElements.size(); ++e) {
-        auto& resultElement = resultMesh.groups[0].elements[e];
-        auto& expectedElement = expectedElements[e];
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    mesh.coordinates = {
+        Relative({ 1.00, 0.00, 1.00 }), // 0
+        Relative({ 1.20, 0.00, 1.40 }), // 1
+        Relative({ 1.66, 0.00, 1.00 }), // 2
+        Relative({ 2.00, 0.00, 1.40 }), // 3
+        Relative({ 2.00, 0.00, 2.00 }), // 4
+        Relative({ 1.00, 0.00, 2.00 }), // 5
+        Relative({ 1.00, 0.00, 0.00 }), // 6
+        Relative({ 0.50, 0.00, 1.00 }), // 7
+        Relative({ 0.50, 0.00, 2.00 }), // 8
+        Relative({ 0.00, 0.00, 2.00 }), // 9
+        Relative({ 1.40, 0.00, 2.25 }), // 10
+        Relative({ 2.40, 0.00, 1.75 }), // 11
+    };
 
-        for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-            EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-        }
-    }
-    
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface), // 0, Clock-wise
+        Element({1, 0, 3}, Element::Type::Surface), // 1, Counter-Clock-wise
+        Element({3, 0, 4}, Element::Type::Surface), // 2, Clock-wise
+        Element({4, 0, 5}, Element::Type::Surface), // 3, Clock-wise
+        Element({0, 2, 6}, Element::Type::Surface), // 4, Clock-wise
+        Element({0, 6, 7}, Element::Type::Surface), // 5, Clock-wise
+        Element({0, 7, 5}, Element::Type::Surface), // 6, Clock-wise
+        Element({5, 7, 8}, Element::Type::Surface), // 7, Clock-wise
+        Element({8, 7, 9}, Element::Type::Surface), // 8, Clock-wise
+        Element({4, 5, 10}, Element::Type::Surface), // 9, Clock-wise
+        Element({3, 4, 11}, Element::Type::Surface),// 10, Clock-wise
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 1.00, 0.00, 1.00 }), // (0|1->0)
+        Relative({ 2.00, 0.00, 1.00 }), // (2|3->1)
+        Relative({ 2.00, 0.00, 2.00 }), // (4->2)
+        Relative({ 1.00, 0.00, 2.00 }), // (5->3)
+        Relative({ 1.00, 0.00, 0.00 }), // (6->4)
+        Relative({ 0.50, 0.00, 1.00 }), // (7->5)
+        Relative({ 0.50, 0.00, 2.00 }), // (8->6)
+        Relative({ 0.00, 0.00, 2.00 }), // (9->7)
+        Relative({ 1.40, 0.00, 2.25 }), // (10->8)
+        Relative({ 2.40, 0.00, 1.75 }), // (11->9)
+    };
+
+    Elements expectedElements = {
+            Element({0},            Element::Type::Node),       //  0, 1 ->  0
+            Element({0, 1},         Element::Type::Line),       //  0, 2 ->  1
+            Element({1, 0},         Element::Type::Line),       //  0, 2 ->  2
+            Element({1, 2},         Element::Type::Line),       //  1, 2 ->  3
+            Element({2, 1},         Element::Type::Line),       //  1, 2 ->  4
+            Element({2, 1, 0, 3},   Element::Type::Surface),    //  3    ->  5  | Clock-wise
+            Element({0, 4, 5},      Element::Type::Surface),    //  5    ->  6  | Clockwise
+            Element({0, 5, 3},      Element::Type::Surface),    //  6    ->  7  | Clockwise
+            Element({3, 5, 6},      Element::Type::Surface),    //  7    ->  8  | Clockwise
+            Element({6, 5, 7},      Element::Type::Surface),    //  8    ->  9  | Clockwise
+            Element({0, 1, 4},      Element::Type::Surface),    //  4    -> 10  | Clockwise
+            Element({2, 3, 8},      Element::Type::Surface),    //  9    -> 11  | Clockwise
+            Element({1, 2, 9},      Element::Type::Surface),    // 10    -> 12  | Clockwise
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+TEST_F(StaircaserTest, selectiveStaircaser_staircase_overlapping_2)
+{
+
+    // z                                                          z
+    // *---------------*---------------*---------------*          *---------------*---------------*---------------*  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |   _-8--__     |               |          |               |   _-6--__     |               |  
+    // |               |_-‾       ‾‾--_|               |          |               |_-‾       ‾‾--_|               |  
+    // *---------------5═══════════════4---------------*          *---------------1═══════════════3---------------*  
+    // |              /║              ╱║‾--__          |          |              /║      <->      ║‾--__          |  
+    // |             / ║            ╱  ║   __=9        |          |             / ║               ║     ‾7        |  
+    // |            /  ║    1─────╱───=3-‾‾            |          |            /  ║               ║               |  
+    // |           /   ║   / \  ╱  _-‾ |               |    ->    |           /   ║ ^           ^ ║               |  
+    // |          /    ║  /  ╱\ _-‾    |               |          |          /    ║ |           | ║               |  
+    // |         /     ║ / ╱ _-\       |               |          |         /     ║ v           v ║               |  
+    // |        /      ║/╱_-‾   \      |               |          |        /      ║      <->      ║               |  
+    // *-------7═══════0═════════2-----*---------------*          *-------5═══════0═══════════════2---------------*  
+    // |        \      ║        /      |               |          |        \      ║             / |               |  
+    // |         \     ║       /       |               |          |         \     ║           /   |               |  
+    // |          \    ║     /         |               |          |          \    ║         /     |               |  
+    // |           \   ║    /          |               |          |           \   ║       /       |               |  
+    // |            \  ║   /           |               |          |            \  ║     /         |               |  
+    // |             \ ║ /             |               |          |             \ ║   /           |               |  
+    // |              \║/              |               |          |              \║ /             |               |  
+    // *---------------6---------------*---------------* x        *---------------4---------------*---------------* x
+    //
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 10.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / numberOfCells == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({ 1, 0, 1 }));
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    mesh.coordinates = {
+        Relative({ 1.00, 0.00, 1.00 }), // 0
+        Relative({ 1.40, 0.00, 1.60 }), // 1
+        Relative({ 1.66, 0.00, 1.00 }), // 2
+        Relative({ 2.00, 0.00, 1.60 }), // 3
+        Relative({ 2.00, 0.00, 2.00 }), // 4
+        Relative({ 1.00, 0.00, 2.00 }), // 5
+        Relative({ 1.00, 0.00, 0.00 }), // 6
+        Relative({ 0.50, 0.00, 1.00 }), // 7
+        Relative({ 1.40, 0.00, 2.25 }), // 8
+        Relative({ 2.40, 0.00, 1.75 }), // 9
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface), // 0, Clock-wise
+        Element({1, 0, 3}, Element::Type::Surface), // 1, Counter-Clock-wise
+        Element({3, 0, 4}, Element::Type::Surface), // 2, Clock-wise
+        Element({4, 0, 5}, Element::Type::Surface), // 3, Clock-wise
+        Element({0, 2, 6}, Element::Type::Surface), // 4, Clock-wise
+        Element({0, 6, 7}, Element::Type::Surface), // 5, Clock-wise
+        Element({0, 7, 5}, Element::Type::Surface), // 6, Clock-wise
+        Element({4, 5, 8}, Element::Type::Surface), // 7, Clock-wise
+        Element({3, 4, 9}, Element::Type::Surface), // 8, Clock-wise
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 1.00, 0.00, 1.00 }), // (0->0)
+        Relative({ 1.00, 0.00, 2.00 }), // (5|1->1)
+        Relative({ 2.00, 0.00, 1.00 }), // (2->2)
+        Relative({ 2.00, 0.00, 2.00 }), // (4->3)
+        Relative({ 1.00, 0.00, 0.00 }), // (6->4)
+        Relative({ 0.50, 0.00, 1.00 }), // (7->5)
+        Relative({ 1.40, 0.00, 2.25 }), // (8->6)
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),           // 0,   ->  0
+            Element({1, 0}, Element::Type::Line),           // 0,   ->  1
+            Element({0, 2}, Element::Type::Line),           // 0,   ->  2
+            Element({2, 0}, Element::Type::Line),           // 0,   ->  3
+            Element({1, 0, 2, 3}, Element::Type::Surface),  // 2    ->  4   | Counter - Clock-wise!!!!
+            Element({3, 2}, Element::Type::Line),           // 5    ->  5   | Clockwise
+            Element({2, 3}, Element::Type::Line),           // 5    ->  6   | Clockwise
+            Element({3}, Element::Type::Node),              // 5    ->  7   | Clockwise
+            Element({3, 2, 0, 1}, Element::Type::Surface),  // 2    ->  8   | Clockwise
+            Element({0, 4, 5}, Element::Type::Surface),     // 6    ->  9   | Clockwise
+            Element({0, 5, 1}, Element::Type::Surface),     // 4    -> 10   | Clockwise
+            Element({0, 2, 4}, Element::Type::Surface),     // 7    -> 11   | Clockwise
+            Element({3, 1, 6}, Element::Type::Surface),     // 8    -> 12   | Clockwise
+            //Element({3, 3, 7}, Element::Type::Surface),   // 8    -> 13   | Degenerate
+
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet);
+
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
+TEST_F(StaircaserTest, selectiveStaircaser_staircase_insert)
+{
+
+    // z                                                          z
+    // *---------------*---------------*---------------*          *---------------*---------------*---------------*  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |               |               |          |               |               |               |  
+    // |               |   _-8--__     |               |          |               |   _-6--__     |               |  
+    // |               |_-‾       ‾‾--_|               |          |               |_-‾       ‾‾--_|               |  
+    // *---------------5═══════════════4---------------*          *---------------1═══════════════3---------------*  
+    // |              /║              ╱║‾--__          |          |              /║      <->      ║‾--__          |  
+    // |             / ║            ╱  ║   __=9        |          |             / ║               ║     ‾7        |  
+    // |            /  ║    1─────╱───=3-‾‾            |          |            /  ║               ║               |  
+    // |           /   ║   / \  ╱  _-‾ |               |    ->    |           /   ║ ^           ^ ║               |  
+    // |          /    ║  /  ╱\ _-‾    |               |          |          /    ║ |           | ║               |  
+    // |         /     ║ / ╱ _-\       |               |          |         /     ║ v           v ║               |  
+    // |        /      ║/╱_-‾   \      |               |          |        /      ║      <->      ║               |  
+    // *-------7═══════0═════════2-----*---------------*          *-------5═══════0═══════════════2---------------*  
+    // |        \      ║        /      |               |          |        \      ║             / |               |  
+    // |         \     ║       /       |               |          |         \     ║           /   |               |  
+    // |          \    ║     /         |               |          |          \    ║         /     |               |  
+    // |           \   ║    /          |               |          |           \   ║       /       |               |  
+    // |            \  ║   /           |               |          |            \  ║     /         |               |  
+    // |             \ ║ /             |               |          |             \ ║   /           |               |  
+    // |              \║/              |               |          |              \║ /             |               |  
+    // *---------------6---------------*---------------* x        *---------------4---------------*---------------* x
+    //
+    float lowerCoordinateValue = -5.0;
+    float upperCoordinateValue = 10.0;
+    int numberOfCells = 3;
+    float step = 5.0;
+    assert((upperCoordinateValue - lowerCoordinateValue) / numberOfCells == step);
+
+    std::set<Cell> cellSet;
+    cellSet.insert(Cell({ 1, 0, 1 }));
+
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    mesh.coordinates = {
+        Relative({ 1.00, 0.00, 1.00 }), // 0
+        Relative({ 1.40, 0.00, 1.60 }), // 1
+        Relative({ 1.66, 0.00, 1.00 }), // 2
+        Relative({ 2.00, 0.00, 1.60 }), // 3
+        Relative({ 2.00, 0.00, 2.00 }), // 4
+        Relative({ 1.00, 0.00, 2.00 }), // 5
+        Relative({ 1.00, 0.00, 0.00 }), // 6
+        Relative({ 0.50, 0.00, 1.00 }), // 7
+        Relative({ 1.40, 0.00, 2.25 }), // 8
+        Relative({ 2.40, 0.00, 1.75 }), // 9
+    };
+
+    mesh.groups.resize(1);
+    mesh.groups[0].elements = {
+        Element({0, 1, 2}, Element::Type::Surface), // 0, Clock-wise
+        Element({1, 0, 3}, Element::Type::Surface), // 1, Counter-Clock-wise
+        Element({3, 0, 4}, Element::Type::Surface), // 2, Clock-wise
+        Element({4, 0, 5}, Element::Type::Surface), // 3, Clock-wise
+        Element({0, 2, 6}, Element::Type::Surface), // 4, Clock-wise
+        Element({0, 6, 7}, Element::Type::Surface), // 5, Clock-wise
+        Element({0, 7, 5}, Element::Type::Surface), // 6, Clock-wise
+        Element({4, 5, 8}, Element::Type::Surface), // 7, Clock-wise
+        Element({3, 4, 9}, Element::Type::Surface), // 8, Clock-wise
+    };
+
+    Relatives expectedRelatives = {
+        Relative({ 1.00, 0.00, 1.00 }), // (0->0)
+        Relative({ 1.00, 0.00, 2.00 }), // (5|1->1)
+        Relative({ 2.00, 0.00, 1.00 }), // (2->2)
+        Relative({ 2.00, 0.00, 2.00 }), // (4->3)
+        Relative({ 1.00, 0.00, 0.00 }), // (6->4)
+        Relative({ 0.50, 0.00, 1.00 }), // (7->5)
+        Relative({ 1.40, 0.00, 2.25 }), // (8->6)
+    };
+
+    Elements expectedElements = {
+            Element({0, 1}, Element::Type::Line),           // 0,   ->  0
+            Element({1, 0}, Element::Type::Line),           // 0,   ->  1
+            Element({0, 2}, Element::Type::Line),           // 0,   ->  2
+            Element({2, 0}, Element::Type::Line),           // 0,   ->  3
+            Element({1, 0, 2, 3}, Element::Type::Surface),  // 2    ->  4   | Counter - Clock-wise!!!!
+            Element({3, 2}, Element::Type::Line),           // 5    ->  5   | Clockwise
+            Element({2, 3}, Element::Type::Line),           // 5    ->  6   | Clockwise
+            Element({3}, Element::Type::Node),              // 5    ->  7   | Clockwise
+            Element({3, 2, 0, 1}, Element::Type::Surface),  // 2    ->  8   | Clockwise
+            Element({0, 4, 5}, Element::Type::Surface),     // 6    ->  9   | Clockwise
+            Element({0, 5, 1}, Element::Type::Surface),     // 4    -> 10   | Clockwise
+            Element({0, 2, 4}, Element::Type::Surface),     // 7    -> 11   | Clockwise
+            Element({3, 1, 6}, Element::Type::Surface),     // 8    -> 12   | Clockwise
+            //Element({3, 3, 7}, Element::Type::Surface),   // 8    -> 13   | Degenerate
+
+    };
+
+    auto resultMesh = Staircaser{ mesh }.getSelectiveMesh(cellSet, Staircaser::GapsFillingType::Split);
+
+    ASSERT_EQ(resultMesh.groups.size(), 1);
+
+    assertCoordinatesListEquals(expectedRelatives, resultMesh.coordinates);
+    assertElementsListEquals(expectedElements, resultMesh.groups[0].elements);
+}
+
 }

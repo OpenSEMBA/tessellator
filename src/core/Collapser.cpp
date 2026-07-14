@@ -4,8 +4,6 @@
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 
-#include "Collapser.h"
-
 namespace meshlib {
 namespace core {
 
@@ -13,6 +11,7 @@ using namespace utils;
 
 Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Element::Type>& dimensionPolicy)
 {
+
     if (dimensionPolicy.size() == 0) {
         dimensionPolicy_ = std::vector<Element::Type>(in.groups.size(), Element::Type::Surface);
     }
@@ -21,16 +20,19 @@ Collapser::Collapser(const Mesh& in, int decimalPlaces, const std::vector<Elemen
     }
 
     mesh_ = in;
+
     double factor = std::pow(10.0, decimalPlaces);
     for (auto& v : mesh_.coordinates) {
         v = v.round(factor);
     }
     
-    RedundancyCleaner::fuseCoords(mesh_);
-    RedundancyCleaner::cleanCoords(mesh_);
+    redundancyCleaner::fuseCoords(mesh_);
+    redundancyCleaner::cleanCoords(mesh_);
     
     collapseDegenerateElements(mesh_, 0.4 / (factor * factor));
-    RedundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
+
+    redundancyCleaner::removeOverlappedElementsByDimension(mesh_, dimensionPolicy_);
+
     utils::meshTools::checkNoNullAreasExist(mesh_);
 }
 
@@ -54,6 +56,14 @@ void Collapser::collapseDegenerateElements(Mesh& mesh, const double& areaThresho
                 degeneratedTrianglesFound = true;
                 Coordinates& coords = mesh.coordinates;
                 const std::vector<CoordinateId>& v = element.vertices;
+                /*
+                bool relevantTriangleFound = true;
+                for (auto& coordId : v) {
+                    if (coords[v[X]] < 1.0 && coords[v[Y]] > 2.0 && coords[v[Y]] < 3.0) {
+                        relevantTriangleFound = false;
+                    }
+                }
+                */
                 std::pair<std::size_t, CoordinateId> replace;
 
                 std::array<double, 3> sumOfDistances{ 0,0,0 };
@@ -75,11 +85,18 @@ void Collapser::collapseDegenerateElements(Mesh& mesh, const double& areaThresho
                 else {
                     coords[element.vertices[midId]] = coords[element.vertices[(midId + 2) % 3]];
                 }
+                /*
+                for (auto& coordId : v) {
+                    if (coords[v[X]] < 1.0 && coords[v[Y]] > 2.0 && coords[v[Y]] < 3.0) {
+                        bool noop = true;
+                    }
+                }
+                */
             }
         }
 
-        RedundancyCleaner::fuseCoords(mesh);
-        RedundancyCleaner::cleanCoords(mesh);
+        redundancyCleaner::fuseCoords(mesh);
+        redundancyCleaner::cleanCoords(mesh);
 
         for (auto & group : mesh.groups) {
             for (auto& element : group.elements) {

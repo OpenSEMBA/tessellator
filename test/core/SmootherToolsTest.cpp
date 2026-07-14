@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+﻿#include "gtest/gtest.h"
 
 #include "Smoother.h"
 #include "utils/Tools.h"
@@ -299,6 +299,43 @@ protected:
 		return res;
 	}
 
+	static Mesh buildCollapseEdgeMeshWithInnerDent()
+	{
+		//  7------------=6 
+		//  |         _-‾⟋⎸
+		//  |      _-‾⟋   ⎸
+		//  |   _-‾ ⟋     ⎸
+		//  |_-‾  ⟋       ⎸ 
+		//  4---3---------5
+		//  | -‾‾-     
+		//  2‾--__‾-_  
+		//  0------==1
+		Mesh res;
+		res.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+		res.coordinates = {
+			Coordinate({ 0.00, 0.00, 1.00 }), // 0
+			Coordinate({ 0.60, 0.00, 1.00 }), // 1
+			Coordinate({ 0.00, 0.10, 1.00 }), // 2
+			Coordinate({ 0.20, 0.40, 1.00 }), // 3
+			Coordinate({ 0.00, 0.40, 1.00 }), // 4
+			Coordinate({ 1.00, 0.40, 1.00 }), // 5
+			Coordinate({ 1.00, 1.00, 1.00 }), // 6
+			Coordinate({ 0.00, 1.00, 1.00 }), // 7
+		};
+
+		res.groups.push_back(Group());
+		res.groups[0].elements = {
+			Element({ 0, 1, 2 }, Element::Type::Surface), // 0
+			Element({ 1, 3, 2 }, Element::Type::Surface), // 1
+			Element({ 2, 3, 4 }, Element::Type::Surface), // 2
+			Element({ 3, 5, 6 }, Element::Type::Surface), // 3
+			Element({ 3, 6, 4 }, Element::Type::Surface), // 4
+			Element({ 4, 6, 7 }, Element::Type::Surface), // 4
+		};
+
+		return res;
+	}
+
 	static Mesh buildElementsToRemesh()
 	{
 		//   4 ---- 5 
@@ -434,7 +471,7 @@ TEST_F(SmootherToolsTest, remeshElementsAvoidingInteriorPoints)
 {
 	Mesh m = buildTwoInnerPointsPatchMesh();
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	Elements elems = m.groups[0].elements;
 	sT.remeshWithNoInteriorPoints(elems, m.coordinates, getView<Element>(elems));
@@ -461,7 +498,7 @@ TEST_F(SmootherToolsTest, remeshElementsAvoidingInteriorPoints_2)
 {
 	Mesh m = buildTwoInnerPointsPatchMeshNotConnected();
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	Elements elems = m.groups[0].elements;
 	sT.remeshWithNoInteriorPoints(elems, m.coordinates, getView<Element>(elems));
@@ -491,7 +528,7 @@ TEST_F(SmootherToolsTest, collapseEdge)
 	Mesh mesh = buildCollapseEdgeMesh();
 	const Elements& es = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	auto sIds = sT.buildSingularIds(es, mesh.coordinates, sSAngle);
 		
 	Coordinates collapsed = mesh.coordinates;
@@ -514,7 +551,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnCellFaces)
 	Mesh mesh = buildTwoCellsPatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	auto sIds = sT.buildSingularIds(elems, mesh.coordinates, sSAngle);
 
 	Coordinates collapsed = mesh.coordinates;
@@ -543,7 +580,7 @@ TEST_F(SmootherToolsTest, collapse_inner_point)
 	Mesh mesh = buildInnerPointPatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = mesh.coordinates;
 	sT.collapseInteriorPointsToBound(collapsed, getView<Element>(elems));
 
@@ -568,7 +605,7 @@ TEST_F(SmootherToolsTest, collapse_inner_point_2)
 	const Mesh mesh = buildInnerPointPatchMesh2();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = mesh.coordinates;
 	sT.collapseInteriorPointsToBound(collapsed, getView<Element>(elems));
 
@@ -589,7 +626,7 @@ TEST_F(SmootherToolsTest, collapse_one_point_in_contour)
 	Mesh mesh = buildOnePointInCellFacePatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid); 
+	SmootherTools sT(mesh.grid, mesh.coordinates); 
 	Coordinates collapsed = 
 		sT.collapsePointsOnContour(elems, mesh.coordinates, alignmentAngle);
 	
@@ -611,7 +648,7 @@ TEST_F(SmootherToolsTest, collapse_two_points_in_contour)
 	Mesh mesh = buildTwoPointsInCellFacePatchMesh();
 	const Elements& elems = mesh.groups[0].elements;
 
-	SmootherTools sT(mesh.grid);
+	SmootherTools sT(mesh.grid, mesh.coordinates);
 	Coordinates collapsed = 
 		sT.collapsePointsOnContour(elems, mesh.coordinates, alignmentAngle);
 
@@ -623,6 +660,41 @@ TEST_F(SmootherToolsTest, collapse_two_points_in_contour)
 	
 	EXPECT_EQ(collapsed[5], collapsed[7]);
 	EXPECT_EQ(collapsed[6], collapsed[7]);
+}
+
+///  7------------=6
+///  |         _-‾⟋⎸
+///  |      _-‾⟋   ⎸
+///  |   _-‾ ⟋     ⎸
+///  |_-‾  ⟋       ⎸
+///  4---3---------5
+///  | -‾‾-
+///  2‾--__‾-_  
+///  0------==1
+/// Expected result:
+/// - Coordinate Ids 2 and 4 are removed from the list of coordinates.
+/// - Coordinate Id 2 collapses to CoordinateId 0.
+/// - Coordinate Id 4 collapses to CoordinateId 7.
+
+TEST_F(SmootherToolsTest, collapsePointsInContourWithInnerDent)
+{
+	Mesh mesh = buildCollapseEdgeMeshWithInnerDent();
+	const Elements& elements = mesh.groups[0].elements;
+
+	SmootherTools sT(mesh.grid, mesh.coordinates);
+	Coordinates collapsed =
+		sT.collapsePointsOnContour(elements, mesh.coordinates, alignmentAngle);
+
+	EXPECT_EQ(8, countDifferentCoordinates(mesh.coordinates));
+	ASSERT_EQ(6, countDifferentCoordinates(collapsed));
+
+
+	EXPECT_NE(collapsed[2], mesh.coordinates[2]);
+	EXPECT_NE(collapsed[4], mesh.coordinates[4]);
+
+	EXPECT_NE(collapsed[2], collapsed[4]);
+	EXPECT_EQ(collapsed[2], collapsed[0]);
+	EXPECT_EQ(collapsed[4], collapsed[7]);
 }
 
 /// Build the list of singular Ids corresponding to a corner structure with the following ids
@@ -648,7 +720,7 @@ TEST_F(SmootherToolsTest, buildSingularIds)
 	const Elements& es = m.groups[0].elements;
 
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 
 	EXPECT_EQ(IdSet({ 0, 1, 2, 3, 4, 5}), sIds.contourIds());
@@ -663,7 +735,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_singlePatch)
 	Coordinates& cs = m.coordinates;
 	Elements& es = m.groups[0].elements;
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 	
 	ElementsView p({&es[0], &es[1], &es[2]});
@@ -679,7 +751,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_threePatches)
 	Coordinates& cs = m.coordinates;
 	Elements& es = m.groups[0].elements;
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	auto sIds = sT.buildSingularIds(es, cs, sSAngle);
 
 	auto cells = sT.buildCellElemMap(es, cs);
@@ -729,7 +801,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_interior_in_face)
 		{}         // Corner
 	);
 
-	SmootherTools sT(m.grid);
+	SmootherTools sT(m.grid, m.coordinates);
 	Coordinates collapsed = m.coordinates;
 	for (auto const& cell : sT.buildCellElemMap(m.groups[0].elements, m.coordinates)) {
 		for (auto const& p : Geometry::buildDisjointSmoothSets(cell.second, m.coordinates, sSAngle)) {
@@ -782,7 +854,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_interior_in_face_2)
 
 	const Elements& es = m.groups[0].elements;
 	Coordinates collapsed = m.coordinates;
-	SmootherTools(m.grid)
+	SmootherTools(m.grid, m.coordinates)
 		.collapsePointsOnFeatureEdges(collapsed, {&es[0], &es[2], &es[5]}, sIds);
 
 	m.coordinates = collapsed;
@@ -807,7 +879,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_over_face)
 	const Elements& es = m.groups[0].elements;
 	{
 		Coordinates collapsed = m.coordinates;
-		SmootherTools(m.grid)
+		SmootherTools(m.grid, m.coordinates)
 			.collapsePointsOnFeatureEdges(collapsed, { &es[0], &es[1],  &es[2], &es[3] }, sIds);
 
 		EXPECT_EQ(6, countDifferentCoordinates(collapsed));
@@ -817,7 +889,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_over_face)
 	}
 	{
 		Coordinates collapsed = m.coordinates;
-		SmootherTools(m.grid)
+		SmootherTools(m.grid, m.coordinates)
 			.collapsePointsOnFeatureEdges(collapsed, { &es[4], &es[5],  &es[6], &es[7] }, sIds);
 
 		EXPECT_EQ(6, countDifferentCoordinates(collapsed));
@@ -851,7 +923,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_feature_in_interior)
 
 	const Elements& es = m.groups[0].elements;
 	Coordinates collapsed = m.coordinates;
-	SmootherTools(m.grid)
+	SmootherTools(m.grid, m.coordinates)
 		.collapsePointsOnFeatureEdges(collapsed, { &es[0], &es[1],  &es[2], &es[3] }, sIds);
 
 	EXPECT_EQ(6, countDifferentCoordinates(collapsed));

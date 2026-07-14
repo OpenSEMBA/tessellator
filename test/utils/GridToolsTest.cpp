@@ -219,6 +219,683 @@ TEST_F(GridToolsTest, getTouchingCells) {
 
 }
 
+TEST_F(GridToolsTest, commonPropertiesBetweenCoordinates) {
+	Grid grid = GridTools::buildCartesianGrid(0, 5, 6);
+	GridTools tools = GridTools(grid);
+
+	// Interior in different cells
+	{
+		Relative r1 = { 0.25, 0.30, 0.65 };
+		Relative r2 = { 1.25, 2.30, 3.65 };
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	// Interior in same cell
+	{
+		Relative r1 = { 0.25, 1.30, 2.65 };
+		Relative r2 = { 0.35, 1.50, 2.10 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	// One in Face and another is interior
+	{
+		Relative r1 = { 2.00, 1.30, 2.65 };
+		Relative r2 = { 2.35, 1.50, 2.10 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r2, r1));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnFace(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r2, r1));
+	}
+
+	// One in Edge and another is interior
+	{
+		Relative r1 = { 2.00, 1.00, 2.65 };
+		Relative r2 = { 2.35, 1.50, 2.10 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r2, r1));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnFace(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r2, r1));
+	}
+
+	// One in Corner and another is interior
+	{
+		Relative r1 = { 2.00, 1.00, 2.00 };
+		Relative r2 = { 2.35, 1.50, 2.10 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r2, r1));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnFace(r2, r1));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r2, r1));
+	}
+
+	// One in Edge and another in Face in different cells
+	{
+		Relative r1 = { 2.00, 1.00, 0.30 };
+		Relative r2 = { 2.35, 1.50, 2.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	// One in Corner and another in Face in different cells
+	{
+		Relative r1 = { 2.00, 1.00, 0.00 };
+		Relative r2 = { 2.35, 1.50, 2.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	// One in Corner and another in Edge in different cells
+	{
+		Relative r1 = { 2.00, 1.00, 0.00 };
+		Relative r2 = { 2.35, 3.00, 2.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y
+	//  *-----------------*-----------------*-----------------*
+	//  |                 |                 |                 |
+	//  |                 |                 |       2*        |
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  *-----------------*-----------------*-----------------*
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  |                 |                 |                 |
+	//  |     1*          |                 |                 |
+	//  |                 |                 |                 |
+	//  *-----------------*-----------------*-----------------* x
+	//  
+	//  
+	// Two points on faces in separate cells
+	{
+		Relative r1 = { 0.40, 0.25, 0.00 };
+		Relative r2 = { 2.50, 1.80, 0.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 2    |    |          *2     |
+	//  |                 |    |    |                 |
+	//  1                 |    |    |       *1        |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    *-----------------* x
+	//                         |
+	//                         
+	// Two points on opposite faces
+	{
+		Relative r1 = { 1.00, 1.25, 1.60 };
+		Relative r2 = { 2.00, 1.80, 1.25 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  2                 |    |    2                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |       *1        |
+	//  |                 |    |    |                 |
+	//  *--------1--------* x  |    *-----------------* x
+	//                         |
+	//                         
+	// Two points on faces in different axis
+	{
+		Relative r1 = { 1.50, 1.00, 1.25 };
+		Relative r2 = { 1.00, 1.70, 1.60 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |     *2          |
+	//  |     *1,2        |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |     *1          |
+	//  *-----------------* x  |    *-----------------* x
+	//                         |
+	//
+	//  Two interior points with segment parallel to edge
+	{
+		Relative r1 = { 1.35, 1.45, 1.20 };
+		Relative r2 = { 1.35, 1.45, 1.60 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  2                 |    |    2        *1       |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *--------1--------* x  |    *-----------------* x
+	//                         |
+	//                         
+	// Two points with the same Z value, on faces in different axis
+	{
+		Relative r1 = { 1.50, 1.00, 1.60 };
+		Relative r2 = { 1.00, 1.70, 1.60 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *---1-----------2-*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |   *1            |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |               *2|
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    *-----------------* x
+	//                         |
+	//                         
+	// Two points in the same face
+	{
+		Relative r1 = { 1.25, 2.00, 1.70 };
+		Relative r2 = { 1.90, 2.00, 1.50 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 2
+	//  |                1,2   |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 1
+	//  *-----------------* x  |    *-----------------* x
+	//                         |
+	//
+	//  Two face points with segment parallel to edge
+	{
+		Relative r1 = { 2.00, 1.45, 1.20 };
+		Relative r2 = { 2.00, 1.45, 1.60 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	// Two edges in different cells
+	{
+		Relative r1 = { 2.00, 1.00, 0.50 };
+		Relative r2 = { 3.00, 4.25, 2.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |       *2        |    |    |                 |
+	//  |                 |    |    1                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |    *-------2---------* x
+	//                         |
+	//
+
+	// Edge and face points on the same cell
+	{
+		Relative r1 = { 1.00, 1.00, 1.45 };
+		Relative r2 = { 1.40, 1.60, 1.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |       *2        |
+	//  |                 |    |    1                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-------2---------* x  |    *-----------------* x
+	//                         |
+	//
+	// Edge and face points with shared Face
+	{
+		Relative r1 = { 1.00, 1.00, 1.45 };
+		Relative r2 = { 1.40, 1.00, 1.60 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-------2---------* x  |    1-------2---------* x
+	//                         |
+	//
+	//  Two Edge Points with shared face but different edge axis
+	{
+		Relative r1 = { 1.00, 1.45, 1.00 };
+		Relative r2 = { 1.40, 1.00, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  1                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    1-----------------2 x
+	//                         |
+	//
+	//  Two Edge Points with one shared face and one opposite
+	{
+		Relative r1 = { 1.00, 1.45, 1.00 };
+		Relative r2 = { 2.00, 1.80, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------*    |    *-----------------*  
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 1    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    *----------------1,2 x
+	//                         |
+	//
+	//  Two Edge Points in subsequent edges
+	{
+		Relative r1 = { 2.00, 1.45, 1.00 };
+		Relative r2 = { 2.00, 2.80, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 1    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    *----------------1,2 x
+	//                         |
+	//
+	//  Two Edge Points in the same edge
+	{
+		Relative r1 = { 2.00, 1.45, 1.00 };
+		Relative r2 = { 2.00, 1.80, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_TRUE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 2
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |    1-----------------* x
+	//                         |
+	//
+	//  1 Corner point and face point in opposite face
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 2.00, 1.80, 1.25 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  1-----------------*    |    1-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  *-----------------* x  |    *-----------------2 x
+	//                         |
+	//
+	//  1 Corner point and edge point in opposite face
+	{
+		Relative r1 = { 1.00, 2.00, 2.00 };
+		Relative r2 = { 2.00, 1.75, 1.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------2    |    *-----------------2
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |    1-----------------* x
+	//                         |
+	//
+	//  2 opposite corner points
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 2.00, 2.00, 2.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_FALSE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |        2        |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1---------2-------* x  |    1-----------------* x
+	//                         |
+	//
+	//  1 Corner point and 1 Face point with common axis.
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 1.60, 1.00, 1.70 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 2    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |    1-----------------2 x
+	//                         |
+	//
+	//  1 Corner point and 1 Edge point with shared face.
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 2.00, 1.75, 1.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  2                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |   1,2----------------* x
+	//                         |
+	//
+	//  1 Corner point and edge point with shared edge.
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 1.00, 1.70, 1.00 };
+
+		EXPECT_FALSE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_TRUE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+
+	//  
+	//  y					   |    z
+	//  *-----------------2    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------* x  |    1-----------------2 x
+	//                         |
+	//
+	//  2 Corner point with a shared face.
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 2.00, 2.00, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_FALSE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnEdge(r1, r2));
+	}
+
+
+	//  
+	//  y					   |    z
+	//  *-----------------*    |    *-----------------*
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  |                 |    |    |                 |
+	//  1-----------------2 x  |    1-----------------2 x
+	//                         |
+	//
+	//  2 Corner point with a shared edge.
+	{
+		Relative r1 = { 1.00, 1.00, 1.00 };
+		Relative r2 = { 2.00, 1.00, 1.00 };
+
+		EXPECT_TRUE(tools.sameCellProperties(r1, r2));
+
+		EXPECT_TRUE(GridTools::areCoordOnSameFace(r1, r2));
+		EXPECT_TRUE(GridTools::areCoordOnSameEdge(r1, r2));
+		EXPECT_FALSE(tools.isSegmentOnFace(r1, r2));
+		EXPECT_TRUE(tools.isSegmentOnEdge(r1, r2));
+	}
+}
+
 TEST_F(GridToolsTest, uniformDualGrid) {
 
 	Grid grid;

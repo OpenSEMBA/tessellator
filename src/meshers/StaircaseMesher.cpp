@@ -67,7 +67,7 @@ void StaircaseMesher::process(Mesh& mesh) const
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     log("Removing repeated and overlapping elements.", 1);   
-    RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+    redundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

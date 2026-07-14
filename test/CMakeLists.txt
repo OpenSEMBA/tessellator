@@ -18,10 +18,12 @@ add_executable(tessellator_tests
 	"app/launcherTest.cpp"
 	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
+	"core/DelaunatorTest.cpp"
 	"core/SlicerTest.cpp"
 	"core/SnapperTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
+    "core/SplicerTest.cpp"
     "core/StaircaserTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/ConvexHullTest.cpp"
@@ -50,7 +52,7 @@ if (TESSELLATOR_ENABLE_CGAL)
 
 	target_sources(tessellator_tests PRIVATE
 		"cgal/ArrangmentTest.cpp"
-		"cgal/DelaunatorTest.cpp"
+		"cgal/DelaunatorCGALTest.cpp"
 		"cgal/HPolygonSetTest.cpp"
 		"cgal/ManifolderTest.cpp"
 		"cgal/PolyhedronToolsTest.cpp"

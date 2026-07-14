@@ -102,6 +102,8 @@ This code and its copyright is property of to the University of Granada (UGR), C
 
 testData/cervezas_alhambra logo has been downloaded from https://cults3d.com/es/modelo-3d/arte/celosia-alhambra-logo-cervezas-alhambra where is available with license CC BY-NC-SA.
 
+Third party library CDT has been used as an external library. Its source code can be found in https://github.com/artem-ogre/CDT, licensed under the MPL-2.0 license.
+
 ## Funding
 
 - Spanish Ministry of Science and Innovation (MICIN/AEI) (Grant Number: PID2022-137495OB-C31)
