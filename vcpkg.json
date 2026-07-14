@@ -4,8 +4,7 @@
     "boost-program-options", 
     { "name": "vtk", "default-features": false, "platform": "windows"},
     "nlohmann-json",
-    "gtest",
-    { "name": "libiconv", "version>=": "1.19" }
+    "gtest"
   ],
   "features": {
     "cgal": {

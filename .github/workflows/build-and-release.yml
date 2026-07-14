@@ -69,6 +69,8 @@ jobs:
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: eed289f6e06a5e7a5c9e6a729671b0a56af7dd69
 
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'

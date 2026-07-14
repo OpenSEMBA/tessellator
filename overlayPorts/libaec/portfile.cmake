@@ -2,7 +2,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO Deutsches-Klimarechenzentrum/libaec 
     REF v${VERSION}
-    SHA512 57ffa961efe9329928bd6199881ff9f6d1f4072d08f0e11bafe19b09bbc6dbc5e0003e52d83a8ba72a50518bf39935a92838f9a27d002b33ab095d99ffc5a838
+    SHA512 76df7501d1b7d91a43b525ba828f092f18d83f8ab09a9331e5758f93942a9758ad580baca8f9316b92a98639bde2e23cacbc2f33f52d0dd98ce7efe412cf43cd
     HEAD_REF master
 )
 
