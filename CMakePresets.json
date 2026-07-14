@@ -1,56 +1,75 @@
 {
-  "version": 4,
-  "configurePresets": [
-    {
-      "name": "default",
-      "hidden": true,
-      "binaryDir": "build/",
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": {
-          "type": "FILEPATH",
-          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    "version": 4,
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "binaryDir": "build/",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": {
+                    "type": "FILEPATH",
+                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                }
+            }
+        },
+        {
+            "name": "msbuild",
+            "displayName": "MSBuild Configure Settings",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "strategy": "set",
+                "value": "x64"
+            },
+            "inherits": "default"
+        },
+        {
+            "name": "gnu",
+            "displayName": "GNU g++ compiler",
+            "generator": "Ninja",
+            "inherits": "default"
+        },
+        {
+            "name": "docker",
+            "displayName": "Docker (system libraries)",
+            "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds.",
+            "generator": "Ninja",
+            "binaryDir": "build/",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_PREFIX_PATH": "/usr/local",
+                "CMAKE_FIND_ROOT_PATH": "/usr/local",
+                "TESSELLATOR_ENABLE_TESTS": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF"
+            }
+        },
+        {
+            "name": "docker-dbg",
+            "inherits": "docker",
+            "displayName": "Docker-dbg (system libraries)",
+            "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds. Debug mode",
+            "binaryDir": "build-dbg/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_PREFIX_PATH": "/usr/local",
+                "CMAKE_FIND_ROOT_PATH": "/usr/local",
+                "TESSELLATOR_ENABLE_TESTS": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF"
+            }
         }
-      }
-    },
-    {
-      "name": "msbuild",
-      "displayName": "MSBuild Configure Settings",
-      "generator": "Visual Studio 17 2022",
-      "architecture": {
-        "strategy": "set",
-        "value": "x64"
-      },
-      "inherits": "default"
-    },
-    {
-      "name": "gnu",
-      "displayName": "GNU g++ compiler",
-      "generator": "Ninja",
-      "inherits": "default"
-    },
-    {
-      "name": "docker",
-      "displayName": "Docker (system libraries)",
-      "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds.",
-      "generator": "Ninja",
-      "binaryDir": "build/",
-      "cacheVariables": {
-        "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_PREFIX_PATH": "/usr/local",
-        "CMAKE_FIND_ROOT_PATH": "/usr/local",
-        "TESSELLATOR_ENABLE_TESTS": "ON",
-        "TESSELLATOR_ENABLE_CGAL": "OFF"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default"
-    },
-    {
-      "name": "docker",
-      "configurePreset": "docker"
-    }
-  ]
+    ],
+    "buildPresets": [
+        {
+            "name": "default",
+            "configurePreset": "default"
+        },
+        {
+            "name": "docker",
+            "configurePreset": "docker"
+        },
+        {
+            "name": "docker-dbg",
+            "configurePreset": "docker-dbg"
+        }
+    ]
 }

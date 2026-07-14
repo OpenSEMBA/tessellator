@@ -5,17 +5,20 @@ on:
     branches:
       - main
       - dev
-    
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+env: 
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   
 jobs:
   builds-and-tests:
     strategy:
       matrix:
         preset: [
-          {"os": windows-latest, "name": "msbuild"},
+          {"os": windows-2022, "name": "msbuild"},
           {"os": ubuntu-latest, "name": "gnu"}
         ]
         build-type: ["Debug", "Release"]
@@ -45,8 +48,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libvtk9-dev
 
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
     - name: Setup vcpkg 
       uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: eed289f6e06a5e7a5c9e6a729671b0a56af7dd69
     
     - name: Windows configure and build
       if: matrix.preset.name=='msbuild'
@@ -67,6 +79,3 @@ jobs:
     - name: Ubuntu Run tests
       if: matrix.preset.name=='gnu'
       run: build/bin/tessellator_tests
-
-        
-    

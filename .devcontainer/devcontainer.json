@@ -2,17 +2,18 @@
   "name": "Tessellator",
   "dockerFile": "Dockerfile.base",
   "context": "..",
-  "remoteUser": "root",
-  "workspaceFolder": "/workspace",
+  "remoteUser": "ubuntu",
+  "workspaceFolder": "/home/ubuntu/dev",
   "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "source=${localWorkspaceFolder},target=/home/ubuntu/dev,type=bind"
   ],
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-vscode.cpptools",
         "ms-vscode.cmake-tools",
-        "vadimcn.vscode-lldb"
+        "vadimcn.vscode-lldb",
+        "matepek.vscode-catch2-test-adapter"
       ],
       "settings": {
         "cmake.configureOnOpen": false,
