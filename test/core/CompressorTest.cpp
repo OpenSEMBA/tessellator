@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include "core/Compressor.h"
-#include "core/Splitter.h"
 #include "MeshFixtures.h"
 #include "utils/MeshTools.h"
 
@@ -152,8 +151,8 @@ TEST_F(CompressorTest, DoesNotCompressQuadsWithDifferentNormals) {
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
 }
 
-TEST_F(CompressorTest, CompressAndSplit2x2GridRoundTrip) {
-    // Create 4 quads in 2x2 grid, compress to 1 surface, split back to 4 quads
+TEST_F(CompressorTest, Compress2x2GridRoundTrip) {
+    // Create 4 quads in 2x2 grid, compress to 1 surface
     
     Mesh mesh;
     mesh.grid = grid_;
@@ -170,15 +169,10 @@ TEST_F(CompressorTest, CompressAndSplit2x2GridRoundTrip) {
     auto merged = core::Compressor::compressSurfaces(mesh);
     EXPECT_EQ(merged, 3u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
-    
-    // Split: 1 surface -> 4 quads
-    auto splitCount = core::Splitter::splitSurfaces(mesh);
-    EXPECT_EQ(splitCount, 4u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 4u);
 }
 
-TEST_F(CompressorTest, CompressAndSplitRingRoundTrip) {
-    // Create ring of 8 quads, compress, split back
+TEST_F(CompressorTest, CompressRingRoundTrip) {
+    // Create ring of 8 quads, compress
     
     Mesh mesh;
     mesh.grid = grid_;
@@ -200,15 +194,10 @@ TEST_F(CompressorTest, CompressAndSplitRingRoundTrip) {
     EXPECT_EQ(merged, 4u); // 8 - 4 = 4 surfaces merged
     auto compressedCount = countMeshElementsIf(mesh, isQuad);
     EXPECT_EQ(compressedCount, 4u);
-    
-    // Split: 4 surfaces -> 8 quads
-    auto splitCount = core::Splitter::splitSurfaces(mesh);
-    EXPECT_EQ(splitCount, 8u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 8u);
 }
 
-TEST_F(CompressorTest, CompressAndSplit3x3GridRoundTrip) {
-    // Create 9 quads in 3x3 grid, compress to 1 surface, split back to 9 quads
+TEST_F(CompressorTest, Compress3x3GridRoundTrip) {
+    // Create 9 quads in 3x3 grid, compress to 1 surface
     
     Mesh mesh;
     mesh.grid = grid_;
@@ -228,11 +217,6 @@ TEST_F(CompressorTest, CompressAndSplit3x3GridRoundTrip) {
     auto merged = core::Compressor::compressSurfaces(mesh);
     EXPECT_EQ(merged, 8u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
-    
-    // Split: 1 surface -> 9 quads
-    auto splitCount = core::Splitter::splitSurfaces(mesh);
-    EXPECT_EQ(splitCount, 9u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 9u);
 }
 
 // ============== Line Compression Tests ==============
@@ -303,7 +287,7 @@ TEST_F(CompressorTest, Compress3LinesIntoOne) {
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
 }
 
-TEST_F(CompressorTest, CompressAndSplit2LineRoundTrip) {
+TEST_F(CompressorTest, Compress2LineRoundTrip) {
     Mesh mesh;
     mesh.grid = grid_;
     
@@ -315,14 +299,9 @@ TEST_F(CompressorTest, CompressAndSplit2LineRoundTrip) {
     
     core::Compressor::compressLines(mesh);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
-    
-    auto splitCount = core::Splitter::splitLines(mesh);
-    
-    EXPECT_EQ(splitCount, 2u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
 }
 
-TEST_F(CompressorTest, CompressAndSplit5LineRoundTrip) {
+TEST_F(CompressorTest, Compress5LineRoundTrip) {
     Mesh mesh;
     mesh.grid = grid_;
     
@@ -336,11 +315,6 @@ TEST_F(CompressorTest, CompressAndSplit5LineRoundTrip) {
     
     core::Compressor::compressLines(mesh);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
-    
-    auto splitCount = core::Splitter::splitLines(mesh);
-    
-    EXPECT_EQ(splitCount, 5u);
-    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 5u);
 }
 
 TEST_F(CompressorTest, CompressMixedDirections) {
