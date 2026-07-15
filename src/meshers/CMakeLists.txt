@@ -6,7 +6,11 @@ add_library(tessellator-meshers
     "OffgridMesher.cpp"
     "ConformalMesher.cpp"
 )
-target_link_libraries(tessellator-meshers tessellator-core tessellator-utils)
+target_link_libraries(tessellator-meshers 
+    tessellator-core 
+    tessellator-utils
+    tessellator-cgal
+    CGAL::CGAL)
 
 if(TESSELLATOR_EXECUTION_POLICIES)
     add_definitions(-DTESSELLATOR_EXECUTION_POLICIES)

@@ -9,7 +9,8 @@
                 "CMAKE_TOOLCHAIN_FILE": {
                     "type": "FILEPATH",
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-                }
+                },
+                "TESSELLATOR_ENABLE_CGAL": true
             }
         },
         {
@@ -39,7 +40,10 @@
                 "CMAKE_PREFIX_PATH": "/usr/local",
                 "CMAKE_FIND_ROOT_PATH": "/usr/local",
                 "TESSELLATOR_ENABLE_TESTS": "ON",
-                "TESSELLATOR_ENABLE_CGAL": "OFF"
+                "TESSELLATOR_ENABLE_CGAL": "ON"
+            },
+            "environment": {
+                "EIGEN3_INCLUDE_DIR": "/usr/include/eigen3"
             }
         },
         {
@@ -54,7 +58,7 @@
                 "CMAKE_PREFIX_PATH": "/usr/local",
                 "CMAKE_FIND_ROOT_PATH": "/usr/local",
                 "TESSELLATOR_ENABLE_TESTS": "ON",
-                "TESSELLATOR_ENABLE_CGAL": "OFF"
+                "TESSELLATOR_ENABLE_CGAL": "ON"
             }
         }
     ],

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types/Mesh.h"
+#include "MesherBaseOptions.h"
 
 namespace meshlib {
 namespace meshers {
@@ -29,6 +30,9 @@ protected:
 
     Grid originalGrid_;
     Grid enlargedGrid_;
+    MesherBaseOptions opts_;
+
+
 };
 
 }

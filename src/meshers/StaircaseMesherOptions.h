@@ -6,10 +6,8 @@
 
 namespace meshlib::meshers {
 
-class ConformalMesherOptions : public MesherBaseOptions {
+class StaircaseMesherOptions : public MesherBaseOptions {
 public:
-    core::SnapperOptions snapperOptions;
-    // std::set<GroupId> volumeGroups{};
 };
 
 }
