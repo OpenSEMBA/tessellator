@@ -35,7 +35,7 @@
             "name": "tessellator_tests (gdb)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-dbg/bin/tesselator_tests",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator_tests",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

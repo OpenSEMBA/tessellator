@@ -1,13 +1,16 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
-
 #include "Snapper.h"
 #include "Slicer.h"
 #include "Smoother.h"
 #include "utils/Tools.h"
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
-#include "app/vtkIO.h"
+
+
+#if APP_LOADED
+    #include "app/vtkIO.h"
+#endif
 
 using namespace meshlib;
 using namespace core;
@@ -46,6 +49,8 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
+#if APP_LOADED
+
 TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
 {
     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -78,6 +83,7 @@ TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
+# endif
 
 // TEST_F(SnapperTest, triangles_convert_to_lines)
 // {

@@ -6,7 +6,10 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 #include "core/Slicer.h"
-#include "app/vtkIO.h"
+
+#if APP_LOADED
+	#include "app/vtkIO.h"
+#endif
 
 namespace meshlib::core {
 using namespace utils;
@@ -87,6 +90,8 @@ TEST_F(SmootherTest, touching_by_single_point)
 	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
 }
 
+#if APP_LOADED
+
 TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 {
 	
@@ -116,7 +121,6 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
 }
 
-
 TEST_F(SmootherTest, preserves_topological_closedness_for_sphere)
 {
     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -145,5 +149,7 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_sphere)
 	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
+
+#endif
 
 }

@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
+
 #include "meshers/StaircaseMesher.h"
 #include "Staircaser.h"
 
@@ -12,7 +13,10 @@
 #include "utils/MeshTools.h"
 #include "utils/RedundancyCleaner.h"
 
-#include "app/vtkIO.h"
+
+#if APP_LOADED
+    #include "app/vtkIO.h"
+#endif
 
 namespace meshlib::meshers {
 
@@ -228,6 +232,7 @@ TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
     EXPECT_EQ(0, countMeshElementsIf(out, isNode));
 }
 
+#if APP_LOADED
 // FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
 
 TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
@@ -284,7 +289,7 @@ TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
     meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
-
+#endif
 
 TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
 {
@@ -316,6 +321,8 @@ TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
     EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine)); 
     EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
 }
+
+#if APP_LOADED
 
 TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
 {
@@ -523,6 +530,9 @@ TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
     // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
+
+
+#endif
 
 }
 

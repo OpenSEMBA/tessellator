@@ -28,6 +28,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(TESSELLATOR_ENABLE_TESTS "Compile tests" ON)
 option(TESSELLATOR_ENABLE_CGAL "Compile using CGAL library" ON)
 option(TESSELLATOR_EXECUTION_POLICIES OFF)
+option(TESSELLATOR_LOAD_APP "Compile app" OFF)
 
 if(TESSELLATOR_ENABLE_CGAL)
     list(APPEND VCPKG_MANIFEST_FEATURES "cgal")
@@ -39,6 +40,22 @@ if(TESSELLATOR_ENABLE_CGAL)
 endif()
 					  
 project(tessellator CXX)
+
+find_package(VTK COMPONENTS
+  CommonCore
+  IOGeometry
+  IOLegacy
+  FiltersCore
+)
+
+if(VTK_FOUND)
+   set(TESSELLATOR_LOAD_APP ON)
+   add_definitions(-DAPP_LOADED=1)
+
+else()
+   message(STATUS "VTK not found - tessellator app will not be built")
+   add_definitions(-DAPP_LOADED=0)
+endif()
 
 add_subdirectory(src/)
 					  

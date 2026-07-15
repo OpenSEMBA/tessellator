@@ -4,16 +4,24 @@
 
 #include "meshers/ConformalMesher.h"
 #include "utils/Geometry.h"
-#include "app/vtkIO.h"
 #include "utils/MeshTools.h"
+
+#if APP_LOADED
+    #include "app/vtkIO.h"
+#endif
 
 namespace meshlib::meshers {
 using namespace meshFixtures;
 using namespace utils::meshTools;
-using namespace vtkIO;
+
+#if APP_LOADED
+    using namespace vtkIO;
+#endif
 
 class ConformalMesherTest : public ::testing::Test {
 protected:
+
+#if APP_LOADED
     Mesh launchConformalMesher(const std::string& inputFilename, const Mesh& inputMesh)
     {
         ConformalMesherOptions opts;
@@ -31,6 +39,7 @@ protected:
 
         return res;
     }
+#endif
 };
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_1)
@@ -333,6 +342,8 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_8)
     EXPECT_EQ(2, res.size());
 }
 
+#if APP_LOADED
+
 TEST_F(ConformalMesherTest, sphere)
 {
     // Input
@@ -420,6 +431,8 @@ TEST_F(ConformalMesherTest, thinCylinder)
 
     EXPECT_NE(0, mesh.countElems());
 }
+
+#endif
 
 // TEST_F(ConformalMesherTest, plane45_size05_grid_adapted) 
 // {
