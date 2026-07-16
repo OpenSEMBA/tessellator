@@ -8,6 +8,7 @@ build/
 .settings
 .project
 .cproject
+.cache
 
 src/*.json
 

@@ -25,6 +25,9 @@ RUN apt-get install -y \
     libeigen3-dev \
     libcgal-dev
 
+RUN apt-get install -y \
+    clangd
+
 RUN chown -R ubuntu:ubuntu /home/ubuntu
 
 USER ubuntu

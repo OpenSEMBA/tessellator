@@ -13,7 +13,8 @@
         "ms-vscode.cpptools",
         "ms-vscode.cmake-tools",
         "vadimcn.vscode-lldb",
-        "matepek.vscode-catch2-test-adapter"
+        "matepek.vscode-catch2-test-adapter",
+        "llvm-vs-code-extensions.vscode-clangd"
       ],
       "settings": {
         "cmake.configureOnOpen": false,
