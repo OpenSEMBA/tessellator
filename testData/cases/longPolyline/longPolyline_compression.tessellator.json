@@ -10,7 +10,7 @@
     "mesher": {
       "type" : "staircase",
       "options" : {
-        "compress" : false
+        "compress" : true
       }
     }
 }

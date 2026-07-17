@@ -58,6 +58,26 @@ TEST_F(LauncherTest, launches_alhambra_case)
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
+TEST_F(LauncherTest, parses_staircased_without_compression)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline.tessellator.json" };
+    int exitCode;
+    
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, parses_staircased_with_compression)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline_compression.tessellator.json" };
+    int exitCode;
+    
+    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
 TEST_F(LauncherTest, launches_conformal_alhambra_case)
 {
     int ac = 3;
@@ -125,7 +145,7 @@ TEST_F(LauncherTest, launches_cone_case)
 TEST_F(LauncherTest, launches_long_polyline_case)
 {
     int ac = 3;
-    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline.tessellator.json" };
+    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline_legacy.tessellator.json" };
     int exitCode;
     EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
