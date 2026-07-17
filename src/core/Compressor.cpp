@@ -3,12 +3,13 @@
 #include <algorithm>
 #include <queue>
 
-#include "utils/Geometry.h"
+#include "types/Mesh.h"
 #include "utils/GridTools.h"
 
 namespace meshlib::core {
 
 using meshlib::Sign;
+using meshlib::SignedAxis;
 using meshlib::PlanePoint;
 using meshlib::PlaneLinel;
 using meshlib::PlaneSurfel;
@@ -16,58 +17,54 @@ using meshlib::PlaneSurface;
 using meshlib::Contour;
 using meshlib::CrossLine;
 
-std::size_t Compressor::compressSurfaces(Mesh& mesh) {
+std::size_t Compressor::compressSurfacesInMesh(Mesh& mesh) {
     std::size_t totalOriginal = 0;
     std::size_t totalCompressed = 0;
 
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
-        std::vector<Element> surfs;
-        std::vector<ElementId> surfIndices;
+    for (Group& group : mesh.groups) {
+        std::vector<Element> surfaces;
         
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            const Element& elem = mesh.groups[g].elements[e];
+        for (const Element& elem : group.elements) {
             if (elem.type == Element::Type::Surface) {
-                surfIndices.push_back(e);
-                surfs.push_back(elem);
+                surfaces.push_back(elem);
             }
         }
 
-        if (surfs.empty()) {
+        if (surfaces.empty()) {
             continue;
         }
 
-        totalOriginal += surfs.size();
-        std::vector<Element> compressedSurfs = compressSurfs_(mesh.coordinates, surfs);
-        totalCompressed += compressedSurfs.size();
+        totalOriginal += surfaces.size();
+        std::vector<Element> compressedSurfaces = compressSurfaces_(mesh.coordinates, surfaces);
+        totalCompressed += compressedSurfaces.size();
 
         // Build new elements vector with compressed surfaces
         std::vector<Element> newElements;
-        ElementId surfIdx = 0;
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            if (mesh.groups[g].elements[e].type == Element::Type::Surface) {
-                if (surfIdx < compressedSurfs.size()) {
-                    newElements.push_back(compressedSurfs[surfIdx]);
-                    surfIdx++;
+        ElementId surfaceIdx = 0;
+        for (ElementId e = 0; e < group.elements.size(); e++) {
+            if (group.elements[e].type == Element::Type::Surface) {
+                if (surfaceIdx < compressedSurfaces.size()) {
+                    newElements.push_back(compressedSurfaces[surfaceIdx]);
+                    surfaceIdx++;
                 }
             } else {
-                newElements.push_back(mesh.groups[g].elements[e]);
+                newElements.push_back(group.elements[e]);
             }
         }
-        mesh.groups[g].elements = std::move(newElements);
+        group.elements = std::move(newElements);
     }
 
     return totalOriginal - totalCompressed;
 }
 
-std::size_t Compressor::compressLines(Mesh& mesh) {
+std::size_t Compressor::compressLinesInMesh(Mesh& mesh) {
     std::size_t totalOriginal = 0;
     std::size_t totalCompressed = 0;
 
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
+    for (Group& group : mesh.groups) {
         std::vector<Element> lines;
         
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            const Element& elem = mesh.groups[g].elements[e];
+        for (const Element& elem : group.elements) {
             if (elem.type == Element::Type::Line) {
                 lines.push_back(elem);
             }
@@ -84,42 +81,41 @@ std::size_t Compressor::compressLines(Mesh& mesh) {
         // Build new elements vector with compressed lines
         std::vector<Element> newElements;
         ElementId lineIdx = 0;
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            if (mesh.groups[g].elements[e].type == Element::Type::Line) {
+        for (ElementId e = 0; e < group.elements.size(); e++) {
+            if (group.elements[e].type == Element::Type::Line) {
                 if (lineIdx < compressedLines.size()) {
                     newElements.push_back(compressedLines[lineIdx]);
                     lineIdx++;
                 }
             } else {
-                newElements.push_back(mesh.groups[g].elements[e]);
+                newElements.push_back(group.elements[e]);
             }
         }
-        mesh.groups[g].elements = std::move(newElements);
+        group.elements = std::move(newElements);
     }
 
     return totalOriginal - totalCompressed;
 }
 
 std::vector<Element> Compressor::compressLines_(
-        const std::vector<Coordinate>& coords,
+        const std::vector<Relative>& coords,
         const std::vector<Element>& lines) {
-    std::vector<Element> res;
-    std::map<std::pair<std::array<CellDir, 2>,
-                        std::pair<Sign, Axis>>,
+    std::vector<Element> result;
+    std::map<std::pair<GridLine, SignedAxis>,
               std::vector<ElementId>> signDirLines;
     for (std::size_t l = 0; l < lines.size(); l++) {
         std::array<Cell, 2> auxCells;
         auxCells[0] = utils::GridTools::toCell(coords[lines[l].vertices[0]]);
         auxCells[1] = utils::GridTools::toCell(coords[lines[l].vertices[1]]);
-        std::array<CellDir, 2> gridLine;
+        GridLine gridLine;
         Sign sign = 1;
-        Axis dir = 0;
-        for (Axis d = 0; d < 3; d++) {
+        Axis direction = 0;
+        for (Axis d = X; X <= Z; d++) {
             if (auxCells[0](d) != auxCells[1](d)) {
                 if (auxCells[0](d) > auxCells[1](d)) {
                     sign = -1;
                 }
-                dir = d;
+                direction = d;
                 Axis d1 = (d + 1) % 3;
                 Axis d2 = (d + 2) % 3;
                 gridLine[0] = auxCells[0](d1);
@@ -128,50 +124,49 @@ std::vector<Element> Compressor::compressLines_(
             }
         }
         signDirLines[std::make_pair(gridLine,
-                                     std::make_pair(sign, dir))].push_back(l);
+                                     std::make_pair(sign, direction))].push_back(l);
     }
-    for (std::map<std::pair<std::array<CellDir, 2>,
-                             std::pair<Sign, Axis>>,
+    for (std::map<std::pair<GridLine, SignedAxis>,
                    std::vector<ElementId>>::const_iterator
           it = signDirLines.begin(); it != signDirLines.end(); ++it) {
         std::vector<Element> auxElems;
         for (std::size_t i = 0; i < it->second.size(); i++) {
             auxElems.push_back(lines[it->second[i]]);
         }
-        std::vector<Element> auxRes =
+        std::vector<Element> compressedLines =
             compressDirSignLines_(coords,
                                    it->first.second,
                                    auxElems);
-        res.insert(res.end(), auxRes.begin(), auxRes.end());
+        result.insert(result.end(), compressedLines.begin(), compressedLines.end());
     }
-    return res;
+    return result;
 }
 
 std::vector<Element> Compressor::compressDirSignLines_(
-        const std::vector<Coordinate>& coords,
-        const std::pair<Sign, Axis>& signDir,
+        const std::vector<Relative>& coords,
+        const SignedAxis& signedDir,
         const std::vector<Element>& lines) {
-    std::vector<Element> res;
-    std::map<CoordinateId, std::set<ElementId>> coordLines;
-    std::map<ElementId, std::set<CoordinateId>> lineCoords;
+    std::vector<Element> result;
+    std::map<RelativeId, std::set<ElementId>> relativeLines;
+    std::map<ElementId, std::set<RelativeId>> lineRelatives;
     for (std::size_t l = 0; l < lines.size(); l++) {
-        for (std::size_t v = 0; v < 2; v++) {
-            coordLines[lines[l].vertices[v]].insert(l);
-            lineCoords[l].insert(lines[l].vertices[v]);
+        for (RelativeId vertex : lines[l].vertices) {
+            relativeLines[vertex].insert(l);
+            lineRelatives[l].insert(vertex);
         }
     }
-    std::set<ElementId> vis;
-    for (std::map<ElementId, std::set<CoordinateId>>::const_iterator
-         itExt = lineCoords.begin(); itExt != lineCoords.end(); ++itExt) {
-        if (vis.count(itExt->first) == 0) {
-            CoordinateId minCell = lines[itExt->first].vertices[0];
-            CoordinateId maxCell = lines[itExt->first].vertices[1];
-            std::queue<ElementId> q;
-            q.push(itExt->first);
-            vis.insert(itExt->first);
-            while (!q.empty()) {
-                ElementId elem = q.front();
-                q.pop();
+    std::set<ElementId> visitedLineIds;
+    for (std::map<ElementId, std::set<RelativeId>>::const_iterator
+         itExt = lineRelatives.begin(); itExt != lineRelatives.end(); ++itExt) {
+        if (visitedLineIds.count(itExt->first) == 0) {
+            RelativeId minCell = lines[itExt->first].vertices[0];
+            RelativeId maxCell = lines[itExt->first].vertices[1];
+            std::queue<ElementId> linesToVisit;
+            linesToVisit.push(itExt->first);
+            visitedLineIds.insert(itExt->first);
+            while (!linesToVisit.empty()) {
+                ElementId elem = linesToVisit.front();
+                linesToVisit.pop();
                 for (std::size_t i = 0; i < 2; i++) {
                     if (coords[minCell] > coords[lines[elem].vertices[i]]) {
                         minCell = lines[elem].vertices[i];
@@ -180,15 +175,15 @@ std::vector<Element> Compressor::compressDirSignLines_(
                         maxCell = lines[elem].vertices[i];
                     }
                 }
-                for (std::set<CoordinateId>::const_iterator
-                     itCell  = lineCoords[elem].begin();
-                     itCell != lineCoords[elem].end(); ++itCell) {
+                for (std::set<RelativeId>::const_iterator
+                     itCell  = lineRelatives[elem].begin();
+                     itCell != lineRelatives[elem].end(); ++itCell) {
                     for (std::set<ElementId>::const_iterator
-                         itLine  = coordLines[*itCell].begin();
-                         itLine != coordLines[*itCell].end(); ++itLine) {
-                        if (vis.count(*itLine) == 0) {
-                            q.push(*itLine);
-                            vis.insert(*itLine);
+                         itLine  = relativeLines[*itCell].begin();
+                         itLine != relativeLines[*itCell].end(); ++itLine) {
+                        if (visitedLineIds.count(*itLine) == 0) {
+                            linesToVisit.push(*itLine);
+                            visitedLineIds.insert(*itLine);
                         }
                     }
                 }
@@ -197,34 +192,35 @@ std::vector<Element> Compressor::compressDirSignLines_(
             newElem.type = Element::Type::Line;
             newElem.vertices.push_back(minCell);
             newElem.vertices.push_back(maxCell);
-            if (signDir.first < 0) {
+            if (signedDir.first < 0) {
                 std::swap(newElem.vertices[0], newElem.vertices[1]);
             }
-            res.push_back(newElem);
+            result.push_back(newElem);
         }
     }
-    return res;
+    return result;
 }
 
-std::vector<Element> Compressor::compressSurfs_(
-        std::vector<Coordinate>& coords,
-        const std::vector<Element>& surfs) {
-    std::vector<Element> res;
-    std::map<std::pair<CellDir, std::pair<Sign, Axis>>,
-             std::vector<ElementId>> signDirSurfs;
-    for (std::size_t s = 0; s < surfs.size(); s++) {
-        if (surfs[s].vertices.size() != 4) {
-            res.push_back(surfs[s]);
+std::vector<Element> Compressor::compressSurfaces_(
+        std::vector<Relative>& coords,
+        const std::vector<Element>& surfaces) {
+            
+    std::vector<Element> result;
+    std::map<std::pair<CellDir, SignedAxis>, std::vector<ElementId>> signDirSurfs;
+
+    for (std::size_t s = 0; s < surfaces.size(); s++) {
+        if (surfaces[s].vertices.size() != 4) {
+            result.push_back(surfaces[s]);
             continue;
         }
         std::array<Cell, 3> auxCells;
-        auxCells[0] = utils::GridTools::toCell(coords[surfs[s].vertices[0]]);
-        auxCells[1] = utils::GridTools::toCell(coords[surfs[s].vertices[1]]);
-        auxCells[2] = utils::GridTools::toCell(coords[surfs[s].vertices[2]]);
-        CellDir gridSurf;
+        auxCells[0] = utils::GridTools::toCell(coords[surfaces[s].vertices[0]]);
+        auxCells[1] = utils::GridTools::toCell(coords[surfaces[s].vertices[1]]);
+        auxCells[2] = utils::GridTools::toCell(coords[surfaces[s].vertices[2]]);
+        CellDir gridSurface;
         Sign sign = 1;
-        Axis dir = 0;
-        for (Axis d = 0; d < 3; d++) {
+        Axis direction = 0;
+        for (Axis d = X; d <= Z; d++) {
             if (auxCells[0](d) == auxCells[2](d)) {
                 Cell normal = (auxCells[1] - auxCells[0]) ^
                               (auxCells[2] - auxCells[0]);
@@ -233,109 +229,107 @@ std::vector<Element> Compressor::compressSurfs_(
                 } else {
                     sign = -1;
                 }
-                dir = d;
-                gridSurf = auxCells[0](d);
+                direction = d;
+                gridSurface = auxCells[0](d);
                 break;
             }
         }
-        signDirSurfs[std::make_pair(gridSurf,
-                                    std::make_pair(sign, dir))].push_back(s);
+        signDirSurfs[std::make_pair(gridSurface,
+                                    std::make_pair(sign, direction))].push_back(s);
     }
-    for (std::map<std::pair<CellDir, std::pair<Sign, Axis>>,
+    for (std::map<std::pair<CellDir, SignedAxis>,
                   std::vector<ElementId>>::const_iterator
          it = signDirSurfs.begin(); it != signDirSurfs.end(); ++it) {
         std::vector<Element> auxElems;
         for (std::size_t i = 0; i < it->second.size(); i++) {
-            auxElems.push_back(surfs[it->second[i]]);
+            auxElems.push_back(surfaces[it->second[i]]);
         }
-        std::vector<Element> auxRes =
-            compressDirSignSurfs_(coords,
-                                  it->first.second,
-                                  auxElems);
-        res.insert(res.end(), auxRes.begin(), auxRes.end());
+        std::vector<Element> compressedSurfaces =
+            compressSurfacesWithSameNormal_(coords, it->first.second, auxElems);
+        result.insert(result.end(), compressedSurfaces.begin(), compressedSurfaces.end());
     }
-    return res;
+    return result;
 }
 
-std::vector<Element> Compressor::compressDirSignSurfs_(
-        std::vector<Coordinate>& coords,
-        const std::pair<Sign, Axis>& signDir,
-        const std::vector<Element>& surfs) {
-    std::vector<Element> res;
-    std::map<LinIds, std::set<ElementId>> lineSurfs;
-    std::map<ElementId, std::set<LinIds>> surfLines;
-    for (std::size_t s = 0; s < surfs.size(); s++) {
+std::vector<Element> Compressor::compressSurfacesWithSameNormal_(
+        std::vector<Relative>& coords,
+        const SignedAxis& signedDir,
+        const std::vector<Element>& surfaces) {
+    std::vector<Element> result;
+    std::map<LinIds, std::set<ElementId>> edgeSurfaces;
+    std::map<ElementId, std::set<LinIds>> surfaceEdges;
+    for (ElementId s = 0; s < surfaces.size(); s++) {
         for (std::size_t i = 0; i < 4; i++) {
             std::size_t j = (i + 1) % 4;
-            LinIds line;
-            line[0] = surfs[s].vertices[i];
-            line[1] = surfs[s].vertices[j];
-            std::sort(line.begin(), line.end());
-            lineSurfs[line].insert(s);
-            surfLines[s].insert(line);
+            LinIds edge;
+            edge[0] = surfaces[s].vertices[i];
+            edge[1] = surfaces[s].vertices[j];
+            std::sort(edge.begin(), edge.end());
+            edgeSurfaces[edge].insert(s);
+            surfaceEdges[s].insert(edge);
         }
     }
-    std::set<ElementId> vis;
+    std::set<ElementId> visitedSurfaceIds;
     for (std::map<ElementId, std::set<LinIds>>::const_iterator
-         itExt = surfLines.begin(); itExt != surfLines.end(); ++itExt) {
-        if (vis.count(itExt->first) == 0) {
-            std::set<ElementId> surfsConn;
-            std::queue<ElementId> q;
-            q.push(itExt->first);
-            vis.insert(itExt->first);
-            while (!q.empty()) {
-                ElementId elem = q.front();
-                q.pop();
-                surfsConn.insert(elem);
+         itExt = surfaceEdges.begin(); itExt != surfaceEdges.end(); ++itExt) {
+        if (visitedSurfaceIds.count(itExt->first) == 0) {
+            std::set<ElementId> connectedSurfaceIds;
+            std::queue<ElementId> surfacesToVisit;
+            surfacesToVisit.push(itExt->first);
+            visitedSurfaceIds.insert(itExt->first);
+            while (!surfacesToVisit.empty()) {
+                ElementId e = surfacesToVisit.front();
+                surfacesToVisit.pop();
+                connectedSurfaceIds.insert(e);
                 for (std::set<LinIds>::const_iterator
-                     itLine  = surfLines[elem].begin();
-                     itLine != surfLines[elem].end(); ++itLine) {
+                     itLine  = surfaceEdges[e].begin();
+                     itLine != surfaceEdges[e].end(); ++itLine) {
                     for (std::set<ElementId>::const_iterator
-                         itSurf  = lineSurfs[*itLine].begin();
-                         itSurf != lineSurfs[*itLine].end(); ++itSurf) {
-                        if (vis.count(*itSurf) == 0) {
-                            q.push(*itSurf);
-                            vis.insert(*itSurf);
+                         itSurf  = edgeSurfaces[*itLine].begin();
+                         itSurf != edgeSurfaces[*itLine].end(); ++itSurf) {
+                        if (visitedSurfaceIds.count(*itSurf) == 0) {
+                            surfacesToVisit.push(*itSurf);
+                            visitedSurfaceIds.insert(*itSurf);
                         }
                     }
                 }
             }
-            std::vector<Element> resCon;
+            std::vector<Element> connectedSurfaces;
             for (std::set<ElementId>::const_iterator
-                 it = surfsConn.begin(); it != surfsConn.end(); ++it) {
-                resCon.push_back(surfs[*it]);
+                 it = connectedSurfaceIds.begin(); it != connectedSurfaceIds.end(); ++it) {
+                connectedSurfaces.push_back(surfaces[*it]);
             }
-            resCon = compressSurf_(coords, signDir, resCon);
-            res.insert(res.end(), resCon.begin(), resCon.end());
+            std::vector<Element> compressedSurfaces = compressConnectedSurfaces_(coords, signedDir, connectedSurfaces);
+            result.insert(result.end(), compressedSurfaces.begin(), compressedSurfaces.end());
         }
     }
-    return res;
+    return result;
 }
 
-std::vector<Element> Compressor::compressSurf_(
-        std::vector<Coordinate>& coords,
-        const std::pair<Sign, Axis>& signDir,
+std::vector<Element> Compressor::compressConnectedSurfaces_(
+        std::vector<Relative>& coords,
+        const SignedAxis& signDir,
         const std::vector<Element>& surfs) {
-    std::vector<Element> res;
+    std::vector<Element> result;
     Axis d = signDir.second;
     Axis d1 = (d + 1) % 3;
     Axis d2 = (d + 2) % 3;
     CellDir plane = utils::GridTools::toCell(coords[surfs[0].vertices[0]])(d);
     std::set<PlaneSurfel> surfels;
     for (std::size_t s = 0; s < surfs.size(); s++) {
-        std::pair<PlanePoint, PlanePoint> ext;
-        ext.first[0] =
+        std::pair<PlanePoint, PlanePoint> fullSurfacePoints;
+        fullSurfacePoints.first[0] =
             utils::GridTools::toCell(coords[surfs[s].vertices[0]])(d1);
-        ext.first[1] =
+        fullSurfacePoints.first[1] =
             utils::GridTools::toCell(coords[surfs[s].vertices[0]])(d2);
-        ext.second[0] =
+        fullSurfacePoints.second[0] =
             utils::GridTools::toCell(coords[surfs[s].vertices[2]])(d1);
-        ext.second[1] =
+        fullSurfacePoints.second[1] =
             utils::GridTools::toCell(coords[surfs[s].vertices[2]])(d2);
-        CellDir i0 = std::min(ext.first[0], ext.second[0]);
-        CellDir i1 = std::max(ext.first[0], ext.second[0]);
-        CellDir j0 = std::min(ext.first[1], ext.second[1]);
-        CellDir j1 = std::max(ext.first[1], ext.second[1]);
+        CellDir i0 = std::min(fullSurfacePoints.first[0], fullSurfacePoints.second[0]);
+        CellDir i1 = std::max(fullSurfacePoints.first[0], fullSurfacePoints.second[0]);
+        CellDir j0 = std::min(fullSurfacePoints.first[1], fullSurfacePoints.second[1]);
+        CellDir j1 = std::max(fullSurfacePoints.first[1], fullSurfacePoints.second[1]);
         for (CellDir i = i0; i < i1; i++) {
             for (CellDir j = j0; j < j1; j++) {
                 PlaneSurfel surfel = {{i, j}};
@@ -343,98 +337,97 @@ std::vector<Element> Compressor::compressSurf_(
             }
         }
     }
-    std::vector<PlaneSurface> aux = compressSurfels_(surfels);
+    std::vector<PlaneSurface> maximalRectangles = compressSurfelsIntoMaximalRectangles_(surfels);
     CoordinateMap coordMap;
     for (std::size_t s = 0; s < surfs.size(); s++) {
         for (std::size_t i = 0; i < 4; i++) {
-            CoordinateId coordId = surfs[s].vertices[i];
-            Coordinate   coord   = coords[coordId];
+            RelativeId coordId = surfs[s].vertices[i];
+            Relative   coord   = coords[coordId];
             coordMap[coord] = coordId;
         }
     }
-    for (std::size_t e = 0; e < aux.size(); e++) {
-        std::array<Cell, 4> ext;
-        ext[0](d) = ext[2](d) = plane;
-        ext[0](d1) = aux[e].first[0];
-        ext[0](d2) = aux[e].first[1];
-        ext[2](d1) = aux[e].second[0];
-        ext[2](d2) = aux[e].second[1];
-        ext[1] = ext[3] = ext[0];
-        ext[1](d1) = ext[2](d1);
-        ext[3](d2) = ext[2](d2);
+    for (std::size_t e = 0; e < maximalRectangles.size(); e++) {
+        std::array<Cell, 4> corners;
+        corners[0](d) = corners[2](d) = plane;
+        corners[0](d1) = maximalRectangles[e].first[0];
+        corners[0](d2) = maximalRectangles[e].first[1];
+        corners[2](d1) = maximalRectangles[e].second[0];
+        corners[2](d2) = maximalRectangles[e].second[1];
+        corners[1] = corners[3] = corners[0];
+        corners[1](d1) = corners[2](d1);
+        corners[3](d2) = corners[2](d2);
         if (signDir.first < 0) {
-            std::swap(ext[1], ext[3]);
+            std::swap(corners[1], corners[3]);
         }
-        Element resElem;
-        resElem.type = Element::Type::Surface;
+        Element newSurface;
+        newSurface.type = Element::Type::Surface;
         for (std::size_t i = 0; i < 4; i++) {
-            Relative rel = utils::GridTools::toRelative(ext[i]);
+            Relative rel = utils::GridTools::toRelative(corners[i]);
             if (coordMap.count(rel) == 0) {
                 coordMap[rel] = coords.size();
                 coords.push_back(rel);
             }
-            resElem.vertices.push_back(coordMap[rel]);
+            newSurface.vertices.push_back(coordMap[rel]);
         }
-        res.push_back(resElem);
+        result.push_back(newSurface);
     }
-    return res;
+    return result;
 }
 
-std::vector<PlaneSurface> Compressor::compressSurfels_(
-        const std::set<PlaneSurfel>& surfs) {
-    std::vector<PlaneSurface> res;
-    const std::vector<Contour>& conts = getContours_(surfs);
-    std::array<std::vector<CrossLine>, 2> cross =
-        getCrossingLines_(surfs, conts);
-    cross = getMaxCompatLines_(cross);
+std::vector<PlaneSurface> Compressor::compressSurfelsIntoMaximalRectangles_(
+        const std::set<PlaneSurfel>& surfels) {
+    std::vector<PlaneSurface> result;
+    const std::vector<Contour>& contours = getContours_(surfels);
+    std::array<std::vector<CrossLine>, 2> crossingLines = getCrossingLines_(surfels, contours);
+    crossingLines = getMaxCompactedLines_(crossingLines);
     std::set<PlaneLinel> linels;
-    for (std::size_t c = 0; c < conts.size(); c++) {
-        for (std::size_t i = 0; i < conts[c].size(); i++) {
-            std::size_t j = (i + 1) % conts[c].size();
-            std::set<PlaneLinel> aux = getLinels_(conts[c][i], conts[c][j]);
+    for (std::size_t c = 0; c < contours.size(); c++) {
+        for (std::size_t i = 0; i < contours[c].size(); i++) {
+            std::size_t j = (i + 1) % contours[c].size();
+            std::set<PlaneLinel> aux = getLinelsBetween_(contours[c][i], contours[c][j]);
             linels.insert(aux.begin(), aux.end());
         }
     }
     for (Axis d = 0; d < 2; d++) {
         Axis d1 = (d + 1) % 2;
-        for (std::size_t i = 0; i < cross[d].size(); i++) {
+        for (std::size_t i = 0; i < crossingLines[d].size(); i++) {
             PlanePoint ini, end;
-            ini[d1] = end[d1] = cross[d][i].first;
-            ini[d] = cross[d][i].second.first;
-            end[d] = cross[d][i].second.second;
-            std::set<PlaneLinel> aux = getLinels_(ini, end);
+            ini[d1] = end[d1] = crossingLines[d][i].first;
+            ini[d] = crossingLines[d][i].second.first;
+            end[d] = crossingLines[d][i].second.second;
+            std::set<PlaneLinel> aux = getLinelsBetween_(ini, end);
             linels.insert(aux.begin(), aux.end());
         }
     }
-    addConcaveLinels_(surfs, conts, linels);
-    std::map<PlaneLinel, std::set<PlaneSurfel>> lineSurfs;
-    std::map<PlaneSurfel, std::set<PlaneLinel>> surfLines;
+    addConcaveLinels_(surfels, contours, linels);
+    std::map<PlaneLinel, std::set<PlaneSurfel>> edgeSurfels;
+    std::map<PlaneSurfel, std::set<PlaneLinel>> surfelEdges;
     for (std::set<PlaneSurfel>::const_iterator
-         it = surfs.begin(); it != surfs.end(); ++it) {
-        surfLines.insert(std::make_pair(*it, std::set<PlaneLinel>()));
+         it = surfels.begin(); it != surfels.end(); ++it) {
+        surfelEdges.insert(std::make_pair(*it, std::set<PlaneLinel>()));
         for (Axis d = 0; d < 2; d++) {
             for (CellDir diff = -1; diff <= 1; diff += 2) {
                 PlaneLinel linel = getSurfaceEdge_(*it, diff, d);
                 if (linels.count(linel) == 0) {
-                    surfLines[*it].insert(linel);
-                    lineSurfs[linel].insert(*it);
+                    surfelEdges[*it].insert(linel);
+                    edgeSurfels[linel].insert(*it);
                 }
             }
         }
     }
-    std::set<PlaneSurfel> vis;
+    std::set<PlaneSurfel> visitedSurfels;
     for (std::map<PlaneSurfel, std::set<PlaneLinel>>::const_iterator
-         itSurfExt = surfLines.begin();
-         itSurfExt != surfLines.end(); ++itSurfExt) {
-        if (vis.count(itSurfExt->first) == 0) {
-            std::queue<PlaneSurfel> q;
-            q.push(itSurfExt->first);
-            vis.insert(itSurfExt->first);
+         itSurfExt = surfelEdges.begin();
+         itSurfExt != surfelEdges.end(); ++itSurfExt) {
+        if (visitedSurfels.count(itSurfExt->first) == 0) {
+            std::queue<PlaneSurfel> surfelsToVisit;
+            surfelsToVisit.push(itSurfExt->first);
+            visitedSurfels.insert(itSurfExt->first);
             PlanePoint minPoint = itSurfExt->first;
             PlanePoint maxPoint = itSurfExt->first;
-            while (!q.empty()) {
-                PlaneSurfel surfel = q.front();
-                q.pop();
+            while (!surfelsToVisit.empty()) {
+                PlaneSurfel surfel = surfelsToVisit.front();
+                surfelsToVisit.pop();
                 if (surfel < minPoint) {
                     minPoint = surfel;
                 }
@@ -442,37 +435,39 @@ std::vector<PlaneSurface> Compressor::compressSurfels_(
                     maxPoint = surfel;
                 }
                 for (std::set<PlaneLinel>::const_iterator
-                     itLin = surfLines[surfel].begin();
-                     itLin != surfLines[surfel].end(); ++itLin) {
+                     itLin = surfelEdges[surfel].begin();
+                     itLin != surfelEdges[surfel].end(); ++itLin) {
                     for (std::set<PlaneSurfel>::const_iterator
-                         itSurfInt = lineSurfs[*itLin].begin();
-                         itSurfInt != lineSurfs[*itLin].end(); ++itSurfInt) {
-                        if (vis.count(*itSurfInt) == 0) {
-                            q.push(*itSurfInt);
-                            vis.insert(*itSurfInt);
+                         itSurfInt = edgeSurfels[*itLin].begin();
+                         itSurfInt != edgeSurfels[*itLin].end(); ++itSurfInt) {
+                        if (visitedSurfels.count(*itSurfInt) == 0) {
+                            surfelsToVisit.push(*itSurfInt);
+                            visitedSurfels.insert(*itSurfInt);
                         }
                     }
                 }
             }
             maxPoint[0]++;
             maxPoint[1]++;
-            res.push_back(std::make_pair(minPoint, maxPoint));
+            result.push_back(std::make_pair(minPoint, maxPoint));
         }
     }
-    return res;
+    return result;
 }
 
-std::vector<Contour> Compressor::getContours_(
-        const std::set<PlaneSurfel>& surfs) {
-    std::vector<Contour> res;
-    if (surfs.empty()) {
-        return res;
+std::vector<Contour> Compressor::getContours_(const std::set<PlaneSurfel>& surfels) {
+    std::vector<Contour> result;
+    if (surfels.empty()) {
+        return result;
     }
-    std::set<PlaneLinel> vis;
-    res.push_back(
-        getContour_(getSurfaceEdge_(*surfs.begin(), -1, 0), surfs, vis));
+    std::set<PlaneLinel> visitedEdges;
+    result.push_back(getContourFromStartingEdge_(
+        getSurfaceEdge_(*surfels.begin(), -1, 0),
+        surfels,
+        visitedEdges
+    ));
     for (std::set<PlaneSurfel>::const_iterator
-         it = surfs.begin(); it != surfs.end(); ++it) {
+         it = surfels.begin(); it != surfels.end(); ++it) {
         for (Axis d = 0; d < 2; d++) {
             for (CellDir diff = -1; diff <= 1; diff += 2) {
                 PlaneSurfel adjSurf;
@@ -480,28 +475,28 @@ std::vector<Contour> Compressor::getContours_(
                 adjSurf = *it;
                 adjSurf[d] += diff;
                 adjEdge = getSurfaceEdge_(*it, diff, d);
-                if ((surfs.find(adjSurf) == surfs.end()) &&
-                    (vis.find(adjEdge) == vis.end())) {
-                    res.push_back(getContour_(adjEdge, surfs, vis));
+                if ((surfels.find(adjSurf) == surfels.end()) &&
+                    (visitedEdges.find(adjEdge) == visitedEdges.end())) {
+                    result.push_back(getContourFromStartingEdge_(adjEdge, surfels, visitedEdges));
                 }
             }
         }
     }
-    return res;
+    return result;
 }
 
-Contour Compressor::getContour_(
+Contour Compressor::getContourFromStartingEdge_(
         const PlaneLinel& from,
         const std::set<PlaneSurfel>& surfs,
-        std::set<PlaneLinel>& vis) {
-    Contour res;
+        std::set<PlaneLinel>& visitedEdges) {
+    Contour result;
     std::queue<PlaneLinel> q;
-    if (vis.find(from) != vis.end()) {
-        return res;
+    if (visitedEdges.find(from) != visitedEdges.end()) {
+        return result;
     }
     std::vector<PlaneLinel> lines;
     q.push(from);
-    vis.insert(from);
+    visitedEdges.insert(from);
     lines.push_back(from);
     while (!q.empty()) {
         PlaneLinel edge = q.front();
@@ -518,9 +513,9 @@ Contour Compressor::getContour_(
             adjSurf1[d0] += diff;
             if (surfs.find(adjSurf1) == surfs.end()) {
                 PlaneLinel adjEdge = getSurfaceEdge_(surf, diff, d0);
-                if (vis.find(adjEdge) == vis.end()) {
+                if (visitedEdges.find(adjEdge) == visitedEdges.end()) {
                     q.push(adjEdge);
-                    vis.insert(adjEdge);
+                    visitedEdges.insert(adjEdge);
                     lines.push_back(adjEdge);
                     break;
                 }
@@ -534,18 +529,18 @@ Contour Compressor::getContour_(
             if (surfs.find(adjSurf1) == surfs.end()) {
                 PlaneLinel adjEdge = edge;
                 adjEdge.first[d0] += diff;
-                if (vis.find(adjEdge) == vis.end()) {
+                if (visitedEdges.find(adjEdge) == visitedEdges.end()) {
                     q.push(adjEdge);
-                    vis.insert(adjEdge);
+                    visitedEdges.insert(adjEdge);
                     lines.push_back(adjEdge);
                     break;
                 }
                 continue;
             } else {
                 PlaneLinel adjEdge = getSurfaceEdge_(adjSurf1, -diff, d0);
-                if (vis.find(adjEdge) == vis.end()) {
+                if (visitedEdges.find(adjEdge) == visitedEdges.end()) {
                     q.push(adjEdge);
-                    vis.insert(adjEdge);
+                    visitedEdges.insert(adjEdge);
                     lines.push_back(adjEdge);
                     break;
                 }
@@ -568,31 +563,29 @@ Contour Compressor::getContour_(
         extremesP[1][itPlus->second]++;
         for (std::size_t p = 0; p < 4; p++) {
             if (extremes[p / 2] == extremesP[p % 2]) {
-                res.push_back(extremes[p / 2]);
+                result.push_back(extremes[p / 2]);
                 break;
             }
         }
     }
-    return res;
+    return result;
 }
 
-PlaneLinel Compressor::getSurfaceEdge_(const PlaneSurfel& surf,
-                                                   const CellDir& diff,
-                                                   const Axis& dir) {
-    PlaneLinel res;
-    res.first  = surf;
-    res.second = (dir + 1) % 2;
+PlaneLinel Compressor::getSurfaceEdge_(const PlaneSurfel& surfel, const CellDir& diff, const Axis& dir) {
+    PlaneLinel result;
+    result.first  = surfel;
+    result.second = (dir + 1) % 2;
     if (diff > 0) {
-        res.first[dir]++;
+        result.first[dir]++;
     }
-    return res;
+    return result;
 }
 
 std::array<std::vector<CrossLine>, 2>
     Compressor::getCrossingLines_(
         const std::set<PlaneSurfel>& surfs,
         const std::vector<Contour>& conts) {
-    std::array<std::vector<CrossLine>, 2> res;
+    std::array<std::vector<CrossLine>, 2> result;
     for (Axis d = 0; d < 2; d++) {
         Axis d1 = (d + 1) % 2;
         std::map<CellDir, std::set<CellDir>> cross;
@@ -627,32 +620,32 @@ std::array<std::vector<CrossLine>, 2>
                     }
                 }
                 if (valid) {
-                    res[d].push_back(
+                    result[d].push_back(
                         std::make_pair(itMap->first,
                                        std::make_pair(*itSet, *itSetPlus)));
                 }
             }
         }
     }
-    return res;
+    return result;
 }
 
 std::array<std::vector<CrossLine>, 2>
-    Compressor::getMaxCompatLines_(
+    Compressor::getMaxCompactedLines_(
         const std::array<std::vector<CrossLine>, 2>& cross) {
-    std::array<std::vector<CrossLine>, 2> res;
+    std::array<std::vector<CrossLine>, 2> result;
     if (cross[0].size() > cross[1].size()) {
-        res[0] = cross[0];
+        result[0] = cross[0];
     } else {
-        res[1] = cross[1];
+        result[1] = cross[1];
     }
-    return res;
+    return result;
 }
 
-std::set<PlaneLinel> Compressor::getLinels_(
+std::set<PlaneLinel> Compressor::getLinelsBetween_(
         const PlanePoint& ini,
         const PlanePoint& end) {
-    std::set<PlaneLinel> res;
+    std::set<PlaneLinel> result;
     for (Axis d = 0; d < 2; d++) {
         Axis d1 = (d + 1) % 2;
         if (ini[d] == end[d]) {
@@ -663,11 +656,11 @@ std::set<PlaneLinel> Compressor::getLinels_(
                  k = std::min(ini[d1], end[d1]);
                  k < std::max(ini[d1], end[d1]); k++) {
                 linel.first[d1] = k;
-                res.insert(linel);
+                result.insert(linel);
             }
         }
     }
-    return res;
+    return result;
 }
 
 void Compressor::addConcaveLinels_(const std::set<PlaneSurfel>& surfs,

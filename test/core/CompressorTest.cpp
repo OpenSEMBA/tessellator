@@ -39,7 +39,7 @@ TEST_F(CompressorTest, Compress2x2QuadsIntoOneSurface) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 4u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 3u);
     ASSERT_EQ(mesh.groups.size(), 1u);
@@ -64,7 +64,7 @@ TEST_F(CompressorTest, CompresRepeatedQuadsIntoOneSurface) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 1u);
     ASSERT_EQ(mesh.groups.size(), 1u);
@@ -90,7 +90,7 @@ TEST_F(CompressorTest, DoesNotCompressQuadsWithDifferentOrientation) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
@@ -109,7 +109,7 @@ TEST_F(CompressorTest, DoesNotCompressNonCoplanarQuads) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
@@ -128,7 +128,7 @@ TEST_F(CompressorTest, DoesNotCompressDisconnectedQuads) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
@@ -166,7 +166,7 @@ TEST_F(CompressorTest, CompressWithHoleCreatesInnerContour) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 8u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
 
     auto finalCount = countMeshElementsIf(mesh, isQuad);
     
@@ -212,7 +212,7 @@ TEST_F(CompressorTest, DoesNotCompressQuadsWithDifferentNormals) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
     
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 2u);
@@ -254,7 +254,7 @@ TEST_F(CompressorTest, CompressRingRoundTrip) {
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 12u);
     
     // Compress: 12 quads -> 4 surfaces ()
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     EXPECT_EQ(merged, 8u); // 12 - 4 = 4 surfaces merged
     auto compressedCount = countMeshElementsIf(mesh, isQuad);
     EXPECT_EQ(compressedCount, 4u);
@@ -288,7 +288,7 @@ TEST_F(CompressorTest, Compress3x3GridRoundTrip) {
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 9u);
     
     // Compress: 9 quads -> 1 surface
-    auto merged = core::Compressor::compressSurfaces(mesh);
+    auto merged = core::Compressor::compressSurfacesInMesh(mesh);
     EXPECT_EQ(merged, 8u);
     EXPECT_EQ(countMeshElementsIf(mesh, isQuad), 1u);
     
@@ -309,7 +309,7 @@ TEST_F(CompressorTest, Compress2CollinearLinesIntoOne) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 1u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
@@ -329,7 +329,7 @@ TEST_F(CompressorTest, CompressRepeatedLinesIntoOne) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 1u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
@@ -349,7 +349,7 @@ TEST_F(CompressorTest, DoesNotCompressNonCollinearLines) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
@@ -364,7 +364,7 @@ TEST_F(CompressorTest, DoesNotCompressDisconnectedLines) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
@@ -379,7 +379,7 @@ TEST_F(CompressorTest, DoesNotCompressOverlappingOppositeDirectionLines) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
@@ -394,7 +394,7 @@ TEST_F(CompressorTest, DoesNotCompressConnectedOppositeDirectionLines) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 0u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 2u);
@@ -410,7 +410,7 @@ TEST_F(CompressorTest, Compress3LinesIntoOne) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 3u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 2u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
@@ -429,7 +429,7 @@ TEST_F(CompressorTest, Compress5LineRoundTrip) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 5u);
     
-    core::Compressor::compressLines(mesh);
+    core::Compressor::compressLinesInMesh(mesh);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 1u);
     EXPECT_EQ(CoordinateIds({0, 5}), mesh.groups[0].elements[0].vertices);
 }
@@ -460,7 +460,7 @@ TEST_F(CompressorTest, CompressMixedDirections) {
     
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 6u);
     
-    auto merged = core::Compressor::compressLines(mesh);
+    auto merged = core::Compressor::compressLinesInMesh(mesh);
     
     EXPECT_EQ(merged, 3u);
     EXPECT_EQ(countMeshElementsIf(mesh, isLine), 3u);

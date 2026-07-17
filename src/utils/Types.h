@@ -63,6 +63,9 @@ using UpdateMap = std::array<std::array<std::array<int, 4>, 2>, 2>;
 
 // Compressor types
 using Sign = int;
+using SignedAxis = std::pair<Sign, Axis>;
+using GridLine = std::array<CellDir, 2>;
+
 using PlanePoint = std::array<CellDir, 2>;
 using PlaneLinel = std::pair<PlanePoint, Axis>;
 using PlaneSurfel = PlanePoint;

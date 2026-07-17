@@ -90,7 +90,7 @@ void StaircaseMesher::process(Mesh& mesh) const
     if (compress_) {
         log("Compressing surfaces.", 1);
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
-        std::size_t merged = Compressor::compressSurfaces(mesh);
+        std::size_t merged = Compressor::compressSurfacesInMesh(mesh);
         std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
         log("Compressed " + std::to_string(beforeQuads) + 
             " -> " + std::to_string(afterQuads) + 
@@ -98,7 +98,7 @@ void StaircaseMesher::process(Mesh& mesh) const
         
         log("Compressing lines.", 1);
         std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
-        merged = Compressor::compressLines(mesh);
+        merged = Compressor::compressLinesInMesh(mesh);
         std::size_t afterLines = countMeshElementsIf(mesh, isLine);
         log("Compressed " + std::to_string(beforeLines) + 
             " -> " + std::to_string(afterLines) + 
