@@ -16,7 +16,7 @@ public:
 
     // Compress collinear line segments that are adjacent
     // Returns number of lines merged (original_count - compressed_count)
-    static std::size_t compressLinesInMesh(Mesh& mesh);
+    static std::size_t compressLinesInMesh(Mesh& mesh, const std::vector<Element::Type> & dimensionPolicy = {});
 
 private:
     // Group surfaces by (grid_plane, sign, axis) and compress each group

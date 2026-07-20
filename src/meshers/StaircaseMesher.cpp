@@ -98,7 +98,7 @@ void StaircaseMesher::process(Mesh& mesh) const
         
         log("Compressing lines.", 1);
         std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
-        merged = Compressor::compressLinesInMesh(mesh);
+        merged = Compressor::compressLinesInMesh(mesh, dimensions);
         std::size_t afterLines = countMeshElementsIf(mesh, isLine);
         log("Compressed " + std::to_string(beforeLines) + 
             " -> " + std::to_string(afterLines) + 

@@ -337,9 +337,13 @@ TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
         Coordinate({  0.0  ,  0.15, 0     }),
         Coordinate({  0.0  ,  0.15, 0.475 })
     };
-    inputMesh.groups.resize(1);
+    inputMesh.groups.resize(2);
     inputMesh.groups[0].elements = {  
         Element({0, 1, 2}, Element::Type::Surface),
+        Element({2, 3}, Element::Type::Line)
+    };
+    inputMesh.groups[1].elements = {  
+        Element({0, 2}, Element::Type::Line),
         Element({2, 3}, Element::Type::Line)
     };
 
@@ -347,16 +351,18 @@ TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
     Mesh compressedMesh;
     ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, 2, StaircaseMesherOptions(), true).mesh());
 
-    EXPECT_EQ(0, countRepeatedElements(nonCompressedMesh));
+    EXPECT_EQ(3, countRepeatedElements(nonCompressedMesh));
     EXPECT_EQ(7, nonCompressedMesh.groups[0].elements.size());
+    EXPECT_EQ(6, nonCompressedMesh.groups[1].elements.size());
     EXPECT_EQ(4, countMeshElementsIf(nonCompressedMesh, isQuad));
-    EXPECT_EQ(3, countMeshElementsIf(nonCompressedMesh, isLine)); 
+    EXPECT_EQ(9, countMeshElementsIf(nonCompressedMesh, isLine)); 
     EXPECT_EQ(0, countMeshElementsIf(nonCompressedMesh, isNode));
 
-    EXPECT_EQ(0, countRepeatedElements(compressedMesh));
+    EXPECT_EQ(1, countRepeatedElements(compressedMesh));
     EXPECT_EQ(3, compressedMesh.groups[0].elements.size());
+    EXPECT_EQ(6, nonCompressedMesh.groups[1].elements.size());
     EXPECT_EQ(1, countMeshElementsIf(compressedMesh, isQuad));
-    EXPECT_EQ(2, countMeshElementsIf(compressedMesh, isLine)); 
+    EXPECT_EQ(8, countMeshElementsIf(compressedMesh, isLine)); 
     EXPECT_EQ(0, countMeshElementsIf(compressedMesh, isNode));
 }
 

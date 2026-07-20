@@ -57,14 +57,29 @@ std::size_t Compressor::compressSurfacesInMesh(Mesh& mesh) {
     return totalOriginal - totalCompressed;
 }
 
-std::size_t Compressor::compressLinesInMesh(Mesh& mesh) {
+std::size_t Compressor::compressLinesInMesh(Mesh& mesh, const std::vector<Element::Type> & dimensionPolicy) {
     std::size_t totalOriginal = 0;
     std::size_t totalCompressed = 0;
 
-    for (Group& group : mesh.groups) {
+    std::vector<bool> compress;
+    if (dimensionPolicy.size() == 0){
+        compress = std::vector<bool>(mesh.groups.size(), true);
+    }
+    else{
+        compress.reserve(mesh.groups.size());
+        for (auto policy: dimensionPolicy){
+            compress.emplace_back(policy == Element::Type::Volume || policy == Element::Type::Surface);
+        }
+    }
+
+    for (GroupId g = 0; g < mesh.groups.size(); ++g){
+        if (!compress[g]){
+            continue;
+        }
+
         std::vector<Element> lines;
         
-        for (const Element& elem : group.elements) {
+        for (const Element& elem : mesh.groups[g].elements) {
             if (elem.type == Element::Type::Line) {
                 lines.push_back(elem);
             }
@@ -81,17 +96,17 @@ std::size_t Compressor::compressLinesInMesh(Mesh& mesh) {
         // Build new elements vector with compressed lines
         std::vector<Element> newElements;
         ElementId lineIdx = 0;
-        for (ElementId e = 0; e < group.elements.size(); e++) {
-            if (group.elements[e].type == Element::Type::Line) {
+        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
+            if (mesh.groups[g].elements[e].type == Element::Type::Line) {
                 if (lineIdx < compressedLines.size()) {
                     newElements.push_back(compressedLines[lineIdx]);
                     lineIdx++;
                 }
             } else {
-                newElements.push_back(group.elements[e]);
+                newElements.push_back(mesh.groups[g].elements[e]);
             }
         }
-        group.elements = std::move(newElements);
+        mesh.groups[g].elements = std::move(newElements);
     }
 
     return totalOriginal - totalCompressed;

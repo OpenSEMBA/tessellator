@@ -470,4 +470,34 @@ TEST_F(CompressorTest, CompressMixedDirections) {
     EXPECT_EQ(CoordinateIds({0, 6}), mesh.groups[0].elements[2].vertices);
 }
 
+TEST_F(CompressorTest, DoesNotCompressLinesWhenGroupDimensionIsLowerThanSurface) {
+    Mesh mesh;
+    mesh.grid = grid_;
+    
+    mesh.groups.resize(3);
+    
+    for (GroupId g = 0; g < 3; ++g){
+        addLine(mesh, {0, 0, 0}, {0, 1, 0}, g);
+        addLine(mesh, {0, 1, 0}, {0, 2, 0}, g);
+        addLine(mesh, {0, 2, 0}, {0, 3, 0}, g);
+        addLine(mesh, {0, 3, 0}, {0, 4, 0}, g);
+        addLine(mesh, {0, 4, 0}, {0, 5, 0}, g);
+    }
+    
+    auto dimensions = std::vector<Element::Type>({Element::Type::Volume, Element::Type::Surface, Element::Type::Line});
+    
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 15u);
+    
+    auto merged = core::Compressor::compressLinesInMesh(mesh, dimensions);
+    
+    EXPECT_EQ(merged, 8u);
+    EXPECT_EQ(countMeshElementsIf(mesh, isLine), 7u);
+
+    EXPECT_EQ(1, mesh.groups[0].elements.size());
+    EXPECT_EQ(1, mesh.groups[1].elements.size());
+    EXPECT_EQ(5, mesh.groups[2].elements.size());
+    EXPECT_EQ(CoordinateIds({0, 5}), mesh.groups[0].elements[0].vertices);
+    EXPECT_EQ(CoordinateIds({0, 5}), mesh.groups[1].elements[0].vertices);
+}
+
 }
