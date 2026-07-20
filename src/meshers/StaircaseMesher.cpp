@@ -20,11 +20,10 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts, bool compress) :
+StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
     decimalPlacesInCollapser_(decimalPlacesInCollapser),
-    opts_(opts),
-    compress_(compress)
+    opts_(opts)
 {
     log("Preparing surfaces.");
     surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
@@ -87,7 +86,7 @@ void StaircaseMesher::process(Mesh& mesh) const
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
-    if (compress_) {
+    if (opts_.compress) {
         log("Compressing surfaces.", 1);
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
         std::size_t merged = Compressor::compressSurfacesInMesh(mesh);

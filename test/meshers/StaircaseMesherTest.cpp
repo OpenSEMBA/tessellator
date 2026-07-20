@@ -3,6 +3,7 @@
 
 
 #include "meshers/StaircaseMesher.h"
+#include "StaircaseMesherOptions.h"
 #include "Staircaser.h"
 
 #include "core/Slicer.h"
@@ -347,9 +348,11 @@ TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
         Element({2, 3}, Element::Type::Line)
     };
 
-    Mesh nonCompressedMesh = StaircaseMesher(inputMesh, 2, StaircaseMesherOptions(), false).mesh();
+    Mesh nonCompressedMesh = StaircaseMesher(inputMesh, 2).mesh();
     Mesh compressedMesh;
-    ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, 2, StaircaseMesherOptions(), true).mesh());
+    StaircaseMesherOptions compressOption;
+    compressOption.compress = true;
+    ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, 2, compressOption).mesh());
 
     EXPECT_EQ(3, countRepeatedElements(nonCompressedMesh));
     EXPECT_EQ(7, nonCompressedMesh.groups[0].elements.size());
