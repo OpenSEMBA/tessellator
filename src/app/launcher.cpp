@@ -1,6 +1,7 @@
 #include "launcher.h"
 #include "vtkIO.h"
 
+#include "meshers/MesherBase.h"
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
 #include "utils/GridTools.h"
@@ -14,7 +15,6 @@
 #include <fstream>
 #include <array>
 #include <memory>
-#include <algorithm>
 #include <optional>
 
 namespace meshlib::app {
@@ -62,6 +62,9 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
             ObjectDefinition objDef;
             objDef.filename = obj["filename"].get<std::string>();
             objDef.group = obj.value("group", std::filesystem::path(objDef.filename).stem().string());
+            if (obj.contains("volume")){
+                objDef.isVolume = obj["volume"];
+            }
             if (obj.contains("mesher")) {
                 objDef.mesherOverride = obj["mesher"];
             }
@@ -71,6 +74,9 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
         ObjectDefinition objDef;
         objDef.filename = j["object"]["filename"].get<std::string>();
         objDef.group = std::filesystem::path(objDef.filename).stem().string();
+        if (j["object"].contains("volume")){
+            objDef.isVolume = j["object"]["volume"];
+        }
         if (j.contains("mesher")) {
             objDef.mesherOverride = j["mesher"];
         }
@@ -104,9 +110,9 @@ Mesh readMesh(const std::string& fn, const ObjectDefinition& objDef)
     if (res.groups.empty()) {
         res.groups.push_back(Group{objDef.group, {}});
     } else {
-        res = utils::meshTools::extractGroupsByName(res, {objDef.group});
-        if (res.groups.empty()) {
-            res.groups.push_back(Group{objDef.group, {}});
+        auto auxResult = utils::meshTools::extractGroupsByName(res, {objDef.group});
+        if (auxResult.countElems() != 0) {
+            return auxResult;
         } else {
             res.groups[0].name = objDef.group;
         }
@@ -152,17 +158,17 @@ std::string readExtension(const std::string& fn, const std::optional<nlohmann::j
     }
 }
 
-meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn)
+meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn, bool isVolume)
 {
     nlohmann::json j;
     {
         std::ifstream i(fn);
         i >> j;
     }
+
     meshlib::meshers::StaircaseMesherOptions res;
-    if (j["object"].contains("volume")) {
-        res.isVolume = j["object"]["volume"];
-    }
+
+    res.isVolume = isVolume;
     if (j["mesher"].contains("options") && 
         j["mesher"]["options"].contains("compress")) {
         res.compress = j["mesher"]["options"]["compress"];
@@ -238,15 +244,15 @@ bool readExportGridOption(const std::string& fn, const std::optional<nlohmann::j
     return true;
 }
 
-std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const std::string& fn, const std::optional<nlohmann::json>& override)
+std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const std::string& fn, const ObjectDefinition& objDef)
 {
-    auto mesherType = readMesherType(fn, override);
+    auto mesherType = readMesherType(fn, objDef.mesherOverride);
     if (mesherType == meshlib::app::staircase_mesher) {
-        auto staircasedOptions = readStaircaseMesherOptions(fn);
-        staircasedOptions.compress = readStaircaseMesherCompressOption(fn, override);
+        auto staircasedOptions = readStaircaseMesherOptions(fn, objDef.isVolume);
+        staircasedOptions.compress = readStaircaseMesherCompressOption(fn, objDef.mesherOverride);
         return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, staircasedOptions});
     } else if (mesherType == meshlib::app::conformal_mesher) {
-        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn, override)});
+        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn, objDef.mesherOverride)});
     } else {
         throw std::runtime_error("Unsupported mesher type");
     }
@@ -284,7 +290,7 @@ int launcher(int argc, const char* argv[])
 
         Mesh mesh = readMesh(inputFilename, objDef);
 
-        auto mesher = buildMesher(mesh, inputFilename, objDef.mesherOverride);
+        auto mesher = buildMesher(mesh, inputFilename, objDef);
         Mesh resultMesh = mesher->mesh();
 
         if (first) {

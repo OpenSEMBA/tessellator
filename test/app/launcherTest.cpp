@@ -61,6 +61,8 @@ TEST_F(LauncherTest, launches_alhambra_case)
 TEST_F(LauncherTest, parses_staircased_without_compression)
 {
     int ac = 3;
+    // ObjectDefinition definition{"longPolyline.vtu", "Cable"};
+    // auto mesh = meshlib::app::readMesh("testData/cases/longPolyline/longPolyline.tessellator.json", definition);
     const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline.tessellator.json" };
     int exitCode;
     
@@ -166,9 +168,11 @@ TEST_F(LauncherTest, readObjectsFromJSON_basic)
     EXPECT_EQ(objects.size(), 2);
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_EQ(objects[0].group, "sphere_group");
+    EXPECT_TRUE(objects[0].isVolume);
     EXPECT_FALSE(objects[0].mesherOverride.has_value());
     EXPECT_EQ(objects[1].filename, "cone.stl");
     EXPECT_EQ(objects[1].group, "cone_group");
+    EXPECT_FALSE(objects[1].isVolume);
     EXPECT_FALSE(objects[1].mesherOverride.has_value());
 }
 
@@ -177,8 +181,11 @@ TEST_F(LauncherTest, readObjectsFromJSON_mixedMesher)
     auto objects = readObjectsFromJSON("testData/cases/multiObject/mixedMesher.tessellator.json");
     EXPECT_EQ(objects.size(), 2);
     EXPECT_EQ(objects[0].filename, "sphere.stl");
+    EXPECT_FALSE(objects[0].isVolume);
     EXPECT_FALSE(objects[0].mesherOverride.has_value());
+
     EXPECT_EQ(objects[1].filename, "cone.stl");
+    EXPECT_FALSE(objects[1].isVolume);
     EXPECT_TRUE(objects[1].mesherOverride.has_value());
     EXPECT_EQ(objects[1].mesherOverride.value()["type"], "conformal");
 }
@@ -189,14 +196,16 @@ TEST_F(LauncherTest, readObjectsFromJSON_singleObject)
     EXPECT_EQ(objects.size(), 1);
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_EQ(objects[0].group, "default_group");
+    EXPECT_FALSE(objects[0].isVolume);
 }
 
 TEST_F(LauncherTest, readObjectsFromJSON_legacyFormat)
 {
-    auto objects = readObjectsFromJSON("testData/cases/sphere/sphere.tessellator.json");
+    auto objects = readObjectsFromJSON("testData/cases/sphere/closed_sphere.tessellator.json");
     EXPECT_EQ(objects.size(), 1);
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_EQ(objects[0].group, "sphere");
+    EXPECT_TRUE(objects[0].isVolume);
 }
 
 TEST_F(LauncherTest, launches_multiObject_basic)

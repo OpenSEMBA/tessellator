@@ -15,6 +15,7 @@ const std::string staircase_mesher ("staircase");
 struct ObjectDefinition {
     std::string filename;
     std::string group;
+    bool isVolume = false;
     std::optional<nlohmann::json> mesherOverride;
 };
 
@@ -22,6 +23,6 @@ int launcher(int argc, const char* argv[]);
 Grid parseGridFromJSON(const nlohmann::json& j);
 std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn);
 Mesh readMesh(const std::string& fn, const ObjectDefinition& objDef);
-std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const std::string& fn, const std::optional<nlohmann::json>& override);
+std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const std::string& fn, const ObjectDefinition& objDef);
 
 }
