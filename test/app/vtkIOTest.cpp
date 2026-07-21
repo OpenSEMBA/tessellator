@@ -23,8 +23,8 @@ TEST_F(VTKIOTest, readMeshFromSTL)
 TEST_F(VTKIOTest, exportAndReadMeshFromVTU)
 {
     auto mSTL{ readInputMesh("testData/cases/alhambra/alhambra.stl") };
-    exportMeshToVTU("tmp_exported_alhambra.vtu", mSTL);
-    auto mVTU{ readInputMesh("tmp_exported_alhambra.vtu") };
+    exportMeshToVTU("testData/cases/alhambra/tmp_exported_alhambra.vtu", mSTL);
+    auto mVTU{ readInputMesh("testData/cases/alhambra/tmp_exported_alhambra.vtu") };
 
     EXPECT_EQ(mSTL.coordinates.size(), mVTU.coordinates.size());
     EXPECT_EQ(mSTL.groups.size(), mVTU.groups.size());

@@ -6,11 +6,5 @@
             [1100, 1100, 1100]
         ]
     },
-    "object": {"filename": "longPolyline.vtu"},
-    "mesher": {
-      "type" : "staircase",
-      "options" : {
-        "compress" : false
-      }
-    }
+    "object": {"filename": "longPolyline.vtu"}
 }

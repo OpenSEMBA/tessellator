@@ -1269,4 +1269,49 @@ static Mesh buildProblematicTriMesh2()
 }
 
 }
+
+static CoordinateId findOrAddCoord(Mesh& mesh, const std::array<int, 3>& gridIdx) {
+    double pos[3];
+    pos[0] = mesh.grid[0][gridIdx[0]];
+    pos[1] = mesh.grid[1][gridIdx[1]];
+    pos[2] = mesh.grid[2][gridIdx[2]];
+    
+    for (CoordinateId i = 0; i < static_cast<CoordinateId>(mesh.coordinates.size()); ++i) {
+        if (mesh.coordinates[i](0) == pos[0] && 
+            mesh.coordinates[i](1) == pos[1] && 
+            mesh.coordinates[i](2) == pos[2]) {
+            return i;
+        }
+    }
+    mesh.coordinates.push_back(Coordinate({pos[0], pos[1], pos[2]}));
+    return static_cast<CoordinateId>(mesh.coordinates.size() - 1);
+}
+
+// Helper to add a quad (as a surface with four vertices) to a mesh
+static void addQuad(Mesh& mesh, const std::array<int, 3>& v0, const std::array<int, 3>& v1, 
+                    const std::array<int, 3>& v2, const std::array<int, 3>& v3, GroupId groupId = 0) {
+    if (mesh.groups.size() <= groupId) {
+        mesh.groups.resize(groupId + 1);
+    }
+    
+    CoordinateId c0 = findOrAddCoord(mesh, v0);
+    CoordinateId c1 = findOrAddCoord(mesh, v1);
+    CoordinateId c2 = findOrAddCoord(mesh, v2);
+    CoordinateId c3 = findOrAddCoord(mesh, v3);
+    
+    mesh.groups[groupId].elements.push_back(Element({c0, c1, c2, c3}, Element::Type::Surface));
+}
+
+// Helper to add a line (as a line with two vertices) to a mesh
+static void addLine(Mesh& mesh, const std::array<int, 3>& v0, const std::array<int, 3>& v1, GroupId groupId = 0) {
+    if (mesh.groups.size() <= groupId) {
+        mesh.groups.resize(groupId + 1);
+    }
+    
+    CoordinateId c0 = findOrAddCoord(mesh, v0);
+    CoordinateId c1 = findOrAddCoord(mesh, v1);
+    
+    mesh.groups[groupId].elements.push_back(Element({c0, c1}, Element::Type::Line));
+}
+
 }

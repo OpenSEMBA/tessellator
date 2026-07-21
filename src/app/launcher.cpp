@@ -106,6 +106,11 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::s
     if (j["object"].contains("volume")) {
         res.isVolume = j["object"]["volume"];
     }
+    if (j["mesher"].contains("options") && 
+        j["mesher"]["options"].contains("compress")) {
+        res.compress = j["mesher"]["options"]["compress"];
+    }
+
     return res;
 }
 
@@ -127,6 +132,20 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
         res.snapperOptions.forbiddenLength = j["mesher"]["options"]["forbiddenLength"];
     }
     return res;
+}
+
+bool readExportGridOption(const std::string &fn)
+{
+    nlohmann::json j;
+    {
+        std::ifstream i(fn);
+        i >> j;
+    }
+    if (j["mesher"].contains("options") && 
+        j["mesher"]["options"].contains("exportGrid")) {
+        return j["mesher"]["options"]["exportGrid"];
+    }
+    return true;
 }
 std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh &in, const std::string &fn)
 {
@@ -173,7 +192,9 @@ int launcher(int argc, const char* argv[])
     auto extension = readExtension(inputFilename);
     
     exportMeshToVTU(outputFolder / (basename + ".tessellator." + extension + ".vtk"), resultMesh);
-    exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
+    if (readExportGridOption(inputFilename)) {
+        exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), resultMesh.grid);
+    }
 
     return EXIT_SUCCESS;
 }

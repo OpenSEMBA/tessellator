@@ -3,7 +3,6 @@ message(STATUS "Creating build system for tessellator-tests")
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-
 include_directories(
 	${PROJECT_SOURCE_DIR}/src/
 	${PROJECT_SOURCE_DIR}/src/app/
@@ -15,13 +14,12 @@ include_directories(
 )
 
 add_executable(tessellator_tests 
-	"app/launcherTest.cpp"
-	"app/vtkIOTest.cpp"
 	"core/CollapserTest.cpp"
+	"core/CompressorTest.cpp"
 	"core/SlicerTest.cpp"
-	"core/SnapperTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
+	"core/SnapperTest.cpp"
     "core/StaircaserTest.cpp"
 	"types/MeshTest.cpp"
 	"utils/ConvexHullTest.cpp"
@@ -31,17 +29,24 @@ add_executable(tessellator_tests
 	"utils/GridToolsTest.cpp"
 	"utils/MeshToolsTest.cpp"
 	"utils/RedundancyCleanerTest.cpp"
-    "meshers/StaircaseMesherTest.cpp"
-	"meshers/OffgridMesherTest.cpp"
 	"meshers/ConformalMesherTest.cpp"
+	"meshers/OffgridMesherTest.cpp"
+	"meshers/StaircaseMesherTest.cpp"
 )
 
 target_link_libraries(tessellator_tests	
 	tessellator-meshers
-	tessellator-app
     GTest::gtest 
 	GTest::gtest_main
 )
+
+if(TESSELLATOR_LOAD_APP)
+	target_sources(tessellator_tests PRIVATE 
+		"app/launcherTest.cpp"
+		"app/vtkIOTest.cpp"
+	)
+	target_link_libraries(tessellator_tests tessellator-app)
+endif()
 
 if (TESSELLATOR_ENABLE_CGAL)
 	include_directories(

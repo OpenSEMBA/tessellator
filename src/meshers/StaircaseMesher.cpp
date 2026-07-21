@@ -6,6 +6,7 @@
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 #include "core/Staircaser.h"
+#include "core/Compressor.h"
 
 #include "cgal/filler/Filler.h"
 
@@ -84,6 +85,24 @@ void StaircaseMesher::process(Mesh& mesh) const
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    if (opts_.compress) {
+        log("Compressing surfaces.", 1);
+        std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
+        std::size_t merged = Compressor::compressSurfacesInMesh(mesh);
+        std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
+        log("Compressed " + std::to_string(beforeQuads) + 
+            " -> " + std::to_string(afterQuads) + 
+            " quads (merged " + std::to_string(merged) + " surfaces)", 1);
+        
+        log("Compressing lines.", 1);
+        std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
+        merged = Compressor::compressLinesInMesh(mesh, dimensions);
+        std::size_t afterLines = countMeshElementsIf(mesh, isLine);
+        log("Compressed " + std::to_string(beforeLines) + 
+            " -> " + std::to_string(afterLines) + 
+            " lines (merged " + std::to_string(merged) + " segments)", 1);
+    }
     
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);

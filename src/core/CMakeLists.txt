@@ -2,6 +2,7 @@ message(STATUS "Creating build system for tessellator-core")
 
 add_library(tessellator-core
     "Collapser.cpp"
+    "Compressor.cpp"
     "Slicer.cpp"
     "Snapper.cpp"
     "Smoother.cpp"

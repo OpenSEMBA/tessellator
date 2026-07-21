@@ -8,6 +8,7 @@ build/
 .settings
 .project
 .cproject
+.cache
 
 src/*.json
 
@@ -28,3 +29,4 @@ sliced.vtk
 contour.vtk
 
 testData/
+build

@@ -7,7 +7,10 @@
 #include "utils/CoordGraph.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
-#include "app/vtkIO.h"
+
+#if APP_LOADED
+	#include "app/vtkIO.h"
+#endif
 
 
 namespace meshlib::core {
@@ -146,6 +149,8 @@ TEST_F(CollapserTest, preserves_closedness)
 	
 }
 
+#if APP_LOADED
+
 TEST_F(CollapserTest, closedness_for_sphere)
 {
     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
@@ -163,6 +168,8 @@ TEST_F(CollapserTest, closedness_for_sphere)
 	EXPECT_TRUE(meshTools::isAClosedTopology(collapsed.groups[0].elements));
 	
 }
+
+#endif
 
 TEST_F(CollapserTest, areas_are_below_threshold_issue)
 {

@@ -11,7 +11,8 @@
       "type" : "conformal",
       "options" : {
         "edgePoints" : 6,
-        "forbiddenLength" : 0.15
+        "forbiddenLength" : 0.15,
+        "compress": false
       }
     }
 }

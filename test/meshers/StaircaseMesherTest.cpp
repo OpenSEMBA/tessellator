@@ -1,18 +1,22 @@
 #include "gtest/gtest.h"
 #include "MeshFixtures.h"
 
+
 #include "meshers/StaircaseMesher.h"
+#include "StaircaseMesherOptions.h"
 #include "Staircaser.h"
 
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 
-#include "utils/Geometry.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 #include "utils/RedundancyCleaner.h"
 
-#include "app/vtkIO.h"
+
+#if APP_LOADED
+    #include "app/vtkIO.h"
+#endif
 
 namespace meshlib::meshers {
 
@@ -228,6 +232,7 @@ TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
     EXPECT_EQ(0, countMeshElementsIf(out, isNode));
 }
 
+#if APP_LOADED
 // FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
 
 TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
@@ -265,16 +270,16 @@ TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
     }
 
     auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
-    // ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
+    ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
 
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
     utils::meshTools::reduceGrid(resultMesh, inputMesh.grid);
     utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
 
-    // EXPECT_TRUE(meshTools::isAClosedTopology(inputMesh.groups[0].elements));
-    // EXPECT_TRUE(meshTools::isAClosedTopology(surfaceMesh.groups[0].elements));
-    // EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
-    // EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(inputMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(surfaceMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+    EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));
 
 
 
@@ -284,9 +289,9 @@ TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
     meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
 
+#endif
 
-
-TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
+TEST_F(StaircaseMesherTest, testStaircaseTriangleWithUniformGrid)
 {
 
     float lowerCoordinateValue = -0.5;
@@ -311,11 +316,60 @@ TEST_F(StaircaseMesherTest, DISABLED_testStaircaseTriangleWithUniformGrid)
     ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
-    EXPECT_EQ(48, resultMesh.groups[0].elements.size());
+    EXPECT_EQ(12, resultMesh.groups[0].elements.size());
     EXPECT_EQ(10, countMeshElementsIf(resultMesh, isQuad));
-    EXPECT_EQ(32, countMeshElementsIf(resultMesh, isLine)); 
-    EXPECT_EQ(6, countMeshElementsIf(resultMesh, isNode));
+    EXPECT_EQ(2, countMeshElementsIf(resultMesh, isLine)); 
+    EXPECT_EQ(0, countMeshElementsIf(resultMesh, isNode));
 }
+
+TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
+{
+    float lowerCoordinateValue = -0.5;
+    float upperCoordinateValue = 0.5;
+    int numberOfCells = 4;
+    float step = 0.25;
+    assert((upperCoordinateValue - lowerCoordinateValue) / (numberOfCells) == step);
+
+    Mesh inputMesh;
+    inputMesh.grid = GridTools::buildCartesianGrid(lowerCoordinateValue, upperCoordinateValue, numberOfCells + 1);
+    inputMesh.coordinates = {
+        Coordinate({ -0.475, -0.15, 0     }),
+        Coordinate({  0.475, -0.15, 0     }),
+        Coordinate({  0.0  ,  0.15, 0     }),
+        Coordinate({  0.0  ,  0.15, 0.475 })
+    };
+    inputMesh.groups.resize(2);
+    inputMesh.groups[0].elements = {  
+        Element({0, 1, 2}, Element::Type::Surface),
+        Element({2, 3}, Element::Type::Line)
+    };
+    inputMesh.groups[1].elements = {  
+        Element({0, 2}, Element::Type::Line),
+        Element({2, 3}, Element::Type::Line)
+    };
+
+    Mesh nonCompressedMesh = StaircaseMesher(inputMesh, 2).mesh();
+    Mesh compressedMesh;
+    StaircaseMesherOptions compressOption;
+    compressOption.compress = true;
+    ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, 2, compressOption).mesh());
+
+    EXPECT_EQ(3, countRepeatedElements(nonCompressedMesh));
+    EXPECT_EQ(7, nonCompressedMesh.groups[0].elements.size());
+    EXPECT_EQ(6, nonCompressedMesh.groups[1].elements.size());
+    EXPECT_EQ(4, countMeshElementsIf(nonCompressedMesh, isQuad));
+    EXPECT_EQ(9, countMeshElementsIf(nonCompressedMesh, isLine)); 
+    EXPECT_EQ(0, countMeshElementsIf(nonCompressedMesh, isNode));
+
+    EXPECT_EQ(1, countRepeatedElements(compressedMesh));
+    EXPECT_EQ(3, compressedMesh.groups[0].elements.size());
+    EXPECT_EQ(6, nonCompressedMesh.groups[1].elements.size());
+    EXPECT_EQ(1, countMeshElementsIf(compressedMesh, isQuad));
+    EXPECT_EQ(8, countMeshElementsIf(compressedMesh, isLine)); 
+    EXPECT_EQ(0, countMeshElementsIf(compressedMesh, isNode));
+}
+
+#if APP_LOADED
 
 TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
 {
@@ -523,6 +577,9 @@ TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
     // meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
     // meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
 }
+
+
+#endif
 
 }
 
