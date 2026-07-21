@@ -61,6 +61,8 @@ TEST_F(LauncherTest, launches_alhambra_case)
 TEST_F(LauncherTest, parses_staircased_without_compression)
 {
     int ac = 3;
+    // ObjectDefinition definition{"longPolyline.vtu", "Cable"};
+    // auto mesh = meshlib::app::readMesh("testData/cases/longPolyline/longPolyline.tessellator.json", definition);
     const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline.tessellator.json" };
     int exitCode;
     

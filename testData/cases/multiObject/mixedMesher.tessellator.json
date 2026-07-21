@@ -1,0 +1,16 @@
+{
+    "grid": {
+        "numberOfCells": [50, 50, 50],
+        "boundingBox": [
+            [-100.0, -100.0, -100.0],
+            [ 100.0,  100.0,  100.0]
+        ]
+    },
+    "mesher": {
+        "type": "staircase"
+    },
+    "objects": [
+        {"filename": "sphere.stl", "group": "sphere_group"},
+        {"filename": "cone.stl", "group": "cone_group", "mesher": {"type": "conformal"}}
+    ]
+}
