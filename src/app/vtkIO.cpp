@@ -3,6 +3,7 @@
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkTriangle.h>
+#include <vtkTetra.h>
 #include <vtkQuad.h>
 #include <vtkLine.h>
 #include <vtkVertex.h>
@@ -76,6 +77,7 @@ Element vtkCellToElement(vtkCell* cell)
     vtkVertex* vertex = nullptr;
     vtkLine* line = nullptr;
     vtkTriangle* triangle = nullptr;
+    vtkTetra* tetra = nullptr;
 
     switch (cell->GetCellType()) {
     case VTK_VERTEX:
@@ -101,6 +103,17 @@ Element vtkCellToElement(vtkCell* cell)
             CoordinateId(triangle->GetPointIds()->GetId(2))
         };
         elem.type = meshlib::Element::Type::Surface;
+        break;
+
+    case VTK_TETRA:
+        tetra = vtkTetra::SafeDownCast(cell);
+        elem.vertices = {
+            CoordinateId(tetra->GetPointIds()->GetId(0)),
+            CoordinateId(tetra->GetPointIds()->GetId(1)),
+            CoordinateId(tetra->GetPointIds()->GetId(2)),
+            CoordinateId(tetra->GetPointIds()->GetId(3))
+        };
+        elem.type = meshlib::Element::Type::Volume;
         break;
     }
     
@@ -131,6 +144,7 @@ Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
         }
     } else {
         mesh.groups.resize(1);
+        auto k = vtu->GetNumberOfCells();
         mesh.groups[0].elements.reserve(vtu->GetNumberOfCells());
         for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             mesh.groups[0].elements.push_back(

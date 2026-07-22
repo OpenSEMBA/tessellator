@@ -369,6 +369,19 @@ TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
     EXPECT_EQ(0, countMeshElementsIf(compressedMesh, isNode));
 }
 
+TEST_F(StaircaseMesherTest, mesh_tetrahedron_volume){
+
+	Mesh m = buildCubeVolumeMesh(1.0);
+    meshlib::meshers::StaircaseMesherOptions opts;
+    opts.isVolume = true;
+    auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
+
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
+    EXPECT_EQ(12, countMeshElementsIf(staircasedMesh, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTetrahedron));
+
+}
+
 #if APP_LOADED
 
 TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)

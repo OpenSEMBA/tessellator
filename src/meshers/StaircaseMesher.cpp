@@ -9,6 +9,7 @@
 #include "core/Compressor.h"
 
 #include "cgal/filler/Filler.h"
+#include "cgal/Manifolder.h"
 
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
@@ -26,6 +27,7 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
     opts_(opts)
 {
     log("Preparing surfaces.");
+    //here, convert tetra intro hull tris
     surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
 
     log("Processing surface mesh.");
@@ -53,8 +55,13 @@ void StaircaseMesher::process(Mesh& mesh) const
 
     auto dimensions = getHighestDimensionByGroup(mesh);
 
+    //mani has open_ and closed_ for every group id
     if (opts_.isVolume){
         if (meshTools::isAClosedTopology(mesh.groups[0].elements)){
+
+            auto mani = meshlib::cgal::Manifolder(mesh);
+            mesh.groups[0].elements = mani.getClosedSurfacesMesh().groups[0].elements;
+
             meshlib::cgal::filler::Filler f{ mesh };
             auto filling = f.getMeshFilling();
             mergeMesh(mesh, filling);
