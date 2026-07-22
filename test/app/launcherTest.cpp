@@ -2,6 +2,8 @@
 
 #include "app/launcher.h"
 #include "types/Mesh.h"
+#include "meshers/StaircaseMesher.h"
+
 #include <nlohmann/json.hpp>
 #include <fstream>
 
@@ -58,26 +60,58 @@ TEST_F(LauncherTest, launches_alhambra_case)
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
-TEST_F(LauncherTest, parses_staircased_without_compression)
+TEST_F(LauncherTest, builds_staircased_mesher_default)
 {
-    int ac = 3;
-    // ObjectDefinition definition{"longPolyline.vtu", "Cable"};
-    // auto mesh = meshlib::app::readMesh("testData/cases/longPolyline/longPolyline.tessellator.json", definition);
-    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline.tessellator.json" };
-    int exitCode;
-    
-    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
-    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+
+    ObjectDefinition objDef;
+    auto mesher = meshlib::app::buildMesher(meshMock, "testData/cases/longPolyline/longPolyline_legacy.tessellator.json", objDef);
+
+    EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
+    const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
+    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.compress, false);
 }
 
-TEST_F(LauncherTest, parses_staircased_with_compression)
+TEST_F(LauncherTest, builds_staircased_mesher_without_compression)
 {
-    int ac = 3;
-    const char* av[] = { NULL, "-i", "testData/cases/longPolyline/longPolyline_compression.tessellator.json" };
-    int exitCode;
-    
-    EXPECT_NO_THROW(exitCode = meshlib::app::launcher(ac, av));
-    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+
+    ObjectDefinition objDef;
+    auto mesher = meshlib::app::buildMesher(meshMock, "testData/cases/longPolyline/longPolyline.tessellator.json", objDef);
+
+    EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
+    const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
+    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.compress, false);
+}
+
+TEST_F(LauncherTest, builds_staircased_mesher_with_compression)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+
+    ObjectDefinition objDef;
+    auto mesher = meshlib::app::buildMesher(meshMock, "testData/cases/longPolyline/longPolyline_compression.tessellator.json", objDef);
+
+    EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
+    const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
+    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.compress, true);
 }
 
 TEST_F(LauncherTest, launches_conformal_alhambra_case)
@@ -179,15 +213,24 @@ TEST_F(LauncherTest, readObjectsFromJSON_basic)
 TEST_F(LauncherTest, readObjectsFromJSON_mixedMesher)
 {
     auto objects = readObjectsFromJSON("testData/cases/multiObject/mixedMesher.tessellator.json");
-    EXPECT_EQ(objects.size(), 2);
+    EXPECT_EQ(objects.size(), 3);
+    
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_FALSE(objects[0].isVolume);
-    EXPECT_FALSE(objects[0].mesherOverride.has_value());
+    EXPECT_TRUE(objects[0].mesherOverride.has_value());
+    EXPECT_EQ(objects[0].mesherOverride.value()["type"], "staircase");
+    EXPECT_TRUE(objects[0].mesherOverride.value().contains("options"));
+    EXPECT_TRUE(objects[0].mesherOverride.value()["options"].contains("compress"));
+    EXPECT_TRUE(objects[0].mesherOverride.value()["options"]["compress"]);
 
     EXPECT_EQ(objects[1].filename, "cone.stl");
     EXPECT_FALSE(objects[1].isVolume);
     EXPECT_TRUE(objects[1].mesherOverride.has_value());
     EXPECT_EQ(objects[1].mesherOverride.value()["type"], "conformal");
+    
+    EXPECT_EQ(objects[2].filename, "cone.stl");
+    EXPECT_FALSE(objects[2].isVolume);
+    EXPECT_FALSE(objects[2].mesherOverride.has_value());
 }
 
 TEST_F(LauncherTest, readObjectsFromJSON_singleObject)
@@ -206,6 +249,27 @@ TEST_F(LauncherTest, readObjectsFromJSON_legacyFormat)
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_EQ(objects[0].group, "sphere");
     EXPECT_TRUE(objects[0].isVolume);
+}
+
+TEST_F(LauncherTest, builds_staircased_mesher_with_override)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+
+    std::string filename = "testData/cases/multiObject/mixedMesher.tessellator.json";
+    
+    auto objects = readObjectsFromJSON(filename);
+
+    auto mesher = meshlib::app::buildMesher(meshMock, filename, objects[0]);
+    
+    EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
+    const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
+    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.compress, true);
 }
 
 TEST_F(LauncherTest, launches_multiObject_basic)

@@ -158,20 +158,28 @@ std::string readExtension(const std::string& fn, const std::optional<nlohmann::j
     }
 }
 
-meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn, bool isVolume)
+meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn, bool isVolume, const std::optional<nlohmann::json>& override)
 {
     nlohmann::json j;
     {
         std::ifstream i(fn);
         i >> j;
     }
+    
+    nlohmann::json mesherConfig;
+    if (override.has_value()) {
+        mesherConfig = *override;
+    } else if (j.contains("mesher")) {
+        mesherConfig = j["mesher"];
+    }
+
 
     meshlib::meshers::StaircaseMesherOptions res;
-
+    
     res.isVolume = isVolume;
-    if (j["mesher"].contains("options") && 
-        j["mesher"]["options"].contains("compress")) {
-        res.compress = j["mesher"]["options"]["compress"];
+    if (mesherConfig.contains("options") && 
+        mesherConfig["options"].contains("compress")) {
+        res.compress = mesherConfig["options"]["compress"];
     }
 
     return res;
@@ -200,28 +208,6 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
     return res;
 }
 
-bool readStaircaseMesherCompressOption(const std::string& fn, const std::optional<nlohmann::json>& override)
-{
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-    
-    nlohmann::json mesherConfig;
-    if (override.has_value()) {
-        mesherConfig = *override;
-    } else if (j.contains("mesher")) {
-        mesherConfig = j["mesher"];
-    }
-    
-    if (mesherConfig.contains("options") && 
-        mesherConfig["options"].contains("compress")) {
-        return mesherConfig["options"]["compress"];
-    }
-    return false;
-}
-
 bool readExportGridOption(const std::string& fn, const std::optional<nlohmann::json>& override)
 {
     nlohmann::json j;
@@ -248,9 +234,7 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
 {
     auto mesherType = readMesherType(fn, objDef.mesherOverride);
     if (mesherType == meshlib::app::staircase_mesher) {
-        auto staircasedOptions = readStaircaseMesherOptions(fn, objDef.isVolume);
-        staircasedOptions.compress = readStaircaseMesherCompressOption(fn, objDef.mesherOverride);
-        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, staircasedOptions});
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn, objDef.isVolume, objDef.mesherOverride)});
     } else if (mesherType == meshlib::app::conformal_mesher) {
         return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn, objDef.mesherOverride)});
     } else {

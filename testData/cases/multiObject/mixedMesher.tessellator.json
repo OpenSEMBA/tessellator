@@ -10,7 +10,8 @@
         "type": "staircase"
     },
     "objects": [
-        {"filename": "sphere.stl", "group": "sphere_group"},
-        {"filename": "cone.stl", "group": "cone_group", "mesher": {"type": "conformal"}}
+        {"filename": "sphere.stl", "group": "sphere_group", "mesher": {"type": "staircase", "options": { "compress" : true} } },
+        {"filename": "cone.stl", "group": "cone_group", "mesher": {"type": "conformal"}},
+        {"filename": "cone.stl", "group": "default_group"}
     ]
 }
