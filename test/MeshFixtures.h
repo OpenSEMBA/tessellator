@@ -38,6 +38,39 @@ static Mesh buildNonManifoldPatchMesh(double stepSize)
     return m;
 }
 
+
+static Mesh buildTetCubeMesh1x1(double stepSize) 
+{
+    Mesh m;
+    const double boxMin = 0.0;
+    const double boxMax = 1.0;
+    const std::size_t gridLinesNum = (std::size_t)((boxMax - boxMin) / (double)stepSize) + 1;
+    m.grid = utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
+
+    m.coordinates = {
+        Coordinate({ 0.0, 0.0, 0.0 }),
+        Coordinate({ 1.0, 0.0, 0.0 }),
+        Coordinate({ 0.0, 1.0, 0.0 }),
+        Coordinate({ 0.0, 0.0, 1.0 }),
+        Coordinate({ 1.0, 1.0, 0.0 }),
+        Coordinate({ 1.0, 1.0, 1.0 }),
+        Coordinate({ 1.0, 0.0, 1.0 }),
+        Coordinate({ 0.0, 1.0, 1.0 })
+    };
+
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({0, 1, 2, 3}, Element::Type::Volume),
+        Element({1, 2, 4, 5}, Element::Type::Volume),
+        Element({1, 2, 3, 5}, Element::Type::Volume),
+        Element({1, 3, 5, 6}, Element::Type::Volume),
+        Element({2, 3, 5, 7}, Element::Type::Volume)
+    };
+    
+    return m;
+}
+
+
 static Mesh buildTetAndTriMesh(double stepSize) 
 {
     Mesh m;

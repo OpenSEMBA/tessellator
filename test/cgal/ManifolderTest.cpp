@@ -87,6 +87,20 @@ TEST_F(ManifolderTest, volume_and_surface)
 	ASSERT_EQ(1, r.countElems());
 }
 
+TEST_F(ManifolderTest, cube_volume)
+{
+	Mesh m = buildTetCubeMesh1x1(1.0);
+
+	Manifolder mani(m);
+	
+	ASSERT_EQ(12, mani.getClosedSurfacesMesh().countElems());
+	// EXPECT_EQ(4, usedDifferentCoords(mani.getClosedSurfacesMesh()).size());
+
+	Mesh r = mani.getOpenSurfacesMesh();
+	ASSERT_EQ(0, r.groups.size());
+	ASSERT_EQ(0, r.countElems());
+}
+
 TEST_F(ManifolderTest, closed_surface)
 {
 	Mesh m = buildCubeSurfaceMesh(1.0);
