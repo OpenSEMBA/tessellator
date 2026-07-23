@@ -24,20 +24,20 @@ using namespace vtkIO;
 
 namespace po = boost::program_options;
 
-Grid parseGridFromJSON(const nlohmann::json &j)
+Grid parseGridFromJSON(const nlohmann::json &fileData)
 {
-    if (j.find("planes") != j.end()) {
-        return j["planes"];
+    if (fileData.find("planes") != fileData.end()) {
+        return fileData["planes"];
     }
     else {
         std::array<int, 3> nCells = {
-        j["numberOfCells"][0],
-        j["numberOfCells"][1],
-        j["numberOfCells"][2]
+        fileData["numberOfCells"][0],
+        fileData["numberOfCells"][1],
+        fileData["numberOfCells"][2]
         };
         std::array<double, 3> min, max;
-        min = j["boundingBox"][0];
-        max = j["boundingBox"][1];
+        min = fileData["boundingBox"][0];
+        max = fileData["boundingBox"][1];
 
         return {
             utils::GridTools::linspace(min[0], max[0], nCells[0] + 1),
@@ -47,18 +47,12 @@ Grid parseGridFromJSON(const nlohmann::json &j)
     }
 }
 
-std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
+std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData)
 {
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-
     std::vector<ObjectDefinition> objects;
 
-    if (j.contains("objects")) {
-        for (const auto& obj : j["objects"]) {
+    if (fileData.contains("objects")) {
+        for (const auto& obj : fileData["objects"]) {
             ObjectDefinition objDef;
             objDef.filename = obj["filename"].get<std::string>();
             objDef.group = obj.value("group", std::filesystem::path(objDef.filename).stem().string());
@@ -70,15 +64,15 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
             }
             objects.push_back(objDef);
         }
-    } else if (j.contains("object")) {
+    } else if (fileData.contains("object")) {
         ObjectDefinition objDef;
-        objDef.filename = j["object"]["filename"].get<std::string>();
+        objDef.filename = fileData["object"]["filename"].get<std::string>();
         objDef.group = std::filesystem::path(objDef.filename).stem().string();
-        if (j["object"].contains("volume")){
-            objDef.isVolume = j["object"]["volume"];
+        if (fileData["object"].contains("volume")){
+            objDef.isVolume = fileData["object"]["volume"];
         }
-        if (j.contains("mesher")) {
-            objDef.mesherOverride = j["mesher"];
+        if (fileData.contains("mesher")) {
+            objDef.mesherOverride = fileData["mesher"];
         }
         objects.push_back(objDef);
     } else {
@@ -88,23 +82,16 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const std::string& fn)
     return objects;
 }
 
-Mesh readMesh(const std::string& fn, const ObjectDefinition& objDef)
+Mesh readMesh(const nlohmann::json& fileData, const std::filesystem::path& folderPath, const ObjectDefinition& objDef)
 {
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-
-    std::filesystem::path caseFolder = std::filesystem::path(fn).parent_path();
-    std::filesystem::path meshObjectPath = caseFolder / objDef.filename;
+    std::filesystem::path meshObjectPath = folderPath / objDef.filename;
 
     std::cout << "-- Reading mesh groups from: " << meshObjectPath;
     Mesh res = vtkIO::readInputMesh(meshObjectPath);
     std::cout << "....... [OK]" << std::endl;
 
     std::cout << "-- Reading grid from input file";
-    res.grid = parseGridFromJSON(j["grid"]);
+    res.grid = parseGridFromJSON(fileData["grid"]);
     std::cout << "....... [OK]" << std::endl;
 
     if (res.groups.empty()) {
@@ -122,19 +109,14 @@ Mesh readMesh(const std::string& fn, const ObjectDefinition& objDef)
 }
 
 
-std::string readMesherType(const std::string& fn, const std::optional<nlohmann::json>& override)
-{
-    nlohmann::json j;
+std::string readMesherType(const nlohmann::json& fileData, const std::optional<nlohmann::json>& override)
     {
-        std::ifstream i(fn);
-        i >> j;
-    }
-    
     nlohmann::json mesherConfig;
+
     if (override.has_value()) {
         mesherConfig = *override;
-    } else if (j.contains("mesher")) {
-        mesherConfig = j["mesher"];
+    } else if (fileData.contains("mesher")) {
+        mesherConfig = fileData["mesher"];
     } else {
         return meshlib::app::staircase_mesher;
     }
@@ -146,9 +128,9 @@ std::string readMesherType(const std::string& fn, const std::optional<nlohmann::
     }
 }
 
-std::string readExtension(const std::string& fn, const std::optional<nlohmann::json>& override)
+std::string readExtension(const nlohmann::json& fileData, const std::optional<nlohmann::json>& override)
 {
-    auto mesherType = readMesherType(fn, override);
+    auto mesherType = readMesherType(fileData, override);
     if (mesherType == meshlib::app::staircase_mesher) {
         return "str";
     } else if (mesherType == meshlib::app::conformal_mesher) {
@@ -158,21 +140,14 @@ std::string readExtension(const std::string& fn, const std::optional<nlohmann::j
     }
 }
 
-meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::string &fn, bool isVolume, const std::optional<nlohmann::json>& override)
-{
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-    
+meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohmann::json &fileData, bool isVolume, const std::optional<nlohmann::json>& override)
+{    
     nlohmann::json mesherConfig;
     if (override.has_value()) {
         mesherConfig = *override;
-    } else if (j.contains("mesher")) {
-        mesherConfig = j["mesher"];
+    } else if (fileData.contains("mesher")) {
+        mesherConfig = fileData["mesher"];
     }
-
 
     meshlib::meshers::StaircaseMesherOptions res;
     
@@ -185,19 +160,13 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const std::s
     return res;
 }
 
-meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::string& fn, const std::optional<nlohmann::json>& override)
-{
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-    
+meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohmann::json& fileData, const std::optional<nlohmann::json>& override)
+{    
     nlohmann::json mesherConfig;
     if (override.has_value()) {
         mesherConfig = *override;
-    } else if (j.contains("mesher")) {
-        mesherConfig = j["mesher"];
+    } else if (fileData.contains("mesher")) {
+        mesherConfig = fileData["mesher"];
     }
     
     meshlib::meshers::ConformalMesherOptions res;
@@ -208,19 +177,13 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const std::s
     return res;
 }
 
-bool readExportGridOption(const std::string& fn, const std::optional<nlohmann::json>& override)
-{
-    nlohmann::json j;
-    {
-        std::ifstream i(fn);
-        i >> j;
-    }
-    
+bool readExportGridOption(const nlohmann::json& fileData, const std::optional<nlohmann::json>& override)
+{   
     nlohmann::json mesherConfig;
     if (override.has_value()) {
         mesherConfig = *override;
-    } else if (j.contains("mesher")) {
-        mesherConfig = j["mesher"];
+    } else if (fileData.contains("mesher")) {
+        mesherConfig = fileData["mesher"];
     }
     
     if (mesherConfig.contains("options") && 
@@ -230,13 +193,18 @@ bool readExportGridOption(const std::string& fn, const std::optional<nlohmann::j
     return true;
 }
 
-std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const std::string& fn, const ObjectDefinition& objDef)
+std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const nlohmann::json & fileData, const ObjectDefinition& objDef)
 {
-    auto mesherType = readMesherType(fn, objDef.mesherOverride);
+    auto mesherType = readMesherType(fileData, objDef.mesherOverride);
+ 
     if (mesherType == meshlib::app::staircase_mesher) {
-        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{in, 4, readStaircaseMesherOptions(fn, objDef.isVolume, objDef.mesherOverride)});
+        return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{
+            in,
+            4,
+            readStaircaseMesherOptions(fileData, objDef.isVolume, objDef.mesherOverride)
+        });
     } else if (mesherType == meshlib::app::conformal_mesher) {
-        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fn, objDef.mesherOverride)});
+        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fileData, objDef.mesherOverride)});
     } else {
         throw std::runtime_error("Unsupported mesher type");
     }
@@ -259,12 +227,18 @@ int launcher(int argc, const char* argv[])
         return EXIT_SUCCESS;
     }
 
-    std::string inputFilename = vm["input"].as<std::string>();
-    std::cout << "-- Input file is: " << inputFilename << std::endl;
+    std::string inputFileName = vm["input"].as<std::string>();
+    std::cout << "-- Input file is: " << inputFileName << std::endl;
 
-    std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFilename);
-    std::filesystem::path outputFolder = getFolder(inputFilename);
-    auto basename = getBasename(inputFilename);
+    nlohmann::json inputFileData;
+    {
+        std::ifstream i(inputFileName);
+        i >> inputFileData;
+    }
+
+    std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFileData);
+    std::filesystem::path outputFolder = getFolder(inputFileName);
+    auto basename = getBasename(inputFileName);
 
     Mesh firstMesh;
     bool first = true;
@@ -272,9 +246,9 @@ int launcher(int argc, const char* argv[])
     for (const auto& objDef : objects) {
         std::cout << "\n-- Processing object: " << objDef.filename << " (group: " << objDef.group << ")" << std::endl;
 
-        Mesh mesh = readMesh(inputFilename, objDef);
+        Mesh mesh = readMesh(inputFileData, outputFolder, objDef);
 
-        auto mesher = buildMesher(mesh, inputFilename, objDef);
+        auto mesher = buildMesher(mesh, inputFileData, objDef);
         Mesh resultMesh = mesher->mesh();
 
         if (first) {
@@ -282,13 +256,13 @@ int launcher(int argc, const char* argv[])
             first = false;
         }
 
-        auto extension = readExtension(inputFilename, objDef.mesherOverride);
-        std::string outputFilename = objDef.group + ".tessellator." + extension + ".vtk";
-        exportMeshToVTU(outputFolder / outputFilename, resultMesh);
-        std::cout << "-- Exported: " << outputFilename << std::endl;
+        auto extension = readExtension(inputFileData, objDef.mesherOverride);
+        std::string outputFileName = objDef.group + ".tessellator." + extension + ".vtk";
+        exportMeshToVTU(outputFolder / outputFileName, resultMesh);
+        std::cout << "-- Exported: " << outputFileName << std::endl;
     }
 
-    if (!first && readExportGridOption(inputFilename, std::nullopt)) {
+    if (!first && readExportGridOption(inputFileData, std::nullopt)) {
         exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), firstMesh.grid);
         std::cout << "-- Exported grid: " << basename << ".tessellator.grid.vtk" << std::endl;
     }

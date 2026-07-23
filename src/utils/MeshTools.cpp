@@ -427,10 +427,6 @@ Mesh extractGroupsByName(const Mesh& mesh, const std::vector<std::string>& group
     std::map<std::string, std::vector<CoordinateId>> groupCoordIds;
     
     for (const auto& groupName : groupNames) {
-        groupCoordIds[groupName].clear();
-    }
-    
-    for (const auto& groupName : groupNames) {
         auto it = std::find_if(mesh.groups.begin(), mesh.groups.end(),
             [&groupName](const Group& g) { return g.name == groupName; });
         
