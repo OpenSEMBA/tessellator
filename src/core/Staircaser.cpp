@@ -448,7 +448,7 @@ bool Staircaser::isAllCoordinatesOnTheSameCellBoundary(const Element& newElement
     return !commonStructuredCells.empty();
 }
 
-std::set<Element> Staircaser::getElementsConvertedInLines(Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap) {
+std::set<Element> Staircaser::getElementsConvertedInLines(const Cell cell, const std::map<Cell, std::vector<const Element*>>& cellElemMap) {
     std::set<Element> elementsConvertedInLines;
 
     for (const auto& e : cellElemMap.at(cell)) {
@@ -492,7 +492,7 @@ std::set<Element> Staircaser::getElementsConvertedInLines(Cell cell, std::map<Ce
     return elementsConvertedInLines;
 }
 
-void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::set<Element> elementsConvertedInLines, Group& meshGroup, const Cell cell, std::map<Cell, std::vector<const Element*>> cellElemMap, std::vector<std::set<ElementId>> toRemove) {
+void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::set<Element> elementsConvertedInLines, Group& meshGroup, const Cell cell, const std::map<Cell, std::vector<const Element*>>& cellElemMap, std::vector<std::set<ElementId>> toRemove) {
     for (const auto& e: elementsConvertedInLines) {
         bool processed = false;
         for (const auto& otherElementsInCell: cellElemMap.at(cell)) {
