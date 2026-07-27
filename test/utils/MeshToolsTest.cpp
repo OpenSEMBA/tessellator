@@ -720,4 +720,90 @@ TEST_F(MeshToolsTest, reduceGrid_epsilon_coord)
 	}
 }
 
+TEST_F(MeshToolsTest, extractGroupsByName_singleGroup)
+{
+	Mesh m;
+	m.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.0, 0.0}),
+		Coordinate({0.0, 1.0, 0.0})
+	};
+	m.groups = {
+		Group("group_a", {Element({0, 1, 2}, Element::Type::Surface)}),
+		Group("group_b", {Element({0, 1}, Element::Type::Line)})
+	};
+
+	Mesh result = extractGroupsByName(m, {"group_a"});
+	
+	EXPECT_EQ(result.groups.size(), 1);
+	EXPECT_EQ(result.groups[0].name, "group_a");
+	EXPECT_EQ(result.groups[0].elements.size(), 1);
+	EXPECT_EQ(result.coordinates.size(), 3);
+}
+
+TEST_F(MeshToolsTest, extractGroupsByName_multipleGroups)
+{
+	Mesh m;
+	m.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.0, 0.0}),
+		Coordinate({0.0, 1.0, 0.0}),
+		Coordinate({1.0, 1.0, 0.0})
+	};
+	m.groups = {
+		Group("group_a", {Element({0, 1, 2}, Element::Type::Surface)}),
+		Group("group_b", {Element({0, 1}, Element::Type::Line)}),
+		Group("group_c", {Element({2, 3}, Element::Type::Line)})
+	};
+
+	Mesh result = extractGroupsByName(m, {"group_a", "group_c"});
+	
+	EXPECT_EQ(result.groups.size(), 2);
+	EXPECT_EQ(result.groups[0].name, "group_a");
+	EXPECT_EQ(result.groups[0].elements.size(), 1);
+	EXPECT_EQ(result.groups[1].name, "group_c");
+	EXPECT_EQ(result.groups[1].elements.size(), 1);
+}
+
+TEST_F(MeshToolsTest, extractGroupsByName_nonExistentGroup)
+{
+	Mesh m;
+	m.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.0, 0.0})
+	};
+	m.groups = {
+		Group("group_a", {Element({0, 1}, Element::Type::Line)})
+	};
+
+	Mesh result = extractGroupsByName(m, {"group_a", "non_existent"});
+	
+	EXPECT_EQ(result.groups.size(), 2);
+	EXPECT_EQ(result.groups[0].name, "group_a");
+	EXPECT_EQ(result.groups[0].elements.size(), 1);
+	EXPECT_EQ(result.groups[1].name, "non_existent");
+	EXPECT_EQ(result.groups[1].elements.size(), 0);
+}
+
+TEST_F(MeshToolsTest, extractGroupsByName_coordinateRemapping)
+{
+	Mesh m;
+	m.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.0, 0.0}),
+		Coordinate({0.0, 1.0, 0.0})
+	};
+	m.groups = {
+		Group("group_a", {Element({0, 1, 2}, Element::Type::Surface)}),
+		Group("group_b", {Element({0, 1}, Element::Type::Line)})
+	};
+
+	Mesh result = extractGroupsByName(m, {"group_a", "group_b"});
+	
+	EXPECT_EQ(result.groups.size(), 2);
+	EXPECT_EQ(result.groups[0].elements[0].vertices, std::vector<CoordinateId>({0, 1, 2}));
+	EXPECT_EQ(result.groups[1].elements[0].vertices, std::vector<CoordinateId>({3, 4}));
+	EXPECT_EQ(result.coordinates.size(), 5);
+}
+
 }

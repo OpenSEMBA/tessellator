@@ -11,6 +11,7 @@ public:
 	StaircaseMesher(const Mesh& in, int decimalPlacesInCollapser = 4, StaircaseMesherOptions opts = StaircaseMesherOptions());
 	virtual ~StaircaseMesher() = default;
 	Mesh mesh() const;
+    const StaircaseMesherOptions & getOptions() const { return opts_; }
 
 private:
 	int decimalPlacesInCollapser_;

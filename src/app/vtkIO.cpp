@@ -7,6 +7,7 @@
 #include <vtkLine.h>
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
+#include <vtkStringArray.h>
 
 #include <vtkAppendFilter.h>
 #include <vtkSTLReader.h>
@@ -162,12 +163,26 @@ vtkSmartPointer<vtkIntArray> toVTKGroupsArray(const Mesh& mesh)
     return groupsDataArray;
 }
 
+vtkSmartPointer<vtkStringArray> toVTKGroupNamesArray(const Mesh& mesh)
+{
+    vtkNew<vtkStringArray> groupNamesArray;
+    groupNamesArray->SetName("groupNames");
+    groupNamesArray->SetNumberOfComponents(1);
+    
+    for (const auto& group : mesh.groups) {
+        groupNamesArray->InsertNextValue(group.name.c_str());
+    }
+    
+    return groupNamesArray;
+}
+
 vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
 {
     vtkNew<vtkUnstructuredGrid> vtu;
 
     vtu->SetPoints(toVTKPoints(mesh.coordinates));
     vtu->GetCellData()->AddArray(toVTKGroupsArray(mesh));
+    vtu->GetCellData()->AddArray(toVTKGroupNamesArray(mesh));
 
     std::vector<int> cellTypes;
     cellTypes.reserve(mesh.countElems());

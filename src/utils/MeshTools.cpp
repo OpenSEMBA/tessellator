@@ -418,4 +418,54 @@ bool isAClosedTopology(const Elements& es)
 	return CoordGraph(es).getBoundaryGraph().getVertices().size() == 0;
 }
 
+Mesh extractGroupsByName(const Mesh& mesh, const std::vector<std::string>& groupNames)
+{
+    Mesh result;
+    result.grid = mesh.grid;
+    
+    std::map<std::string, CoordinateId> coordRemap;
+    std::map<std::string, std::vector<CoordinateId>> groupCoordIds;
+    
+    for (const auto& groupName : groupNames) {
+        auto it = std::find_if(mesh.groups.begin(), mesh.groups.end(),
+            [&groupName](const Group& g) { return g.name == groupName; });
+        
+        if (it != mesh.groups.end()) {
+            result.groups.push_back(*it);
+            
+            for (const auto& elem : it->elements) {
+                for (const auto& vId : elem.vertices) {
+                    std::string coordKey = groupName + "_" + std::to_string(vId);
+                    if (coordRemap.find(coordKey) == coordRemap.end()) {
+                        CoordinateId newVId = result.coordinates.size();
+                        result.coordinates.push_back(mesh.coordinates[vId]);
+                        coordRemap[coordKey] = newVId;
+                        groupCoordIds[groupName].push_back(vId);
+                    }
+                }
+            }
+        } else {
+            result.groups.push_back(Group{groupName, {}});
+        }
+    }
+    
+    for (auto& group : result.groups) {
+        std::string groupName = group.name;
+        std::map<CoordinateId, CoordinateId> elemRemap;
+        
+        for (const auto& oldVId : groupCoordIds[groupName]) {
+            std::string coordKey = groupName + "_" + std::to_string(oldVId);
+            elemRemap[oldVId] = coordRemap[coordKey];
+        }
+        
+        for (auto& elem : group.elements) {
+            for (auto& vId : elem.vertices) {
+                vId = elemRemap[vId];
+            }
+        }
+    }
+    
+    return result;
+}
+
 }
