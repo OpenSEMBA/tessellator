@@ -16,9 +16,11 @@ private:
 	int decimalPlacesInCollapser_;
 
 	Mesh surfaceMesh_;
+	Mesh volumeMesh_;
 	StaircaseMesherOptions opts_;
 
 	virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
+	static void fillMesh(Mesh& inputMesh, const std::set<GroupId>& volumeGroups);
 	void process(Mesh&) const;
 
 };

@@ -32,7 +32,7 @@ public:
 	FillingState getFillingState(const CellIndex&) const;
 	
 	Mesh getMeshFilling() const;
-
+	GridSlices getSlices() const {return slices_;};
 private:
 	GridSlices slices_;
 	GridSegmentsArray segmentsArray_;

@@ -24,7 +24,7 @@ public:
 
     Slicer(const Mesh&, const std::vector<Element::Type>& dimensionPolicy = {}, const SlicerOptions& opts = SlicerOptions());
     Mesh getMesh() const { return mesh_; };
-
+    // Mesh fill(const Mesh&);
 
     static Elements buildTrianglesFromPath(const std::vector<Coordinate>&, const std::vector<CoordinateId>&);
 
@@ -52,6 +52,11 @@ private:
     void getCellPosNext(Cell&, Coordinate&,
         const Cell&, const Coordinate&,
         const Cell&, const Coordinate&) const;
+
+    // IdSet buildGroupIntersectionsWithGridPlanes(
+    //     Coordinates& sCoords,
+    //     const std::vector<Element>& elements);
+
 
 };
 

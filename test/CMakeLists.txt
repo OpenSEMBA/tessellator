@@ -17,6 +17,7 @@ add_executable(tessellator_tests
 	"core/CollapserTest.cpp"
 	"core/CompressorTest.cpp"
 	"core/SlicerTest.cpp"
+	"core/VolumeFillerTest.cpp"
 	"core/SmootherTest.cpp"
 	"core/SmootherToolsTest.cpp"
 	"core/SnapperTest.cpp"

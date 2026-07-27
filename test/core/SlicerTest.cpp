@@ -1090,4 +1090,20 @@ TEST_F(SlicerTest, sphere_case_patch_contour_check_2)
     #endif
 }
 
+// TEST_F(SlicerTest, cube1x1x1_size05_grid_fill)
+// {
+//     Mesh m = buildCubeSurfaceMesh(0.5);
+        
+//     Mesh out;
+//     ASSERT_NO_THROW(out = Slicer{m}.getMesh());
+//     EXPECT_EQ(48, countMeshElementsIf(out, isTriangle));
+//     EXPECT_FALSE(containsDegenerateTriangles(out));
+//     EXPECT_EQ(countContours(m), countContours(out));
+    
+//     Mesh filled;
+//     ASSERT_NO_THROW(filled = Slicer::fill(out));
+//     EXPECT_EQ(72, countMeshElementsIf(out, isTriangle));
+// }
+
+
 }

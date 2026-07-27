@@ -9,7 +9,7 @@
 #include "core/Compressor.h"
 
 #include "cgal/filler/Filler.h"
-#include "cgal/Manifolder.h"
+// #include "cgal/Manifolder.h"
 
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
@@ -27,14 +27,40 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
     opts_(opts)
 {
     log("Preparing surfaces.");
-    //here, convert tetra intro hull tris
-    surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
-
+    surfaceMesh_ = MesherBase::buildSurfaceMesh(inputMesh, opts_.volumeGroups);
     log("Processing surface mesh.");
     process(surfaceMesh_);
+
+    log("Preparing volumes");
+    volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
+    fillMesh(volumeMesh_, opts_.volumeGroups);
+    log("Processing volume mesh.");
+    process(volumeMesh_);
+
+    mergeMesh(surfaceMesh_, volumeMesh_);
     
-    log("Surface mesh built succesfully.", 1);
+    log("Mesh built succesfully.", 1);
 }
+
+void StaircaseMesher::fillMesh(Mesh& m, const std::set<GroupId>& volumeGroups){
+    if (m.countElems() == 0) return;
+    // auto mani = meshlib::cgal::Manifolder(m);
+    // for (const auto& gId : volumeGroups){
+    //     m.groups[gId].elements = mani.getClosedSurfacesMesh().groups[gId].elements;
+    // }
+    m.coordinates = utils::GridTools{m.grid}.absoluteToRelative(m.coordinates);
+    m = meshlib::cgal::filler::Filler(m).getMeshFilling();
+    m.coordinates = utils::GridTools{m.grid}.relativeToAbsolute(m.coordinates);
+    
+    // m = f.getMeshFilling();
+
+    // auto filling = f.getMeshFilling();
+    // mergeMesh(m, filling);
+    // // auto dimensions = getHighestDimensionByGroup(m);
+    // // RedundancyCleaner::removeOverlappedElementsByDimension(m, dimensions);
+
+}
+
 
 Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
@@ -49,32 +75,22 @@ void StaircaseMesher::process(Mesh& mesh) const
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     
     if (mesh.countElems() == 0) {
-        mesh.grid = slicingGrid;
+        // mesh.grid = slicingGrid;
         return;
     }
 
     auto dimensions = getHighestDimensionByGroup(mesh);
-
-    //mani has open_ and closed_ for every group id
-    if (opts_.isVolume){
-        if (meshTools::isAClosedTopology(mesh.groups[0].elements)){
-
-            auto mani = meshlib::cgal::Manifolder(mesh);
-            mesh.groups[0].elements = mani.getClosedSurfacesMesh().groups[0].elements;
-
-            meshlib::cgal::filler::Filler f{ mesh };
-            auto filling = f.getMeshFilling();
-            mergeMesh(mesh, filling);
-        } else {
-            throw std::runtime_error("Input object marked to be meshed as a volume, but surface is not closed");
-        }
-    }
 
     log("Slicing.", 1);
     mesh.grid = slicingGrid;
     mesh = Slicer{ mesh, dimensions }.getMesh();
     
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
+
+    // meshlib::cgal::filler::Filler f{mesh};
+    // auto filling = f.getMeshFilling();
+    // mergeMesh(mesh, filling);
+
 
     log("Collapsing.", 1);
     mesh = Collapser(mesh, decimalPlacesInCollapser_, dimensions).getMesh();
