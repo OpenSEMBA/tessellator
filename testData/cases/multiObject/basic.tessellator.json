@@ -10,7 +10,7 @@
         "type": "staircase"
     },
     "objects": [
-        {"filename": "sphere.stl", "group": "sphere_group"},
+        {"filename": "sphere.stl", "volume": true, "group": "sphere_group"},
         {"filename": "cone.stl", "group": "cone_group"}
     ]
 }

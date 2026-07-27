@@ -11,6 +11,7 @@ public:
     MesherBase(const Mesh& in);
     virtual ~MesherBase() = default;
     virtual Mesh mesh() const = 0;
+    const MesherBaseOptions & getOptions() const { return opts_; }
 
 protected:
     virtual void process(Mesh&) const = 0;
