@@ -69,9 +69,24 @@ Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volum
     return resultMesh;
 }
 
+std::vector<std::string> getGroupNames(const Groups& groups){
+    std::vector<std::string> names;
+    names.reserve(groups.size());
+    for (auto gId{0}; gId < groups.size(); ++gId) {        
+        names.push_back(groups[gId].name);
+    }
+    return names;
+}
+
+void copyGroupNames(Mesh& m, const std::vector<std::string>& names){
+    for (auto gId{0}; gId < m.groups.size(); ++gId) {        
+        m.groups[gId].name = names[gId];
+    }
+}
+
 void StaircaseMesher::process(Mesh& mesh) const
 {
-    
+    const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     
     if (mesh.countElems() == 0) {
@@ -135,6 +150,8 @@ void StaircaseMesher::process(Mesh& mesh) const
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    copyGroupNames(mesh, groupNames);
 
 }
 

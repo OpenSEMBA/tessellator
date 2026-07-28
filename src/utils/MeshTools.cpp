@@ -329,6 +329,7 @@ Mesh buildMeshFilteringElements(
             inElems.begin(), inElems.end(), 
             std::back_inserter(r.groups[gId].elements), 
             filter);
+        r.groups[gId].name = in.groups[gId].name;
     }
     return r;
 }

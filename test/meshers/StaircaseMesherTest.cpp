@@ -421,10 +421,10 @@ TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
     mesh.grid[Z] = utils::GridTools::linspace(-100.0, 100.0, 51);
 
     meshlib::meshers::StaircaseMesherOptions opts;
-    opts.isVolume = false;
+    // opts.isVolume = false;
     auto staircasedMesh = StaircaseMesher{mesh, 4, opts }.mesh();
     
-    opts.isVolume = true;
+    opts.volumeGroups.insert(0);
     auto staircasedMeshVolume = StaircaseMesher{mesh, 4, opts }.mesh();
     
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));

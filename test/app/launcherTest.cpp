@@ -71,7 +71,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
 
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
-    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, false);
 }
 
@@ -95,7 +95,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_without_compression)
 
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
-    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, false);
 }
 
@@ -119,7 +119,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_with_compression)
     
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
-    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
 }
 
@@ -315,7 +315,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_with_override)
     
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
-    EXPECT_EQ(options.isVolume, false);
+    EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
 }
 
