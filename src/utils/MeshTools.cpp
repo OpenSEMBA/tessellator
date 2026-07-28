@@ -309,6 +309,17 @@ void convertToAbsoluteCoordinates(Mesh& m)
     );
 }
 
+void convertToRelativeCoordinates(Mesh& m)
+{
+    GridTools gT{ m.grid };
+
+    std::transform(
+        m.coordinates.begin(), m.coordinates.end(),
+        m.coordinates.begin(),
+        [&](const auto& v) { return gT.getRelative(v); }
+    );
+}
+
 void checkSlicedMeshInvariants(const Mesh& m)
 {
     checkNoCellsAreCrossed(m);
@@ -389,7 +400,7 @@ void mergeMesh(Mesh& lMesh, const Mesh& iMesh)
     assert(lMesh.groups.size() == iMesh.groups.size());
 
     auto coordCount{ lMesh.coordinates.size() };
-    
+    if (iMesh.countElems() == 0) return;
     lMesh.coordinates.insert(lMesh.coordinates.end(),
         iMesh.coordinates.begin(), iMesh.coordinates.end());
 

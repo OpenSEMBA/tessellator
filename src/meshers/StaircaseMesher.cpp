@@ -49,15 +49,14 @@ void StaircaseMesher::fillMesh(Mesh& m){
         mode = meshlib::cgal::filler::FillerMode::insideAndOutside;
     }
     auto filling = m;
-    filling.coordinates = utils::GridTools{filling.grid}.absoluteToRelative(filling.coordinates);
+    utils::meshTools::convertToRelativeCoordinates(filling);
     filling = meshlib::cgal::filler::Filler(filling, Mesh(), std::vector<Priority>(), mode).getMeshFilling();
-    filling.coordinates = utils::GridTools{filling.grid}.relativeToAbsolute(filling.coordinates);
+    utils::meshTools::convertToAbsoluteCoordinates(filling);
     if (mode == meshlib::cgal::filler::FillerMode::insideAndOutside){
         m = filling;
     } else if (mode == meshlib::cgal::filler::FillerMode::onlyInside){
         mergeMesh(m, filling);
     }
-
 }
 
 

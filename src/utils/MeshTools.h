@@ -35,6 +35,7 @@ void reduceGrid(Mesh&, const Grid&);
 Mesh reduceGrid(const Mesh& m, const Grid& g);
 
 void convertToAbsoluteCoordinates(Mesh&);
+void convertToRelativeCoordinates(Mesh&);
 	
 void checkSlicedMeshInvariants(Mesh& m);
 	
