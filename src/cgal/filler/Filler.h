@@ -9,17 +9,26 @@
 
 namespace meshlib::cgal::filler {
 
+enum class FillerMode{
+	insideAndOutside,
+	onlyInside
+};
+
+
 class Filler {
-public:
+	public:
 	using Slices = std::map<SliceNumber, Slice>;
 	using GridSlices = std::array<Slices, 3>;
 	using SegmentsArray = std::map<ArrayIndex, Segments>;
 	using GridSegmentsArray = std::array<SegmentsArray, 3>;
-
+	
+	FillerMode mode = FillerMode::insideAndOutside;
+	
 	Filler(
 		const Mesh& volumeMesh, 
 		const Mesh& surfaceMesh = Mesh(),
-		const std::vector<Priority>& groupPriorities = std::vector<Priority>());
+		const std::vector<Priority>& groupPriorities = std::vector<Priority>(),
+		const FillerMode& mode = FillerMode::insideAndOutside);
 	Filler(const Filler&) = delete;
 	Filler(Filler&&) = default;
 	Filler& operator=(const Filler&) = delete;
@@ -41,6 +50,7 @@ private:
 	Priority getGroupPriority(const GroupId& gId) const;
 
 	void mergeGroupsWithSamePriority(Groups& vGroups, Groups& sGroups);
+
 
 };
 

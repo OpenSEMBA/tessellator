@@ -183,6 +183,21 @@ void Slice::add(const Polylines2& polylines, const Priority& pr)
 	}
 }
 
+void Slice::remove(const Polylines2& polylines, const Priority& pr)
+{
+	SliceData& sd = data_[pr];
+	
+	for (const auto& p : polylines) {
+		if (p.size() == 1) {
+			continue;
+		}
+		auto r{ removeSegmentsContainedInAnyAxis(p) };
+		for (const auto& rr : r){
+			sd.lines.erase(std::find(sd.lines.begin(), sd.lines.end(), rr));
+		}
+	}
+}
+
 FillingState::FillingState(const FillingType& t) :
 	type{ t },
 	priority_{ 0 }
@@ -257,6 +272,18 @@ void Slice::add(const HPolygonSet& polygons, const Priority& pr)
 
 	SliceData& sd = data_[pr];
 	sd.surfaces.join(polygons);
+
+	removeInSuperiorPriorities(pr);
+}
+
+void Slice::remove(const HPolygonSet& polygons, const Priority& pr)
+{
+	if (polygons.isEmpty()) {
+		return;
+	}
+
+	SliceData& sd = data_[pr];
+	sd.surfaces.difference(polygons);
 
 	removeInSuperiorPriorities(pr);
 }

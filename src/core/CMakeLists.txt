@@ -8,7 +8,6 @@ add_library(tessellator-core
     "Smoother.cpp"
     "SmootherTools.cpp"
     "Staircaser.cpp"
-    "VolumeFiller.cpp"
 )
 
 target_link_libraries(tessellator-core 

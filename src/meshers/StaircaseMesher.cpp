@@ -33,7 +33,7 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
 
     log("Preparing volumes");
     volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
-    fillMesh(volumeMesh_, opts_.volumeGroups);
+    fillMesh(volumeMesh_);
     log("Processing volume mesh.");
     process(volumeMesh_);
 
@@ -42,22 +42,21 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
     log("Mesh built succesfully.", 1);
 }
 
-void StaircaseMesher::fillMesh(Mesh& m, const std::set<GroupId>& volumeGroups){
+void StaircaseMesher::fillMesh(Mesh& m){
     if (m.countElems() == 0) return;
-    // auto mani = meshlib::cgal::Manifolder(m);
-    // for (const auto& gId : volumeGroups){
-    //     m.groups[gId].elements = mani.getClosedSurfacesMesh().groups[gId].elements;
-    // }
-    m.coordinates = utils::GridTools{m.grid}.absoluteToRelative(m.coordinates);
-    m = meshlib::cgal::filler::Filler(m).getMeshFilling();
-    m.coordinates = utils::GridTools{m.grid}.relativeToAbsolute(m.coordinates);
-    
-    // m = f.getMeshFilling();
-
-    // auto filling = f.getMeshFilling();
-    // mergeMesh(m, filling);
-    // // auto dimensions = getHighestDimensionByGroup(m);
-    // // RedundancyCleaner::removeOverlappedElementsByDimension(m, dimensions);
+    meshlib::cgal::filler::FillerMode mode = meshlib::cgal::filler::FillerMode::onlyInside;
+    if (m.groups[0].elements[0].isTetrahedron()) {
+        mode = meshlib::cgal::filler::FillerMode::insideAndOutside;
+    }
+    auto filling = m;
+    filling.coordinates = utils::GridTools{filling.grid}.absoluteToRelative(filling.coordinates);
+    filling = meshlib::cgal::filler::Filler(filling, Mesh(), std::vector<Priority>(), mode).getMeshFilling();
+    filling.coordinates = utils::GridTools{filling.grid}.relativeToAbsolute(filling.coordinates);
+    if (mode == meshlib::cgal::filler::FillerMode::insideAndOutside){
+        m = filling;
+    } else if (mode == meshlib::cgal::filler::FillerMode::onlyInside){
+        mergeMesh(m, filling);
+    }
 
 }
 
@@ -84,11 +83,18 @@ void copyGroupNames(Mesh& m, const std::vector<std::string>& names){
     }
 }
 
+static Mesh toAbsolute(const Mesh& m) 
+{
+    auto r{ m };
+    r.coordinates = 
+        utils::GridTools{ m.grid }.relativeToAbsolute(m.coordinates);
+    return r;
+}
+
 void StaircaseMesher::process(Mesh& mesh) const
 {
     const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
-    
     if (mesh.countElems() == 0) {
         // mesh.grid = slicingGrid;
         return;
@@ -101,11 +107,6 @@ void StaircaseMesher::process(Mesh& mesh) const
     mesh = Slicer{ mesh, dimensions }.getMesh();
     
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
-
-    // meshlib::cgal::filler::Filler f{mesh};
-    // auto filling = f.getMeshFilling();
-    // mergeMesh(mesh, filling);
-
 
     log("Collapsing.", 1);
     mesh = Collapser(mesh, decimalPlacesInCollapser_, dimensions).getMesh();
