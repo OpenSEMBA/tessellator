@@ -24,8 +24,6 @@ public:
 
     Slicer(const Mesh&, const std::vector<Element::Type>& dimensionPolicy = {}, const SlicerOptions& opts = SlicerOptions());
     Mesh getMesh() const { return mesh_; };
-    // Mesh fill(const Mesh&);
-
     static Elements buildTrianglesFromPath(const std::vector<Coordinate>&, const std::vector<CoordinateId>&);
 
 private:

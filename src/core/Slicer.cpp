@@ -38,32 +38,6 @@ void orient(const Coordinates& coords,
     }
 }
 
-// Mesh Slicer::fill(const Mesh& input){
-//     //input mesh should be structured
-
-//     Coordinates sCoords;
-//     sCoords.reserve(input.coordinates.size() * 100);
-
-//     for (const auto& g : input.groups){
-
-//         for (auto const& itCell : 
-//             buildCellCoordIdMap(sCoords, buildGroupIntersectionsWithGridPlanes(sCoords, g.elements))) {
-//             const IdSet& vIds = itCell.second;
-//             if (vIds.size() < 3) {
-//                 continue;
-//             }
-//         }
-
-//     }
-// }
-
-// IdSet Slicer::buildGroupIntersectionsWithGridPlanes(
-//     Coordinates& sCoords,
-//     const std::vector<Element>& elements)
-// {
-
-// }
-
 Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPolicy, const SlicerOptions& opts) :
     GridTools(input.grid),
     opts_(opts)
