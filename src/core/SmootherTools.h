@@ -41,6 +41,11 @@ public:
         const ElementsView& patch,
         const SingularIds& singularIds);
 
+    void revertMovesThatCrossGrid(
+        const Elements& elements,
+        Coordinates& coordinates,
+        const Coordinates& originalCoordinates) const;
+
     Coordinates collapsePointsOnContour(
         const Elements& elems,
         const Coordinates& coords,
@@ -83,6 +88,8 @@ public:
         const ElementsView& patch);
 
 private:
+    friend class SmootherToolsTestAccess;
+
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
 

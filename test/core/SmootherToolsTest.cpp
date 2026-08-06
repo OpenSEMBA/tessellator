@@ -419,6 +419,30 @@ protected:
 	const double alignmentAngle = 5.0;
 };
 
+class SmootherToolsTestAccess {
+public:
+	static CoordGraph::Path pathFromIdToAnyTarget(
+		const CoordinateId startId,
+		const CoordGraph::Path& cycle,
+		const bool forward,
+		const IdSet& target)
+	{
+		return SmootherTools::pathFromIdToAnyTarget(startId, cycle, forward, target);
+	}
+};
+
+TEST_F(SmootherToolsTest, pathFromLargeCoordinateIdContainsTheIdOnce)
+{
+	const CoordinateId startId = 1000;
+	const CoordinateId targetId = 1001;
+	const CoordGraph::Path cycle = {999, startId, targetId};
+
+	const auto path = SmootherToolsTestAccess::pathFromIdToAnyTarget(
+		startId, cycle, true, {targetId});
+
+	EXPECT_EQ((CoordGraph::Path{startId, targetId}), path);
+}
+
 /// Remesh patch with interior points to remove them. 
 ///	\verbatim
 ///   1 ---- 2 
@@ -671,6 +695,94 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_singlePatch)
 	sT.collapsePointsOnFeatureEdges(cs, p, sIds);
 	
 	EXPECT_EQ(7, countDifferentCoordinates(cs));
+}
+
+TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_withDisconnectedTargets)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(1.0);
+	m.coordinates = {
+		Coordinate({0.1, 0.1, 0.2}),
+		Coordinate({0.5, 0.1, 0.2}),
+		Coordinate({0.9, 0.1, 0.2}),
+		Coordinate({0.5, 0.4, 0.2}),
+		Coordinate({0.1, 0.6, 0.8}),
+		Coordinate({0.5, 0.6, 0.8}),
+		Coordinate({0.9, 0.6, 0.8}),
+		Coordinate({0.5, 0.9, 0.8}),
+	};
+	m.groups = {Group()};
+	m.groups[0].elements = {
+		Element({0, 1, 3}),
+		Element({1, 2, 3}),
+		Element({4, 5, 7}),
+		Element({5, 6, 7}),
+	};
+
+	Elements& elements = m.groups[0].elements;
+	const ElementsView disconnectedPatch = {
+		&elements[0], &elements[1], &elements[2], &elements[3]
+	};
+	const SmootherTools::SingularIds singularIds(
+		{0, 1, 2, 4, 5, 6}, {}, {});
+
+	EXPECT_NO_THROW(SmootherTools(m.grid).collapsePointsOnFeatureEdges(
+		m.coordinates, disconnectedPatch, singularIds));
+	EXPECT_EQ(m.coordinates[0], m.coordinates[1]);
+	EXPECT_EQ(m.coordinates[4], m.coordinates[5]);
+}
+
+TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_staysInTouchingCell)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(0.25);
+	m.coordinates = {
+		Coordinate({0.9, 0.1, 0.2}),
+		Coordinate({1.2, 0.1, 0.2}),
+		Coordinate({1.9, 0.1, 0.2}),
+		Coordinate({1.5, 0.4, 0.2}),
+	};
+	m.groups = {Group()};
+	m.groups[0].elements = {
+		Element({0, 1, 3}),
+		Element({1, 2, 3}),
+	};
+
+	Elements& elements = m.groups[0].elements;
+	const ElementsView patch = {&elements[0], &elements[1]};
+	const SmootherTools::SingularIds singularIds({0, 1, 2}, {}, {});
+
+	SmootherTools(m.grid).collapsePointsOnFeatureEdges(
+		m.coordinates, patch, singularIds);
+
+	EXPECT_EQ(m.coordinates[2], m.coordinates[1]);
+}
+
+TEST_F(SmootherToolsTest, revertsCombinedFeatureMovesThatCrossGrid)
+{
+	Mesh m;
+	m.grid = buildUnitLengthGrid(0.25);
+	m.coordinates = {
+		Coordinate({1.0, 0.2, 0.2}),
+		Coordinate({1.0, 0.5, 0.2}),
+		Coordinate({1.0, 0.8, 0.2}),
+	};
+	m.groups = {Group()};
+	m.groups[0].elements = {Element({0, 1, 2})};
+
+	const Coordinates originalCoordinates = m.coordinates;
+	m.coordinates[0][X] = 0.0;
+	m.coordinates[2][X] = 2.0;
+	ASSERT_TRUE(GridTools(m.grid).elementCrossesGrid(
+		m.groups[0].elements[0], m.coordinates));
+
+	SmootherTools(m.grid).revertMovesThatCrossGrid(
+		m.groups[0].elements, m.coordinates, originalCoordinates);
+
+	EXPECT_FALSE(GridTools(m.grid).elementCrossesGrid(
+		m.groups[0].elements[0], m.coordinates));
+	EXPECT_EQ(originalCoordinates[0], m.coordinates[0]);
+	EXPECT_EQ(2.0, m.coordinates[2][X]);
 }
 
 TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_threePatches)

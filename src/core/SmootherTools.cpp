@@ -57,6 +57,39 @@ void SmootherTools::updateCoordinates(
     }
 }
 
+void SmootherTools::revertMovesThatCrossGrid(
+    const Elements& elements,
+    Coordinates& coordinates,
+    const Coordinates& originalCoordinates) const
+{
+    IdSet movedIds;
+    for (CoordinateId id = 0; id < coordinates.size(); ++id) {
+        if (coordinates[id] != originalCoordinates[id]) {
+            movedIds.insert(id);
+        }
+    }
+
+    std::map<CoordinateId, ElementsView> incidentElements;
+    for (const auto& element : elements) {
+        for (const auto id : element.vertices) {
+            if (movedIds.count(id) != 0) {
+                incidentElements[id].push_back(&element);
+            }
+        }
+    }
+
+    for (const auto id : movedIds) {
+        const bool crossesGrid = std::any_of(
+            incidentElements[id].begin(), incidentElements[id].end(),
+            [&](const Element* element) {
+                return elementCrossesGrid(*element, coordinates);
+            });
+        if (crossesGrid) {
+            coordinates[id] = originalCoordinates[id];
+        }
+    }
+}
+
 void SmootherTools::collapsePointsOnFeatureEdges(
     Coordinates& coords,
     const ElementsView& patch,
@@ -102,7 +135,24 @@ void SmootherTools::collapsePointsOnFeatureEdges(
             continue;
         }
 
-        Coordinate closest = closestByDistance(coords, i, Point.getClosestVerticesInSet(i, validExterior));
+        auto candidates = Point.getClosestVerticesInSet(i, validExterior);
+        const auto sourceCells = getTouchingCells(coords[i]);
+        for (auto candidate = candidates.begin(); candidate != candidates.end();) {
+            const auto candidateCells = getTouchingCells(coords[*candidate]);
+            const bool sharesCell = std::any_of(
+                candidateCells.begin(), candidateCells.end(),
+                [&](const Cell& cell) { return sourceCells.count(cell) != 0; });
+            if (sharesCell) {
+                ++candidate;
+            }
+            else {
+                candidate = candidates.erase(candidate);
+            }
+        }
+        if (candidates.empty()) {
+            continue;
+        }
+        Coordinate closest = closestByDistance(coords, i, candidates);
         if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
             continue;
         }
@@ -207,7 +257,11 @@ void SmootherTools::collapsePointsOnCellEdges(
             if (isRelativeInCellCorner(coords[i])) {
                 continue;
             }
-            Coordinate closest = closestByDistance(coords, i, cG.getClosestVerticesInSet(i, validIds));
+            const auto candidates = cG.getClosestVerticesInSet(i, validIds);
+            if (candidates.empty()) {
+                continue;
+            }
+            Coordinate closest = closestByDistance(coords, i, candidates);
             if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
                 continue;
             }
@@ -426,7 +480,7 @@ CoordGraph::Path SmootherTools::pathFromIdToAnyTarget(
     }
     const std::size_t i = it - cycle.begin();
 
-    CoordGraph::Path res(startId);
+    CoordGraph::Path res{startId};
     for (std::size_t d = 1; d < cycle.size(); d++) {
         CoordinateId idTest;
         if (forward) {

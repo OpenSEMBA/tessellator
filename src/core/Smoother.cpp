@@ -51,6 +51,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             sT_.collapsePointsOnCellEdges(res.coordinates, p, singularIds, opts_.contourAlignmentAngle);
         });
 
+        const Coordinates coordinatesBeforeFeatureCollapse = res.coordinates;
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
             std::execution::par,
@@ -66,6 +67,8 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
             patchs.begin(), patchs.end(), [&](auto& p) {
             sT_.collapsePointsOnFeatureEdges(res.coordinates, p, singularIds);
         });
+        sT_.revertMovesThatCrossGrid(
+            g.elements, res.coordinates, coordinatesBeforeFeatureCollapse);
 
         std::for_each(
 #ifdef TESSELLATOR_EXECUTION_POLICIES
