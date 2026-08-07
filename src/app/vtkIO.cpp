@@ -170,7 +170,9 @@ vtkSmartPointer<vtkStringArray> toVTKGroupNamesArray(const Mesh& mesh)
     groupNamesArray->SetNumberOfComponents(1);
     
     for (const auto& group : mesh.groups) {
-        groupNamesArray->InsertNextValue(group.name.c_str());
+        for (std::size_t e = 0; e < group.elements.size(); e++) {
+            groupNamesArray->InsertNextValue(group.name.c_str());
+        }
     }
     
     return groupNamesArray;
