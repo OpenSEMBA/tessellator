@@ -389,8 +389,10 @@ TEST_F(StaircaseMesherTest, mesh_tetrahedron_volume_2x2){
 // #endif
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
-    EXPECT_EQ(36, countMeshElementsIf(staircasedMesh, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isQuad));
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTetrahedron));
+    EXPECT_EQ(4, countMeshElementsIf(staircasedMesh, isHexahedron));
+    EXPECT_EQ(18, staircasedMesh.coordinates.size());
 
 }
 
@@ -403,8 +405,10 @@ TEST_F(StaircaseMesherTest, mesh_surface_volume_2x2){
     auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
-    EXPECT_EQ(36, countMeshElementsIf(staircasedMesh, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isQuad));
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTetrahedron));
+    EXPECT_EQ(4, countMeshElementsIf(staircasedMesh, isHexahedron));
+    EXPECT_EQ(18, staircasedMesh.coordinates.size());
 
 }
 
@@ -418,12 +422,32 @@ TEST_F(StaircaseMesherTest, mesh_surface_not_volume_2x2){
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
     EXPECT_EQ(24, countMeshElementsIf(staircasedMesh, isQuad));
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTetrahedron));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isHexahedron));
 
+}
+
+TEST_F(StaircaseMesherTest, meshesSelectedNonzeroVolumeGroupWithHexahedra)
+{
+    Mesh mesh = buildCubeSurfaceMesh(0.5);
+    mesh.groups[0].name = "surface";
+    mesh.groups.push_back(mesh.groups[0]);
+    mesh.groups[1].name = "volume";
+    StaircaseMesherOptions options;
+    options.volumeGroups.insert(1);
+
+    const Mesh result = StaircaseMesher(mesh, 4, options).mesh();
+
+    EXPECT_EQ("surface", result.groups[0].name);
+    EXPECT_EQ("volume", result.groups[1].name);
+    EXPECT_EQ(24, std::count_if(
+        result.groups[0].elements.begin(), result.groups[0].elements.end(), isQuad));
+    EXPECT_EQ(4, std::count_if(
+        result.groups[1].elements.begin(), result.groups[1].elements.end(), isHexahedron));
 }
 
 #if APP_LOADED
 
-TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
+TEST_F(StaircaseMesherTest, fills_closed_volume_with_hexahedra)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
     
@@ -443,8 +467,8 @@ TEST_F(StaircaseMesherTest, fills_closed_volume_with_quads)
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMeshVolume, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(staircasedMeshVolume, isTetrahedron));
-
-    EXPECT_TRUE(countMeshElementsIf(staircasedMeshVolume, isQuad) > countMeshElementsIf(staircasedMesh, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(staircasedMeshVolume, isQuad));
+    EXPECT_GT(countMeshElementsIf(staircasedMeshVolume, isHexahedron), 0);
 
 }
 
@@ -634,4 +658,3 @@ TEST_F(StaircaseMesherTest, staircaser_reads_wires_correctly)
 #endif
 
 }
-

@@ -10,7 +10,7 @@
                     "type": "FILEPATH",
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
                 },
-                "TESSELLATOR_ENABLE_CGAL": true
+                "TESSELLATOR_ENABLE_CGAL": false
             }
         },
         {
@@ -27,6 +27,15 @@
             "name": "gnu",
             "displayName": "GNU g++ compiler",
             "inherits": "default"
+        },
+        {
+            "name": "gnu-cgal",
+            "displayName": "GNU g++ compiler with CGAL",
+            "inherits": "gnu",
+            "binaryDir": "build-cgal/",
+            "cacheVariables": {
+                "TESSELLATOR_ENABLE_CGAL": true
+            }
         },
         {
             "name": "gnu-dbg",
@@ -48,7 +57,7 @@
                 "CMAKE_PREFIX_PATH": "/usr/local",
                 "CMAKE_FIND_ROOT_PATH": "/usr/local",
                 "TESSELLATOR_ENABLE_TESTS": "ON",
-                "TESSELLATOR_ENABLE_CGAL": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF",
                 "DOCKER_EXPORT_COMPILE_COMMANDS": "ON" 
             },
             "environment": {
@@ -67,7 +76,7 @@
                 "CMAKE_PREFIX_PATH": "/usr/local",
                 "CMAKE_FIND_ROOT_PATH": "/usr/local",
                 "TESSELLATOR_ENABLE_TESTS": "ON",
-                "TESSELLATOR_ENABLE_CGAL": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF",
                 "DOCKER_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_CXX_FLAGS_INIT": "-g3"
             },
@@ -88,6 +97,10 @@
         {
             "name": "docker-dbg",
             "configurePreset": "docker-dbg"
+        },
+        {
+            "name": "gnu-cgal",
+            "configurePreset": "gnu-cgal"
         }
     ]
 }

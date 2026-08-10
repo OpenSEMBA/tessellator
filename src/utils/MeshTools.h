@@ -19,6 +19,8 @@ static bool isQuad(const Element& e) { return e.isQuad(); }
 static bool isNotQuad(const Element& e) { return !e.isQuad(); }
 static bool isTetrahedron(const Element& e) { return e.isTetrahedron(); }
 static bool isNotTetrahedron(const Element& e) { return !e.isTetrahedron(); }
+static bool isHexahedron(const Element& e) { return e.isHexahedron(); }
+static bool isNotHexahedron(const Element& e) { return !e.isHexahedron(); }
 
 std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter);
 std::vector<Element::Type> getHighestDimensionByGroup(const Mesh& mesh);

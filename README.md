@@ -18,6 +18,7 @@ Tessellator is a mesher focused on generate meshes and data structures which are
 ## Compilation
 
 When using presets, make sure to define the environment variable `VCPKG_ROOT` to your `vcpkg` installation.
+The standard presets build without CGAL; use the `gnu-cgal` preset for the optional CGAL algorithms.
 This can be done using a `CMakeUserPreset.json` file, for example:
 
 ```json
@@ -33,7 +34,7 @@ This can be done using a `CMakeUserPreset.json` file, for example:
         "VCPKG_ROOT": "~/workspace/vcpkg/"
       },
       "cacheVariables": {
-        "TESSELLATOR_ENABLE_CGAL": true
+        "TESSELLATOR_ENABLE_CGAL": false
       },
       "inherits": "gnu"
     }

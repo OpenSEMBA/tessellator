@@ -27,7 +27,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
 
 option(TESSELLATOR_ENABLE_TESTS "Compile tests" ON)
-option(TESSELLATOR_ENABLE_CGAL "Compile using CGAL library" ON)
+option(TESSELLATOR_ENABLE_CGAL "Compile using CGAL library" OFF)
 option(TESSELLATOR_EXECUTION_POLICIES OFF)
 option(DOCKER_EXPORT_COMPILE_COMMANDS "Information for the 'clangd' linter extension" OFF)
 option(TESSELLATOR_LOAD_APP "Compile app" OFF)

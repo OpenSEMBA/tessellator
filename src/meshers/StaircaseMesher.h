@@ -21,8 +21,8 @@ private:
 	StaircaseMesherOptions opts_;
 
 	virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
-	static void fillMesh(Mesh& inputMesh);
 	void process(Mesh&) const;
+	void process(Mesh&, bool compress) const;
 
 };
 

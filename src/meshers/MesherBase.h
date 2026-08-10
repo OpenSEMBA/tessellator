@@ -21,6 +21,7 @@ protected:
     static void logNumberOfTriangles(std::size_t nTris);
     static void logNumberOfLines(std::size_t nLines);
     static void logNumberOfNodes(std::size_t nNodes);
+    static void logNumberOfHexahedra(std::size_t nHexahedra);
     static void logGridSize(const Grid& g);
 
     static Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged);

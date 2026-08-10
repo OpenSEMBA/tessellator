@@ -7,9 +7,8 @@
 #include "core/Collapser.h"
 #include "core/Staircaser.h"
 #include "core/Compressor.h"
-
-#include "cgal/filler/Filler.h"
-// #include "cgal/Manifolder.h"
+#include "core/VolumeFiller.h"
+#include "core/VolumeShellExtractor.h"
 
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
@@ -20,6 +19,9 @@ namespace meshlib::meshers {
 using namespace utils;
 using namespace core;
 using namespace meshTools;
+
+std::vector<std::string> getGroupNames(const Groups& groups);
+void copyGroupNames(Mesh& mesh, const std::vector<std::string>& names);
 
 StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
@@ -33,32 +35,21 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
 
     log("Preparing volumes");
     volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
-    fillMesh(volumeMesh_);
-    log("Processing volume mesh.");
-    process(volumeMesh_);
+    if (!volumeMesh_.emptyOfElements()) {
+        volumeMesh_ = VolumeShellExtractor(volumeMesh_).getMesh();
+
+        log("Processing volume shell.");
+        process(volumeMesh_, false);
+        log("Filling volume shell with hexahedra.");
+        volumeMesh_ = VolumeFiller(volumeMesh_).getMesh();
+        logNumberOfHexahedra(countMeshElementsIf(volumeMesh_, isHexahedron));
+    }
 
     mergeMesh(surfaceMesh_, volumeMesh_);
+    RedundancyCleaner::cleanCoords(surfaceMesh_);
     
     log("Mesh built succesfully.", 1);
 }
-
-void StaircaseMesher::fillMesh(Mesh& m){
-    if (m.countElems() == 0) return;
-    meshlib::cgal::filler::FillerMode mode = meshlib::cgal::filler::FillerMode::onlyInside;
-    if (m.groups[0].elements[0].isTetrahedron()) {
-        mode = meshlib::cgal::filler::FillerMode::insideAndOutside;
-    }
-    auto filling = m;
-    utils::meshTools::convertToRelativeCoordinates(filling);
-    filling = meshlib::cgal::filler::Filler(filling, Mesh(), std::vector<Priority>(), mode).getMeshFilling();
-    utils::meshTools::convertToAbsoluteCoordinates(filling);
-    if (mode == meshlib::cgal::filler::FillerMode::insideAndOutside){
-        m = filling;
-    } else if (mode == meshlib::cgal::filler::FillerMode::onlyInside){
-        mergeMesh(m, filling);
-    }
-}
-
 
 Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
 {
@@ -92,6 +83,11 @@ static Mesh toAbsolute(const Mesh& m)
 
 void StaircaseMesher::process(Mesh& mesh) const
 {
+    process(mesh, opts_.compress);
+}
+
+void StaircaseMesher::process(Mesh& mesh, bool compress) const
+{
     const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     if (mesh.countElems() == 0) {
@@ -124,7 +120,7 @@ void StaircaseMesher::process(Mesh& mesh) const
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
-    if (opts_.compress) {
+    if (compress) {
         log("Compressing surfaces.", 1);
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
         std::size_t merged = Compressor::compressSurfacesInMesh(mesh);

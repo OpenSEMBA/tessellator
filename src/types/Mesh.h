@@ -69,6 +69,11 @@ struct Element {
         return type == Type::Volume && vertices.size() == 4;
     }
 
+    bool isHexahedron() const
+    {
+        return type == Type::Volume && vertices.size() == 8;
+    }
+
     bool sharesVertices(const Element& rhs) 
     {
         bool res = true;
@@ -220,4 +225,3 @@ private:
 };
 
 }
-

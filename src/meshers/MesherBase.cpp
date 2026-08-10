@@ -52,6 +52,13 @@ void MesherBase::logNumberOfNodes(std::size_t nNodes)
     log(msg.str(), 2);
 }
 
+void MesherBase::logNumberOfHexahedra(std::size_t nHexahedra)
+{
+    std::stringstream msg;
+    msg << "Mesh contains " << nHexahedra << " hexahedra.";
+    log(msg.str(), 2);
+}
+
 void MesherBase::logGridSize(const Grid& g)
 {
     std::stringstream msg;
@@ -108,6 +115,7 @@ Mesh MesherBase::buildVolumeMesh(const Mesh& inputMesh, const std::set<GroupId>&
     Mesh volumeMesh{ inputMesh.grid, inputMesh.coordinates };
     volumeMesh.groups.resize(inputMesh.groups.size());
     for (const auto& gId : volumeGroups) {
+        volumeMesh.groups[gId].name = inputMesh.groups[gId].name;
         mergeGroup(volumeMesh.groups[gId], inputMesh.groups[gId]);
     }
     return volumeMesh;

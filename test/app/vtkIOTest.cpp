@@ -43,6 +43,30 @@ TEST_F(VTKIOTest, readElementTypes)
     EXPECT_TRUE(m.groups[0].elements[2].isTriangle());
 }
 
+TEST_F(VTKIOTest, exportAndReadHexahedron)
+{
+    meshlib::Mesh mesh;
+    mesh.grid = meshlib::utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    mesh.coordinates = {
+        meshlib::Coordinate({0.0, 0.0, 0.0}), meshlib::Coordinate({1.0, 0.0, 0.0}),
+        meshlib::Coordinate({1.0, 1.0, 0.0}), meshlib::Coordinate({0.0, 1.0, 0.0}),
+        meshlib::Coordinate({0.0, 0.0, 1.0}), meshlib::Coordinate({1.0, 0.0, 1.0}),
+        meshlib::Coordinate({1.0, 1.0, 1.0}), meshlib::Coordinate({0.0, 1.0, 1.0})};
+    mesh.groups.resize(1);
+    mesh.groups[0].elements.push_back(meshlib::Element(
+        {0, 1, 2, 3, 4, 5, 6, 7}, meshlib::Element::Type::Volume));
+
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_hexahedron_roundtrip.vtu";
+    exportMeshToVTU(filename, mesh);
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(1, result.countElems());
+    EXPECT_TRUE(result.groups[0].elements[0].isHexahedron());
+    EXPECT_EQ(mesh.coordinates, result.coordinates);
+}
+
 TEST_F(VTKIOTest, exportGridToVTU)
 {
     meshlib::Grid grid;
