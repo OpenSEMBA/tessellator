@@ -57,43 +57,66 @@ void SmootherTools::updateCoordinates(
     }
 }
 
-void SmootherTools::revertMovesThatCrossGrid(
-    const Elements& elements,
-    Coordinates& coordinates,
-    const Coordinates& originalCoordinates) const
+bool SmootherTools::moveWouldCrossGrid(
+    const CoordinateId& id,
+    const Coordinate& destination,
+    const Coordinates& coordinates,
+    const IncidentElements& incidentElements) const
 {
-    IdSet movedIds;
-    for (CoordinateId id = 0; id < coordinates.size(); ++id) {
-        if (coordinates[id] != originalCoordinates[id]) {
-            movedIds.insert(id);
-        }
+    const auto incident = incidentElements.find(id);
+    if (incident == incidentElements.end()) {
+        return false;
     }
 
-    std::map<CoordinateId, ElementsView> incidentElements;
-    for (const auto& element : elements) {
-        for (const auto id : element.vertices) {
-            if (movedIds.count(id) != 0) {
-                incidentElements[id].push_back(&element);
+    for (const auto* element : incident->second) {
+        std::set<Cell> commonCells;
+        bool firstVertex = true;
+        for (const auto vertexId : element->vertices) {
+            const auto& coordinate = vertexId == id ? destination : coordinates[vertexId];
+            const auto touchingCells = getTouchingCells(coordinate);
+            if (firstVertex) {
+                commonCells = touchingCells;
+                firstVertex = false;
+            }
+            else {
+                for (auto cell = commonCells.begin(); cell != commonCells.end();) {
+                    if (touchingCells.count(*cell) == 0) {
+                        cell = commonCells.erase(cell);
+                    }
+                    else {
+                        ++cell;
+                    }
+                }
+            }
+            if (commonCells.empty()) {
+                return true;
             }
         }
     }
-
-    for (const auto id : movedIds) {
-        const bool crossesGrid = std::any_of(
-            incidentElements[id].begin(), incidentElements[id].end(),
-            [&](const Element* element) {
-                return elementCrossesGrid(*element, coordinates);
-            });
-        if (crossesGrid) {
-            coordinates[id] = originalCoordinates[id];
-        }
-    }
+    return false;
 }
 
 void SmootherTools::collapsePointsOnFeatureEdges(
     Coordinates& coords,
     const ElementsView& patch,
-    const SingularIds& singularIds)
+    const SingularIds& singularIds,
+    const IdSet& movableIds)
+{
+    IncidentElements incidentElements;
+    for (const auto* element : patch) {
+        for (const auto id : element->vertices) {
+            incidentElements[id].push_back(element);
+        }
+    }
+    collapsePointsOnFeatureEdges(coords, patch, singularIds, incidentElements, movableIds);
+}
+
+void SmootherTools::collapsePointsOnFeatureEdges(
+    Coordinates& coords,
+    const ElementsView& patch,
+    const SingularIds& singularIds,
+    const IncidentElements& incidentElements,
+    const IdSet& movableIds)
 {
     CoordGraph Point = CoordGraph(patch);
     CoordGraph edges = Point.getBoundaryGraph().intersect(singularIds.featureIds());
@@ -131,6 +154,9 @@ void SmootherTools::collapsePointsOnFeatureEdges(
 
     std::map<CoordinateId, Coordinate> toMove;
     for (auto const& i : validInterior) {
+        if (!movableIds.empty() && movableIds.count(i) == 0) {
+            continue;
+        }
         if (isRelativeInCellCorner(coords[i])) {
             continue;
         }
@@ -162,7 +188,12 @@ void SmootherTools::collapsePointsOnFeatureEdges(
         toMove[i] = closest;
     }
 
-    updateCoordinates(coords, toMove);
+    std::lock_guard<std::mutex> lock(writingCoordinates_);
+    for (const auto& move : toMove) {
+        if (!moveWouldCrossGrid(move.first, move.second, coords, incidentElements)) {
+            coords[move.first] = move.second;
+        }
+    }
 }
 
 Coordinate SmootherTools::closestByDistance(
@@ -219,7 +250,8 @@ void SmootherTools::collapsePointsOnCellEdges(
     Coordinates& coords,
     const ElementsView& patch,
     const SingularIds& singularIds,
-    double alignmentAngle)
+    double alignmentAngle,
+    const IdSet& movableIds)
 {
     {
         IdSet vertices = CoordGraph(patch).getVertices();
@@ -249,7 +281,10 @@ void SmootherTools::collapsePointsOnCellEdges(
 
         IdSet interiorValid = intersectWithIdSet(interior, protectedIds);
         
-        IdSet movable = classifyIds(interior, [&](auto i) {return !protectedIds.count(i); }).first;
+        IdSet movable = classifyIds(interior, [&](auto i) {
+            return !protectedIds.count(i)
+                && (movableIds.empty() || movableIds.count(i) != 0);
+        }).first;
         IdSet validIds = mergeIds(cG.getExterior(), interiorValid);
         
         std::map<CoordinateId, Coordinate> toMove;
@@ -295,7 +330,8 @@ IdSet SmootherTools::getClosestValidByDistanceInCycle(
 void SmootherTools::collapsePointsOnCellFaces(
     Coordinates& coords,
     const ElementsView& patch,
-    const SingularIds& sIds)
+    const SingularIds& sIds,
+    const IdSet& movableIds)
 {
     std::map<CoordinateId, Coordinate> toMove;
     std::map <CoordGraph::Path, std::pair<IdSet, IdSet>> cyclesToValidOrOnFace;
@@ -314,6 +350,9 @@ void SmootherTools::collapsePointsOnCellFaces(
         const IdSet& valid = kv.second.first;
         const IdSet& onCellFace = kv.second.second;
         for (auto const& id : onCellFace) {
+            if (!movableIds.empty() && movableIds.count(id) == 0) {
+                continue;
+            }
             try {
                 IdSet candidates = getClosestValidByDistanceInCycle(id, cycle, valid);
                 if (!candidates.empty()) {
@@ -539,13 +578,17 @@ Coordinates SmootherTools::collapsePointsOnContour(
 
 void SmootherTools::collapseInteriorPointsToBound(
     Coordinates& coords,
-    const ElementsView& patch)
+    const ElementsView& patch,
+    const IdSet& movableIds)
 {
     IdSet bound, interior;
     std::tie(bound, interior) = CoordGraph(patch).getBoundAndInteriorVertices();
 
     std::map<CoordinateId, Coordinate> toMove;
     for (auto const& vI : interior) {
+        if (!movableIds.empty() && movableIds.count(vI) == 0) {
+            continue;
+        }
         toMove[vI] = closestByDistance(coords, vI, bound);
     }
 

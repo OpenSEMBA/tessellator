@@ -732,7 +732,7 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_withDisconnectedTargets)
 	EXPECT_EQ(m.coordinates[4], m.coordinates[5]);
 }
 
-TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_staysInTouchingCell)
+TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdgesDoesNotCrossTouchingCell)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.25);
@@ -755,34 +755,45 @@ TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_staysInTouchingCell)
 	SmootherTools(m.grid).collapsePointsOnFeatureEdges(
 		m.coordinates, patch, singularIds);
 
-	EXPECT_EQ(m.coordinates[2], m.coordinates[1]);
+	EXPECT_EQ(Coordinate({1.2, 0.1, 0.2}), m.coordinates[1]);
+	EXPECT_FALSE(GridTools(m.grid).elementCrossesGrid(elements[1], m.coordinates));
 }
 
-TEST_F(SmootherToolsTest, revertsCombinedFeatureMovesThatCrossGrid)
+TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdgesRejectsCombinedMovesThatCrossGrid)
 {
 	Mesh m;
 	m.grid = buildUnitLengthGrid(0.25);
 	m.coordinates = {
 		Coordinate({1.0, 0.2, 0.2}),
-		Coordinate({1.0, 0.5, 0.2}),
-		Coordinate({1.0, 0.8, 0.2}),
+		Coordinate({1.0, 1.0, 0.2}),
+		Coordinate({1.0, 1.0, 0.8}),
+		Coordinate({1.0, 1.8, 0.8}),
+		Coordinate({0.8, 1.0, 0.5}),
 	};
 	m.groups = {Group()};
-	m.groups[0].elements = {Element({0, 1, 2})};
+	m.groups[0].elements = {
+		Element({0, 1, 4}),
+		Element({1, 2, 4}),
+		Element({2, 3, 4}),
+	};
 
-	const Coordinates originalCoordinates = m.coordinates;
-	m.coordinates[0][X] = 0.0;
-	m.coordinates[2][X] = 2.0;
-	ASSERT_TRUE(GridTools(m.grid).elementCrossesGrid(
-		m.groups[0].elements[0], m.coordinates));
+	Elements& elements = m.groups[0].elements;
+	const ElementsView patch = {&elements[0], &elements[1], &elements[2]};
+	const SmootherTools::SingularIds singularIds({0, 1, 2, 3}, {}, {});
+	SmootherTools::IncidentElements incidentElements;
+	for (const auto& element : elements) {
+		for (const auto id : element.vertices) {
+			incidentElements[id].push_back(&element);
+		}
+	}
 
-	SmootherTools(m.grid).revertMovesThatCrossGrid(
-		m.groups[0].elements, m.coordinates, originalCoordinates);
+	SmootherTools(m.grid).collapsePointsOnFeatureEdges(
+		m.coordinates, patch, singularIds, incidentElements);
 
+	EXPECT_EQ(m.coordinates[0], m.coordinates[1]);
+	EXPECT_NE(m.coordinates[3], m.coordinates[2]);
 	EXPECT_FALSE(GridTools(m.grid).elementCrossesGrid(
-		m.groups[0].elements[0], m.coordinates));
-	EXPECT_EQ(originalCoordinates[0], m.coordinates[0]);
-	EXPECT_EQ(2.0, m.coordinates[2][X]);
+		elements[1], m.coordinates));
 }
 
 TEST_F(SmootherToolsTest, collapsePointsOnFeatureEdges_threePatches)
