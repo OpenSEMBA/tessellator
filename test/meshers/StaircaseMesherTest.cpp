@@ -375,7 +375,18 @@ TEST_F(StaircaseMesherTest, mesh_tetrahedron_volume_2x2){
     meshlib::meshers::StaircaseMesherOptions opts;
     opts.volumeGroups.insert(0);
     // opts.isVolume = true;
+
+// #if APP_LOADED
+//     vtkIO::exportMeshToVTU("testData/cases/mesh_tetrahedron_volume_2x2_before.vtk", m);
+//     vtkIO::exportGridToVTU("testData/cases/mesh_tetrahedron_volume_2x2_before_grid.vtk", m.grid);
+// #endif
+
     auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
+
+// #if APP_LOADED
+//     vtkIO::exportMeshToVTU("testData/cases/mesh_tetrahedron_volume_2x2_after.vtk", staircasedMesh);
+//     vtkIO::exportGridToVTU("testData/cases/mesh_tetrahedron_volume_2x2_after_grid.vtk", staircasedMesh.grid);
+// #endif
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
     EXPECT_EQ(36, countMeshElementsIf(staircasedMesh, isQuad));

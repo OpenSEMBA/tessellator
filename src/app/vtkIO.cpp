@@ -5,6 +5,7 @@
 #include <vtkTriangle.h>
 #include <vtkTetra.h>
 #include <vtkQuad.h>
+#include <vtkCellArray.h>
 #include <vtkLine.h>
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
@@ -219,6 +220,9 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
             } else if (elem.isNode()) {
                 cellTypes.push_back(VTK_VERTEX);
                 cell = vtkSmartPointer<vtkVertex>::New();
+            } else if (elem.isTetrahedron()) {
+                cellTypes.push_back(VTK_TETRA);
+                cell = vtkSmartPointer<vtkTetra>::New();
             } else {
                 throw std::runtime_error("Unsupported element type");
             }
