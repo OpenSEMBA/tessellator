@@ -99,6 +99,29 @@ TEST(VolumeFillerTest, fillsContinuousRunsWithHexahedra)
     }
 }
 
+TEST(VolumeFillerTest, splitsContinuousRunsIntoUnitCellHexahedra)
+{
+    const Mesh result = VolumeFiller(buildTwoByTwoByTwoShell(), true).getMesh();
+
+    EXPECT_EQ(8, countMeshElementsIf(result, isHexahedron));
+    const GridTools tools(result.grid);
+    for (const auto& element : result.groups[0].elements) {
+        ASSERT_TRUE(element.isHexahedron());
+        Cell lower = tools.getCell(result.coordinates[element.vertices[0]]);
+        Cell upper = lower;
+        for (CoordinateId vertex : element.vertices) {
+            const Cell cell = tools.getCell(result.coordinates[vertex]);
+            for (Axis axis : {X, Y, Z}) {
+                lower[axis] = std::min(lower[axis], cell[axis]);
+                upper[axis] = std::max(upper[axis], cell[axis]);
+            }
+        }
+        for (Axis axis : {X, Y, Z}) {
+            EXPECT_EQ(1, upper[axis] - lower[axis]);
+        }
+    }
+}
+
 TEST(VolumeFillerTest, rejectsAnOpenQuadShell)
 {
     Mesh shell = buildTwoByTwoByTwoShell();

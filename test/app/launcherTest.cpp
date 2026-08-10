@@ -73,6 +73,30 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
     EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, false);
+    EXPECT_FALSE(options.splitHexahedra);
+}
+
+TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"splitHexahedra", true}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+
+    EXPECT_TRUE(staircase.getOptions().splitHexahedra);
 }
 
 TEST_F(LauncherTest, builds_staircased_mesher_without_compression)
@@ -354,4 +378,3 @@ TEST_F(LauncherTest, launches_multiObject_sameFileMultipleGroups)
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
-

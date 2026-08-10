@@ -115,6 +115,7 @@ This optional entry configures the meshing algorithm and its options. If not spe
 
 For **staircase** mesher:
 - `compress`: (boolean, default: false) Enables surface compression to merge adjacent coplanar quads into larger surfaces
+- `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
 
 For **conformal** mesher:
 - `edgePoints`: Controls edge point snapping behavior

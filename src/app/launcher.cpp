@@ -157,6 +157,10 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
         mesherConfig["options"].contains("compress")) {
         res.compress = mesherConfig["options"]["compress"];
     }
+    if (mesherConfig.contains("options") &&
+        mesherConfig["options"].contains("splitHexahedra")) {
+        res.splitHexahedra = mesherConfig["options"]["splitHexahedra"];
+    }
 
     return res;
 }

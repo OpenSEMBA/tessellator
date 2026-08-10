@@ -126,7 +126,9 @@ Element buildHexahedron(
 
 }
 
-VolumeFiller::VolumeFiller(const Mesh& staircasedSurface) :
+VolumeFiller::VolumeFiller(
+    const Mesh& staircasedSurface,
+    bool splitHexahedra) :
     GridTools(staircasedSurface.grid)
 {
     mesh_.grid = staircasedSurface.grid;
@@ -181,16 +183,19 @@ VolumeFiller::VolumeFiller(const Mesh& staircasedSurface) :
                 if (begin == end) {
                     continue;
                 }
-                Cell lower;
-                Cell upper;
-                lower[fillAxis] = begin;
-                upper[fillAxis] = end;
-                lower[axis1] = ray.first[0];
-                upper[axis1] = ray.first[0] + 1;
-                lower[axis2] = ray.first[1];
-                upper[axis2] = ray.first[1] + 1;
-                outputGroup.elements.push_back(
-                    buildHexahedron(mesh_, coordinateIds, lower, upper, *this));
+                const CellDir lastBegin = splitHexahedra ? end - 1 : begin;
+                for (CellDir cellBegin = begin; cellBegin <= lastBegin; ++cellBegin) {
+                    Cell lower;
+                    Cell upper;
+                    lower[fillAxis] = cellBegin;
+                    upper[fillAxis] = splitHexahedra ? cellBegin + 1 : end;
+                    lower[axis1] = ray.first[0];
+                    upper[axis1] = ray.first[0] + 1;
+                    lower[axis2] = ray.first[1];
+                    upper[axis2] = ray.first[1] + 1;
+                    outputGroup.elements.push_back(
+                        buildHexahedron(mesh_, coordinateIds, lower, upper, *this));
+                }
             }
         }
     }

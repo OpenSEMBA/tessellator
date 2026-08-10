@@ -41,7 +41,7 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
         log("Processing volume shell.");
         process(volumeMesh_, false);
         log("Filling volume shell with hexahedra.");
-        volumeMesh_ = VolumeFiller(volumeMesh_).getMesh();
+        volumeMesh_ = VolumeFiller(volumeMesh_, opts_.splitHexahedra).getMesh();
         logNumberOfHexahedra(countMeshElementsIf(volumeMesh_, isHexahedron));
     }
 
