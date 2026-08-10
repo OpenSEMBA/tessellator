@@ -26,7 +26,6 @@
         {
             "name": "gnu",
             "displayName": "GNU g++ compiler",
-            "generator": "Ninja",
             "inherits": "default"
         },
         {
