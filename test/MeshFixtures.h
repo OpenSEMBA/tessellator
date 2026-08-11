@@ -38,6 +38,7 @@ static Mesh buildNonManifoldPatchMesh(double stepSize)
     return m;
 }
 
+
 static Mesh buildTetAndTriMesh(double stepSize) 
 {
     Mesh m;

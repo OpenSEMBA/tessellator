@@ -3,7 +3,10 @@
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkTriangle.h>
+#include <vtkTetra.h>
+#include <vtkHexahedron.h>
 #include <vtkQuad.h>
+#include <vtkCellArray.h>
 #include <vtkLine.h>
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
@@ -76,6 +79,8 @@ Element vtkCellToElement(vtkCell* cell)
     vtkVertex* vertex = nullptr;
     vtkLine* line = nullptr;
     vtkTriangle* triangle = nullptr;
+    vtkTetra* tetra = nullptr;
+    vtkHexahedron* hexahedron = nullptr;
 
     switch (cell->GetCellType()) {
     case VTK_VERTEX:
@@ -101,6 +106,26 @@ Element vtkCellToElement(vtkCell* cell)
             CoordinateId(triangle->GetPointIds()->GetId(2))
         };
         elem.type = meshlib::Element::Type::Surface;
+        break;
+
+    case VTK_TETRA:
+        tetra = vtkTetra::SafeDownCast(cell);
+        elem.vertices = {
+            CoordinateId(tetra->GetPointIds()->GetId(0)),
+            CoordinateId(tetra->GetPointIds()->GetId(1)),
+            CoordinateId(tetra->GetPointIds()->GetId(2)),
+            CoordinateId(tetra->GetPointIds()->GetId(3))
+        };
+        elem.type = meshlib::Element::Type::Volume;
+        break;
+
+    case VTK_HEXAHEDRON:
+        hexahedron = vtkHexahedron::SafeDownCast(cell);
+        elem.vertices.reserve(8);
+        for (vtkIdType id = 0; id < 8; ++id) {
+            elem.vertices.push_back(CoordinateId(hexahedron->GetPointIds()->GetId(id)));
+        }
+        elem.type = meshlib::Element::Type::Volume;
         break;
     }
     
@@ -131,6 +156,7 @@ Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
         }
     } else {
         mesh.groups.resize(1);
+        auto k = vtu->GetNumberOfCells();
         mesh.groups[0].elements.reserve(vtu->GetNumberOfCells());
         for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             mesh.groups[0].elements.push_back(
@@ -205,6 +231,12 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
             } else if (elem.isNode()) {
                 cellTypes.push_back(VTK_VERTEX);
                 cell = vtkSmartPointer<vtkVertex>::New();
+            } else if (elem.isTetrahedron()) {
+                cellTypes.push_back(VTK_TETRA);
+                cell = vtkSmartPointer<vtkTetra>::New();
+            } else if (elem.isHexahedron()) {
+                cellTypes.push_back(VTK_HEXAHEDRON);
+                cell = vtkSmartPointer<vtkHexahedron>::New();
             } else {
                 throw std::runtime_error("Unsupported element type");
             }

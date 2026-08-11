@@ -8,12 +8,8 @@
   "C_Cpp.intelliSenseEngine": "disabled",
   "clangd.arguments": ["-log=verbose",
                           "-pretty",
-                          "--background-index",
+                          "--background-index", 
                           "--query-driver=/usr/bin/g++"
   ],
-  "clangd.fallbackFlags": ["-std=c++17"],
-	"lldb.showDisassembly": "never",
-	"lldb.launch.preRunCommands": [
-		"settings set target.import-std-module true"
-	]
+  "clangd.fallbackFlags": ["-std=c++17"]
 }

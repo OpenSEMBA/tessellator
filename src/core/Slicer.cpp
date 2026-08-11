@@ -38,7 +38,6 @@ void orient(const Coordinates& coords,
     }
 }
 
-
 Slicer::Slicer(const Mesh& input, const std::vector<Element::Type>& dimensionPolicy, const SlicerOptions& opts) :
     GridTools(input.grid),
     opts_(opts)

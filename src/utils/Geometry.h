@@ -28,6 +28,7 @@ public:
     static bool areAdjacentLines(const Element&, const Element&);
     
 
+    static QuaV asQuaV(const Element&, const Coordinates&);
     static TriV asTriV(const Element&, const Coordinates&);
     static LinV asLinV(const Element&, const Coordinates&);
     
@@ -38,6 +39,7 @@ public:
     static VecD getCentroid(const Element&, const std::vector<Coordinate>&);
     static VecD getCentroid(const TriV&);
     static double area(const TriV& tri);
+    static double area(const QuaV& qua);
     static bool isDegenerate(const TriV& tri, const double& areaTolerance = NORM_TOLERANCE);
     static bool areCollinear(const Coordinates&);
     template <std::size_t N>

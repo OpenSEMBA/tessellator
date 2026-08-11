@@ -64,6 +64,10 @@ Uses **CMake 3.20+** with presets and vcpkg for dependency management.
 cmake --preset gnu -S . -B build
 cmake --build build -j
 
+# Optional CGAL algorithms
+cmake --preset gnu-cgal
+cmake --build --preset gnu-cgal -j
+
 # Windows (MSBuild)
 cmake --preset msbuild -S . -B build
 cmake --build build --config Release -j
@@ -72,7 +76,7 @@ cmake --build build --config Release -j
 ### CMake Options
 
 - `TESSELLATOR_ENABLE_TESTS` (ON by default) – Build test suite
-- `TESSELLATOR_ENABLE_CGAL` (ON by default) – Enable CGAL-based geometry operations
+- `TESSELLATOR_ENABLE_CGAL` (OFF by default) – Enable CGAL-based geometry operations
 - `TESSELLATOR_EXECUTION_POLICIES` (OFF by default) – Parallel execution policies
 
 ### Dependencies
@@ -94,7 +98,7 @@ To set up locally, create a `CMakeUserPreset.json` file:
         "VCPKG_ROOT": "~/workspace/vcpkg/"
       },
       "cacheVariables": {
-        "TESSELLATOR_ENABLE_CGAL": true
+        "TESSELLATOR_ENABLE_CGAL": false
       },
       "inherits": "gnu"
     }

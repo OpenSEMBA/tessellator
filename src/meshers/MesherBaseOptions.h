@@ -7,7 +7,6 @@ namespace meshlib::meshers {
 
 class MesherBaseOptions {
 public:
-    bool isVolume = false;
     std::set<GroupId> volumeGroups{};
 };
 

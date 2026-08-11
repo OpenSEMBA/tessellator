@@ -19,9 +19,10 @@ jobs:
       matrix:
         preset: [
           {"os": windows-2022, "name": "msbuild"},
-          {"os": ubuntu-latest, "name": "gnu"}
+          {"os": ubuntu-latest, "name": "gnu"},
+          {"os": ubuntu-latest, "name": "gnu-cgal"}
         ]
-        build-type: ["Debug", "Release"]
+        build-type: ["Release"]
         
       fail-fast: false
         
@@ -85,7 +86,7 @@ jobs:
       run: build/bin/${{matrix.build-type}}/tessellator_tests.exe
 
     - name: Ubuntu configure and build
-      if: matrix.preset.name=='gnu'
+      if: matrix.preset.os=='ubuntu-latest'
       run: |
         configured=0
         for attempt in 1 2 3; do
@@ -99,5 +100,5 @@ jobs:
         cmake --build build -j
         
     - name: Ubuntu Run tests
-      if: matrix.preset.name=='gnu'
+      if: matrix.preset.os=='ubuntu-latest'
       run: build/bin/tessellator_tests

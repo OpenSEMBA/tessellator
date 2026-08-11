@@ -17,10 +17,12 @@ private:
 	int decimalPlacesInCollapser_;
 
 	Mesh surfaceMesh_;
+	Mesh volumeMesh_;
 	StaircaseMesherOptions opts_;
 
 	virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
 	void process(Mesh&) const;
+	void process(Mesh&, bool compress) const;
 
 };
 

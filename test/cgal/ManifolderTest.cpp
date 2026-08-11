@@ -87,6 +87,7 @@ TEST_F(ManifolderTest, volume_and_surface)
 	ASSERT_EQ(1, r.countElems());
 }
 
+
 TEST_F(ManifolderTest, closed_surface)
 {
 	Mesh m = buildCubeSurfaceMesh(1.0);

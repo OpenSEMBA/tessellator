@@ -150,17 +150,22 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
     }
 
     meshlib::meshers::StaircaseMesherOptions res;
-    
-    res.isVolume = isVolume;
+    if (isVolume){
+        res.volumeGroups.insert(0);
+    }
     if (mesherConfig.contains("options") && 
         mesherConfig["options"].contains("compress")) {
         res.compress = mesherConfig["options"]["compress"];
+    }
+    if (mesherConfig.contains("options") &&
+        mesherConfig["options"].contains("splitHexahedra")) {
+        res.splitHexahedra = mesherConfig["options"]["splitHexahedra"];
     }
 
     return res;
 }
 
-meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohmann::json& fileData, const std::optional<nlohmann::json>& override)
+meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohmann::json& fileData, bool isVolume, const std::optional<nlohmann::json>& override)
 {    
     nlohmann::json mesherConfig;
     if (override.has_value()) {
@@ -170,6 +175,9 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
     }
     
     meshlib::meshers::ConformalMesherOptions res;
+    if (isVolume){
+        res.volumeGroups.insert(0);
+    }
     if (mesherConfig.contains("options")) {
         res.snapperOptions.edgePoints = mesherConfig["options"]["edgePoints"];
         res.snapperOptions.forbiddenLength = mesherConfig["options"]["forbiddenLength"];
@@ -204,7 +212,7 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
             readStaircaseMesherOptions(fileData, objDef.isVolume, objDef.mesherOverride)
         });
     } else if (mesherType == meshlib::app::conformal_mesher) {
-        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fileData, objDef.mesherOverride)});
+        return std::make_unique<meshlib::meshers::ConformalMesher>(meshlib::meshers::ConformalMesher{in, readConformalMesherOptions(fileData, objDef.isVolume, objDef.mesherOverride)});
     } else {
         throw std::runtime_error("Unsupported mesher type");
     }

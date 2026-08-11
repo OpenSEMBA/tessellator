@@ -9,7 +9,7 @@
 
 using namespace meshlib;
 
-class DMesheRTypesMeshTest : public ::testing::Test {
+class MeshTest : public ::testing::Test {
 protected:
 	static Mesh buildMesh() {
         Grid grid;
