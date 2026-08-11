@@ -504,7 +504,6 @@ TEST_F(StaircaseMesherTest, mesh_tetrahedron_volume_2x2){
 	Mesh m = buildCubeVolumeMesh(0.5);
     meshlib::meshers::StaircaseMesherOptions opts;
     opts.volumeGroups.insert(0);
-    // opts.isVolume = true;
 
 // #if APP_LOADED
 //     vtkIO::exportMeshToVTU("testData/cases/mesh_tetrahedron_volume_2x2_before.vtk", m);
