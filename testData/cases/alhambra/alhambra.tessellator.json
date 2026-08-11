@@ -6,5 +6,11 @@
             [ 60.0,  60.0,  10.0]
         ]
     },
-    "object": {"filename": "alhambra.stl"}
+    "object": {"filename": "alhambra.stl"},
+    "mesher": {
+      "type" : "staircase",
+      "options" : {
+        "compress": true
+      }
+    }
 }

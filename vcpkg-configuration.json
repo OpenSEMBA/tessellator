@@ -10,5 +10,8 @@
       "location": "https://aka.ms/vcpkg-ce-default",
       "name": "microsoft"
     }
+  ],
+  "overlay-ports" : [
+    "./overlayPorts"
   ]
 }

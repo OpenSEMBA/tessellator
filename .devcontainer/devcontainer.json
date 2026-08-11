@@ -1,0 +1,28 @@
+{
+  "name": "Tessellator",
+  "dockerFile": "Dockerfile.base",
+  "context": "..",
+  "remoteUser": "ubuntu",
+  "workspaceFolder": "/home/ubuntu/dev",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/home/ubuntu/dev,type=bind"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "vadimcn.vscode-lldb",
+        "matepek.vscode-catch2-test-adapter",
+        "llvm-vs-code-extensions.vscode-clangd"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "cmake.configureOnEdit": false,
+        "cmake.autoSelectActiveFolder": false,
+        "cmake.generator": "Ninja"
+      }
+    }
+  },
+  "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"]
+}

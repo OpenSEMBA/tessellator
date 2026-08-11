@@ -18,6 +18,7 @@ Tessellator is a mesher focused on generate meshes and data structures which are
 ## Compilation
 
 When using presets, make sure to define the environment variable `VCPKG_ROOT` to your `vcpkg` installation.
+The standard presets build without CGAL; use the `gnu-cgal` preset for the optional CGAL algorithms.
 This can be done using a `CMakeUserPreset.json` file, for example:
 
 ```json
@@ -33,7 +34,7 @@ This can be done using a `CMakeUserPreset.json` file, for example:
         "VCPKG_ROOT": "~/workspace/vcpkg/"
       },
       "cacheVariables": {
-        "TESSELLATOR_ENABLE_CGAL": true
+        "TESSELLATOR_ENABLE_CGAL": false
       },
       "inherits": "gnu"
     }
@@ -50,13 +51,13 @@ The main binary is `tessellator`, which uses a tessellator json format, which wi
 ```
 
 ## JSON Format
-The two main entries are as follows:
+The main entries are as follows:
 
 ### `<grid>`
 This object must always be present and contains the structure of the grid, which will be used to slice and adjust the mesh provided. It must contain one of these two sets of entries:
 
 - `<numberOfCells>`: is an array of three positive integers which indicate the number of cells in each Cartesian direction. In case of having this entry, it also must contain a `<boundingBox>`:
-  - `<boundingBox>` is represented by an array which contairs two triplets of integers, representing the minimum and maximum values of the gread in each cartesian direction.
+  - `<boundingBox>` is represented by an array which contains two triplets of integers, representing the minimum and maximum values of the grid in each cartesian direction.
 
 ```json
   "grid": {
@@ -80,15 +81,99 @@ This object must always be present and contains the structure of the grid, which
   }
 ```
 
-### `<object>`
-This contains the information about the mesh file. It must contain the following entry:
+### `<object>` or `<objects>`
+This contains the information about the mesh file(s). You can specify a single object or multiple objects:
 
-- `filename`: with an string containing the name of the mesh file. Its location is relative to that of the json file.
-
-  Example:
+**Single object:**
+- `filename`: A string containing the name of the mesh file. Its location is relative to that of the json file.
 
 ```json
   "object": {"filename": "thinCylinder.stl"}
+```
+
+**Multiple objects:**
+- `objects`: An array of object definitions. Each object can have:
+  - `filename`: (required) The mesh file name, relative to the JSON file location
+  - `group`: (optional) Group name for the object (defaults to filename without extension)
+  - `mesher`: (optional) Override the global mesher settings for this specific object
+
+```json
+  "objects": [
+    {"filename": "object1.stl", "group": "group1"},
+    {"filename": "object2.stl", "group": "group2", "mesher": {"type": "conformal"}}
+  ]
+```
+
+### `<mesher>`
+This optional entry configures the meshing algorithm and its options. If not specified, the staircase mesher is used with default options.
+
+**Mesher types:**
+- `staircase` (default): Generates staircased meshes from geometric inputs
+- `conformal`: Creates conformal meshes with fixed-distance grid plane intersections
+
+**Mesher options:**
+
+For **staircase** mesher:
+- `compress`: (boolean, default: false) Enables surface compression to merge adjacent coplanar quads into larger surfaces
+- `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
+
+For **conformal** mesher:
+- `edgePoints`: Controls edge point snapping behavior
+- `forbiddenLength`: Minimum length threshold for snapping
+
+**Global options:**
+- `exportGrid`: (boolean, default: true) Controls whether to export the grid file
+
+Example with staircase mesher and compression enabled:
+```json
+  "mesher": {
+    "type": "staircase",
+    "options": {
+      "compress": true,
+      "exportGrid": true
+    }
+  }
+```
+
+Example with conformal mesher:
+```json
+  "mesher": {
+    "type": "conformal",
+    "options": {
+      "edgePoints": true,
+      "forbiddenLength": 0.001
+    }
+  }
+```
+
+### Output Files
+The tessellator generates output files with the following naming convention:
+- `{group_name}.tessellator.str.vtk` - Staircase meshed object
+- `{group_name}.tessellator.cmsh.vtk` - Conformal meshed object
+- `{basename}.tessellator.grid.vtk` - Grid file (if `exportGrid` is true)
+
+### Complete Example
+```json
+{
+  "grid": {
+    "numberOfCells": [50, 50, 50],
+    "boundingBox": [
+      [-100.0, -100.0, -100.0],
+      [ 100.0,  100.0,  100.0]
+    ]
+  },
+  "objects": [
+    {"filename": "sphere.stl"},
+    {"filename": "cylinder.stl", "mesher": {"type": "conformal"}}
+  ],
+  "mesher": {
+    "type": "staircase",
+    "options": {
+      "compress": true,
+      "exportGrid": true
+    }
+  }
+}
 ```
 
 ## Contributing

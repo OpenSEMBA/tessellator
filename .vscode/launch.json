@@ -1,0 +1,105 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Tessellator (Docker)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator",
+            "args": ["-i", "${workspaceFolder}/testData/cases/cone/cone.tessellator.json"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "env": {}
+        },
+        {
+            "name": "Debug Tests (Docker)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator_tests",
+            "args": ["--gtest_filter=*"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "sourceMap": {}
+        },
+        {
+            "name": "Debug Tests (Docker) - Specific Suite",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator_tests",
+            "args": ["--gtest_filter=${input:testSuite}"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "sourceMap": {},
+        },
+        {
+            "name": "tessellator (gdb)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator",
+            "args": ["-i", "testData/cases/alhambra/alhambra.tessellator.json"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "visualizerFile": [
+                "${workspaceFolder}/resources/Eigen.natvis",
+                "${workspaceFolder}/resources/nlohmann_json.natvis"
+            ],
+            "additionalSOLibSearchPath": "",
+            "showDisplayString": true,
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "tessellator_tests (gdb)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-dbg/bin/tessellator_tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "visualizerFile": [
+                "${workspaceFolder}/resources/Eigen.natvis",
+                "${workspaceFolder}/resources/nlohmann_json.natvis"
+            ],
+            "additionalSOLibSearchPath": "",
+            "showDisplayString": true,
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testSuite",
+            "type": "promptString",
+            "description": "Enter test filter (e.g., StaircaseMesherTest.* or StaircaseMesherTest.TestName)",
+            "default": "*"
+        }
+    ]
+}

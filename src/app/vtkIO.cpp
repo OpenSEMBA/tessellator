@@ -1,13 +1,16 @@
 #include "vtkIO.h"
 
-#include <vtksys/SystemTools.hxx>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkTriangle.h>
+#include <vtkTetra.h>
+#include <vtkHexahedron.h>
 #include <vtkQuad.h>
+#include <vtkCellArray.h>
 #include <vtkLine.h>
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
+#include <vtkStringArray.h>
 
 #include <vtkAppendFilter.h>
 #include <vtkSTLReader.h>
@@ -43,7 +46,7 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
     } 
 
     vtkSmartPointer<vtkUnstructuredGrid> vtu;
-    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(fn);
+    std::string extension = fn.substr(fn.find_last_of(".")).empty() ? "" : fn.substr(fn.find_last_of("."));
 
     std::transform(extension.begin(), extension.end(), extension.begin(),
                     ::tolower);
@@ -76,6 +79,8 @@ Element vtkCellToElement(vtkCell* cell)
     vtkVertex* vertex = nullptr;
     vtkLine* line = nullptr;
     vtkTriangle* triangle = nullptr;
+    vtkTetra* tetra = nullptr;
+    vtkHexahedron* hexahedron = nullptr;
 
     switch (cell->GetCellType()) {
     case VTK_VERTEX:
@@ -101,6 +106,26 @@ Element vtkCellToElement(vtkCell* cell)
             CoordinateId(triangle->GetPointIds()->GetId(2))
         };
         elem.type = meshlib::Element::Type::Surface;
+        break;
+
+    case VTK_TETRA:
+        tetra = vtkTetra::SafeDownCast(cell);
+        elem.vertices = {
+            CoordinateId(tetra->GetPointIds()->GetId(0)),
+            CoordinateId(tetra->GetPointIds()->GetId(1)),
+            CoordinateId(tetra->GetPointIds()->GetId(2)),
+            CoordinateId(tetra->GetPointIds()->GetId(3))
+        };
+        elem.type = meshlib::Element::Type::Volume;
+        break;
+
+    case VTK_HEXAHEDRON:
+        hexahedron = vtkHexahedron::SafeDownCast(cell);
+        elem.vertices.reserve(8);
+        for (vtkIdType id = 0; id < 8; ++id) {
+            elem.vertices.push_back(CoordinateId(hexahedron->GetPointIds()->GetId(id)));
+        }
+        elem.type = meshlib::Element::Type::Volume;
         break;
     }
     
@@ -131,6 +156,7 @@ Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
         }
     } else {
         mesh.groups.resize(1);
+        auto k = vtu->GetNumberOfCells();
         mesh.groups[0].elements.reserve(vtu->GetNumberOfCells());
         for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             mesh.groups[0].elements.push_back(
@@ -163,12 +189,28 @@ vtkSmartPointer<vtkIntArray> toVTKGroupsArray(const Mesh& mesh)
     return groupsDataArray;
 }
 
+vtkSmartPointer<vtkStringArray> toVTKGroupNamesArray(const Mesh& mesh)
+{
+    vtkNew<vtkStringArray> groupNamesArray;
+    groupNamesArray->SetName("groupNames");
+    groupNamesArray->SetNumberOfComponents(1);
+    
+    for (const auto& group : mesh.groups) {
+        for (std::size_t e = 0; e < group.elements.size(); e++) {
+            groupNamesArray->InsertNextValue(group.name.c_str());
+        }
+    }
+    
+    return groupNamesArray;
+}
+
 vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
 {
     vtkNew<vtkUnstructuredGrid> vtu;
 
     vtu->SetPoints(toVTKPoints(mesh.coordinates));
     vtu->GetCellData()->AddArray(toVTKGroupsArray(mesh));
+    vtu->GetCellData()->AddArray(toVTKGroupNamesArray(mesh));
 
     std::vector<int> cellTypes;
     cellTypes.reserve(mesh.countElems());
@@ -189,6 +231,12 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
             } else if (elem.isNode()) {
                 cellTypes.push_back(VTK_VERTEX);
                 cell = vtkSmartPointer<vtkVertex>::New();
+            } else if (elem.isTetrahedron()) {
+                cellTypes.push_back(VTK_TETRA);
+                cell = vtkSmartPointer<vtkTetra>::New();
+            } else if (elem.isHexahedron()) {
+                cellTypes.push_back(VTK_HEXAHEDRON);
+                cell = vtkSmartPointer<vtkHexahedron>::New();
             } else {
                 throw std::runtime_error("Unsupported element type");
             }

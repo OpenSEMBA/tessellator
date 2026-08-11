@@ -1,38 +1,106 @@
 {
-  "version": 4,
-  "configurePresets": [
-    {
-      "name": "default",
-      "hidden": true,
-      "binaryDir": "build/",
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": {
-          "type": "FILEPATH",
-          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    "version": 4,
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "binaryDir": "build/",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": {
+                    "type": "FILEPATH",
+                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                },
+                "TESSELLATOR_ENABLE_CGAL": false
+            }
+        },
+        {
+            "name": "msbuild",
+            "displayName": "MSBuild Configure Settings",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "strategy": "set",
+                "value": "x64"
+            },
+            "inherits": "default"
+        },
+        {
+            "name": "gnu",
+            "displayName": "GNU g++ compiler",
+            "inherits": "default"
+        },
+        {
+            "name": "gnu-cgal",
+            "displayName": "GNU g++ compiler with CGAL",
+            "inherits": "gnu",
+            "binaryDir": "build-cgal/",
+            "cacheVariables": {
+                "TESSELLATOR_ENABLE_CGAL": true
+            }
+        },
+        {
+            "name": "gnu-dbg",
+            "displayName": "GNU g++ compiler - Debug",
+            "inherits": "gnu",
+            "binaryDir": "build-dbg/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "docker",
+            "displayName": "Docker (system libraries)",
+            "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds.",
+            "generator": "Ninja",
+            "binaryDir": "build/",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_PREFIX_PATH": "/usr/local",
+                "CMAKE_FIND_ROOT_PATH": "/usr/local",
+                "TESSELLATOR_ENABLE_TESTS": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF",
+                "DOCKER_EXPORT_COMPILE_COMMANDS": "ON" 
+            },
+            "environment": {
+                "EIGEN3_INCLUDE_DIR": "/usr/include/eigen3"
+            }
+        },
+        {
+            "name": "docker-dbg",
+            "inherits": "docker",
+            "displayName": "Docker-dbg (system libraries)",
+            "description": "Uses system-installed libraries, skips vcpkg. Optimized for containerized builds. Debug mode",
+            "binaryDir": "build-dbg/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_PREFIX_PATH": "/usr/local",
+                "CMAKE_FIND_ROOT_PATH": "/usr/local",
+                "TESSELLATOR_ENABLE_TESTS": "ON",
+                "TESSELLATOR_ENABLE_CGAL": "OFF",
+                "DOCKER_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_FLAGS_INIT": "-g3"
+            },
+            "environment": {
+                "EIGEN3_INCLUDE_DIR": "/usr/include/eigen3"
+            }
         }
-      }
-    },
-    {
-      "name": "msbuild",
-      "displayName": "MSBuild Configure Settings",
-      "generator": "Visual Studio 17 2022",
-      "architecture": {
-        "strategy": "set",
-        "value": "x64"
-      },
-      "inherits": "default"
-    },
-    {
-      "name": "gnu",
-      "displayName": "GNU g++ compiler",
-      "generator": "Ninja",
-      "inherits": "default"
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default"
-    }
-  ]
+    ],
+    "buildPresets": [
+        {
+            "name": "default",
+            "configurePreset": "default"
+        },
+        {
+            "name": "docker",
+            "configurePreset": "docker"
+        },
+        {
+            "name": "docker-dbg",
+            "configurePreset": "docker-dbg"
+        },
+        {
+            "name": "gnu-cgal",
+            "configurePreset": "gnu-cgal"
+        }
+    ]
 }

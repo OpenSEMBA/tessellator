@@ -13,6 +13,8 @@ namespace core {
 class SmootherTools : public utils::GridTools {
 public:
 
+    using IncidentElements = std::map<CoordinateId, ElementsView>;
+
     class SingularIds {
     public:
         SingularIds(const IdSet& featureIds, const IdSet& contourIds, const IdSet& cornerIds) :
@@ -39,7 +41,15 @@ public:
     void collapsePointsOnFeatureEdges(
         Coordinates& res,
         const ElementsView& patch,
-        const SingularIds& singularIds);
+        const SingularIds& singularIds,
+        const IdSet& movableIds = {});
+
+    void collapsePointsOnFeatureEdges(
+        Coordinates& res,
+        const ElementsView& patch,
+        const SingularIds& singularIds,
+        const IncidentElements& incidentElements,
+        const IdSet& movableIds = {});
 
     Coordinates collapsePointsOnContour(
         const Elements& elems,
@@ -50,12 +60,14 @@ public:
         Coordinates& res,
         const ElementsView& patch,
         const SingularIds& singularIds ,
-        double alignmentAngle);
+        double alignmentAngle,
+        const IdSet& movableIds = {});
 
     void collapsePointsOnCellFaces(
         Coordinates& res,
         const ElementsView& patch,
-        const SingularIds&);
+        const SingularIds&,
+        const IdSet& movableIds = {});
 
     void remeshBoundary(
         Elements& es,
@@ -70,7 +82,8 @@ public:
 
     void collapseInteriorPointsToBound(
         Coordinates& coords,
-        const ElementsView& patch);
+        const ElementsView& patch,
+        const IdSet& movableIds = {});
 
     void remeshElementsToOneInteriorPoint(
         Elements& es,
@@ -83,10 +96,18 @@ public:
         const ElementsView& patch);
 
 private:
+    friend class SmootherToolsTestAccess;
+
     std::mutex writingCoordinates_;
     std::mutex writingElements_;
 
     void updateCoordinates(Coordinates& res, std::map<CoordinateId, Coordinate> toMove);
+
+    bool moveWouldCrossGrid(
+        const CoordinateId& id,
+        const Coordinate& destination,
+        const Coordinates& coordinates,
+        const IncidentElements& incidentElements) const;
 
     static CoordinateId getClosestEndOfPaths(
         const std::vector<utils::CoordGraph::Path>& paths);

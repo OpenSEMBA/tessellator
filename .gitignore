@@ -8,11 +8,15 @@ build/
 .settings
 .project
 .cproject
+.cache
 
 src/*.json
 
 .vs/
-.vscode/
+.vscode/settings.json
+.vscode/settings.dev.json
+.vscode/launch.json
+.vscode/tasks.json
 
 testData/*_out.stl
 *_out.stl
@@ -26,3 +30,4 @@ sliced.vtk
 contour.vtk
 
 testData/
+build

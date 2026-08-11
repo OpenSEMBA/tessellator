@@ -85,8 +85,10 @@ public:
 	FillingState getFillingState(const ArrayIndex&) const;
 
 	void add(const Polylines2&, const Priority&);
+	void remove(const Polylines2&, const Priority&);
 	void addAsPolygon(const Polylines2&, const Priority&);
 	void add(const HPolygonSet&, const Priority&);
+	void remove(const HPolygonSet&, const Priority&);
 	void mergeLines(const Slice& lhs);
 	void buildSearchMap();
 	void buildTriangulations();

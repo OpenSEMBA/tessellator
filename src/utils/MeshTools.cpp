@@ -273,12 +273,22 @@ void checkNoNullAreasExist(const Mesh& m)
                     msg << info(e, m) << std::endl;
                 }
             }
-            else if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
-                nullAreas = true;
-                msg << std::endl;
-                msg << "Group: " << &g - &m.groups.front()
-                    << ", Element: " << &e - &g.elements.front() << std::endl;
-                msg << info(e, m) << std::endl;
+            else if (e.isTriangle()){
+                if (Geometry::area(Geometry::asTriV(e, m.coordinates)) == 0.0) {
+                    nullAreas = true;
+                    msg << std::endl;
+                    msg << "Group: " << &g - &m.groups.front()
+                        << ", Element: " << &e - &g.elements.front() << std::endl;
+                    msg << info(e, m) << std::endl;
+                }
+            } else if (e.isQuad()){
+                if (Geometry::area(Geometry::asQuaV(e, m.coordinates)) == 0.0) {
+                    nullAreas = true;
+                    msg << std::endl;
+                    msg << "Group: " << &g - &m.groups.front()
+                        << ", Element: " << &e - &g.elements.front() << std::endl;
+                    msg << info(e, m) << std::endl;
+                }
             }
         }
     }
@@ -296,6 +306,17 @@ void convertToAbsoluteCoordinates(Mesh& m)
         m.coordinates.begin(), m.coordinates.end(),
         m.coordinates.begin(),
         [&](const auto& v) { return gT.getPos(v); }
+    );
+}
+
+void convertToRelativeCoordinates(Mesh& m)
+{
+    GridTools gT{ m.grid };
+
+    std::transform(
+        m.coordinates.begin(), m.coordinates.end(),
+        m.coordinates.begin(),
+        [&](const auto& v) { return gT.getRelative(v); }
     );
 }
 
@@ -319,6 +340,7 @@ Mesh buildMeshFilteringElements(
             inElems.begin(), inElems.end(), 
             std::back_inserter(r.groups[gId].elements), 
             filter);
+        r.groups[gId].name = in.groups[gId].name;
     }
     return r;
 }
@@ -378,7 +400,7 @@ void mergeMesh(Mesh& lMesh, const Mesh& iMesh)
     assert(lMesh.groups.size() == iMesh.groups.size());
 
     auto coordCount{ lMesh.coordinates.size() };
-    
+    if (iMesh.countElems() == 0) return;
     lMesh.coordinates.insert(lMesh.coordinates.end(),
         iMesh.coordinates.begin(), iMesh.coordinates.end());
 
@@ -416,6 +438,56 @@ std::string info(const Element& e, const Mesh& m)
 bool isAClosedTopology(const Elements& es)
 {
 	return CoordGraph(es).getBoundaryGraph().getVertices().size() == 0;
+}
+
+Mesh extractGroupsByName(const Mesh& mesh, const std::vector<std::string>& groupNames)
+{
+    Mesh result;
+    result.grid = mesh.grid;
+    
+    std::map<std::string, CoordinateId> coordRemap;
+    std::map<std::string, std::vector<CoordinateId>> groupCoordIds;
+    
+    for (const auto& groupName : groupNames) {
+        auto it = std::find_if(mesh.groups.begin(), mesh.groups.end(),
+            [&groupName](const Group& g) { return g.name == groupName; });
+        
+        if (it != mesh.groups.end()) {
+            result.groups.push_back(*it);
+            
+            for (const auto& elem : it->elements) {
+                for (const auto& vId : elem.vertices) {
+                    std::string coordKey = groupName + "_" + std::to_string(vId);
+                    if (coordRemap.find(coordKey) == coordRemap.end()) {
+                        CoordinateId newVId = result.coordinates.size();
+                        result.coordinates.push_back(mesh.coordinates[vId]);
+                        coordRemap[coordKey] = newVId;
+                        groupCoordIds[groupName].push_back(vId);
+                    }
+                }
+            }
+        } else {
+            result.groups.push_back(Group{groupName, {}});
+        }
+    }
+    
+    for (auto& group : result.groups) {
+        std::string groupName = group.name;
+        std::map<CoordinateId, CoordinateId> elemRemap;
+        
+        for (const auto& oldVId : groupCoordIds[groupName]) {
+            std::string coordKey = groupName + "_" + std::to_string(oldVId);
+            elemRemap[oldVId] = coordRemap[coordKey];
+        }
+        
+        for (auto& elem : group.elements) {
+            for (auto& vId : elem.vertices) {
+                vId = elemRemap[vId];
+            }
+        }
+    }
+    
+    return result;
 }
 
 }

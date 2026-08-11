@@ -253,6 +253,29 @@ void sliceAlignedByGrid(
 	);
 }
 
+void sliceAlignedByGridAndRemove(
+	Filler::GridSlices& slices,
+	const Polyhedron& m,
+	const Grid& g,
+	const Priority& priority)
+{
+	
+	auto polygons{ buildGridPlanesPolygons(makeFacesCCWOriented(m), g)};
+	const std::array<Axis, 3> axis{ X, Y, Z };
+
+	std::for_each(
+#ifdef TESSELLATOR_EXECUTION_POLICIES
+		std::execution::par,
+#endif
+		axis.begin(), axis.end(),
+		[&](const auto& x) {
+			for (const auto& [i, polygon] : polygons[x]) {
+				slices[x][i].remove(polygon, priority);
+			}
+		}
+	);
+}
+
 Priority Filler::getGroupPriority(const GroupId& gId) const
 {
 	if (gId < groupPriorities_.size()) {
@@ -508,7 +531,8 @@ FillerPolyhedrons buildFillerPolyhedrons(
 Filler::Filler(
 	const Mesh& volumeMesh,
 	const Mesh& surfaceMesh,
-	const std::vector<Priority>& groupPriorities)
+	const std::vector<Priority>& groupPriorities,
+	const FillerMode& fillerMode)
 {
 	utils::meshTools::checkNoNullAreasExist(volumeMesh);
 	utils::meshTools::checkNoNullAreasExist(surfaceMesh);
@@ -547,7 +571,11 @@ Filler::Filler(
 		log("Slicing surfaces", 2);
 		sliceNonAlignedByGrid(slices_, fP.surfaces, grid_, pr, SlicingMode::Surface);
 		log("Slicing aligned", 2);
-		sliceAlignedByGrid(slices_, fP.aligned, grid_, pr);
+		if (fillerMode == FillerMode::insideAndOutside) {
+			sliceAlignedByGrid(slices_, fP.aligned, grid_, pr);
+		} else if (fillerMode == FillerMode::onlyInside){
+			sliceAlignedByGridAndRemove(slices_, fP.aligned, grid_, pr);
+		}
 		log("Building segments arrays", 2);
 		buildSegmentsArray(segmentsArray_, fP.aligned, grid_, pr);
 		buildSegmentsArray(segmentsArray_, fP.volumes, grid_, pr);

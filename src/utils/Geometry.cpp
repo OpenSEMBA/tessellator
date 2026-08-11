@@ -70,6 +70,17 @@ std::vector<ElementsView> Geometry::buildDisjointSmoothSets(
 }
 
 
+QuaV Geometry::asQuaV(const Element& el, const std::vector<Coordinate>& co) {
+    if (el.vertices.size() != 4) {
+        throw std::logic_error("Invalid conversion from element to QuaV");
+    }
+    QuaV res;
+    for (std::size_t i = 0; i < el.vertices.size(); i++) {
+        res[i] = co[el.vertices[i]];
+    }
+    return res;
+}
+
 TriV Geometry::asTriV(const Element& el, const std::vector<Coordinate>& co) {
     if (el.vertices.size() != 3) {
         throw std::logic_error("Invalid conversion from element to TriV");
@@ -227,6 +238,18 @@ bool Geometry::isDegenerate(const TriV& tri, const double& areaTolerance)
 
 double Geometry::area(const TriV& tri) {
     return ((tri[0] - tri[1]) ^ (tri[1] - tri[2])).norm() / 2.0;
+}
+
+double Geometry::area(const QuaV& qua) {
+    const Coordinates cs{ qua.begin(), qua.end() };
+
+    VecD crossSum;
+    for (std::size_t i = 0; i < qua.size(); ++i) {
+        const auto& p = qua[i];
+        const auto& q = qua[(i + 1) % qua.size()];
+        crossSum += (p ^ q);
+    }
+    return 0.5*crossSum.norm();
 }
 
 

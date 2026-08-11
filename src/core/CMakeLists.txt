@@ -2,11 +2,15 @@ message(STATUS "Creating build system for tessellator-core")
 
 add_library(tessellator-core
     "Collapser.cpp"
+    "Compressor.cpp"
     "Slicer.cpp"
     "Snapper.cpp"
     "Smoother.cpp"
     "SmootherTools.cpp"
     "Staircaser.cpp"
+    "VolumeFiller.cpp"
+    "VolumeShellExtractor.cpp"
 )
 
-target_link_libraries(tessellator-core tessellator-utils)
+target_link_libraries(tessellator-core 
+    tessellator-utils)

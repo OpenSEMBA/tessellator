@@ -6,6 +6,9 @@
 #include "core/Slicer.h"
 #include "core/Collapser.h"
 #include "core/Staircaser.h"
+#include "core/Compressor.h"
+#include "core/VolumeFiller.h"
+#include "core/VolumeShellExtractor.h"
 
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
@@ -17,17 +20,35 @@ using namespace utils;
 using namespace core;
 using namespace meshTools;
 
-StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser) :
+std::vector<std::string> getGroupNames(const Groups& groups);
+void copyGroupNames(Mesh& mesh, const std::vector<std::string>& names);
+
+StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
-    decimalPlacesInCollapser_(decimalPlacesInCollapser)
+    decimalPlacesInCollapser_(decimalPlacesInCollapser),
+    opts_(opts)
 {
     log("Preparing surfaces.");
-    surfaceMesh_ = buildMeshFilteringElements(inputMesh, isNotTetrahedron);
-
+    surfaceMesh_ = MesherBase::buildSurfaceMesh(inputMesh, opts_.volumeGroups);
     log("Processing surface mesh.");
     process(surfaceMesh_);
+
+    log("Preparing volumes");
+    volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
+    if (!volumeMesh_.emptyOfElements()) {
+        volumeMesh_ = VolumeShellExtractor(volumeMesh_).getMesh();
+
+        log("Processing volume shell.");
+        process(volumeMesh_, false);
+        log("Filling volume shell with hexahedra.");
+        volumeMesh_ = VolumeFiller(volumeMesh_, opts_.splitHexahedra).getMesh();
+        logNumberOfHexahedra(countMeshElementsIf(volumeMesh_, isHexahedron));
+    }
+
+    mergeMesh(surfaceMesh_, volumeMesh_);
+    RedundancyCleaner::cleanCoords(surfaceMesh_);
     
-    log("Surface mesh built succesfully.", 1);
+    log("Mesh built succesfully.", 1);
 }
 
 Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
@@ -37,13 +58,40 @@ Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volum
     return resultMesh;
 }
 
+std::vector<std::string> getGroupNames(const Groups& groups){
+    std::vector<std::string> names;
+    names.reserve(groups.size());
+    for (auto gId{0}; gId < groups.size(); ++gId) {        
+        names.push_back(groups[gId].name);
+    }
+    return names;
+}
+
+void copyGroupNames(Mesh& m, const std::vector<std::string>& names){
+    for (auto gId{0}; gId < m.groups.size(); ++gId) {        
+        m.groups[gId].name = names[gId];
+    }
+}
+
+static Mesh toAbsolute(const Mesh& m) 
+{
+    auto r{ m };
+    r.coordinates = 
+        utils::GridTools{ m.grid }.relativeToAbsolute(m.coordinates);
+    return r;
+}
+
 void StaircaseMesher::process(Mesh& mesh) const
 {
-    
+    process(mesh, opts_.compress);
+}
+
+void StaircaseMesher::process(Mesh& mesh, bool compress) const
+{
+    const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
-    
     if (mesh.countElems() == 0) {
-        mesh.grid = slicingGrid;
+        // mesh.grid = slicingGrid;
         return;
     }
 
@@ -71,6 +119,24 @@ void StaircaseMesher::process(Mesh& mesh) const
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    if (compress) {
+        log("Compressing surfaces.", 1);
+        std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
+        std::size_t merged = Compressor::compressSurfacesInMesh(mesh);
+        std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
+        log("Compressed " + std::to_string(beforeQuads) + 
+            " -> " + std::to_string(afterQuads) + 
+            " quads (merged " + std::to_string(merged) + " surfaces)", 1);
+        
+        log("Compressing lines.", 1);
+        std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
+        merged = Compressor::compressLinesInMesh(mesh, dimensions);
+        std::size_t afterLines = countMeshElementsIf(mesh, isLine);
+        log("Compressed " + std::to_string(beforeLines) + 
+            " -> " + std::to_string(afterLines) + 
+            " lines (merged " + std::to_string(merged) + " segments)", 1);
+    }
     
     log("Recovering original grid size.", 1);
     reduceGrid(mesh, originalGrid_);
@@ -80,6 +146,8 @@ void StaircaseMesher::process(Mesh& mesh) const
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
+
+    copyGroupNames(mesh, groupNames);
 
 }
 

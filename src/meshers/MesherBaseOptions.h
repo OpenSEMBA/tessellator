@@ -1,0 +1,13 @@
+#pragma once
+
+#include "types/Mesh.h"
+#include "core/SnapperOptions.h"
+
+namespace meshlib::meshers {
+
+class MesherBaseOptions {
+public:
+    std::set<GroupId> volumeGroups{};
+};
+
+}

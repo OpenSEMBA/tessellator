@@ -69,6 +69,11 @@ struct Element {
         return type == Type::Volume && vertices.size() == 4;
     }
 
+    bool isHexahedron() const
+    {
+        return type == Type::Volume && vertices.size() == 8;
+    }
+
     bool sharesVertices(const Element& rhs) 
     {
         bool res = true;
@@ -134,10 +139,15 @@ typedef std::size_t ElementId;
 typedef std::vector<Element> Elements;
 
 struct Group {
+    std::string name;
     std::vector<Element> elements;
 
+    Group() = default;
+    Group(const std::vector<Element>& elems) : elements(elems) {}
+    Group(const std::string& n, const std::vector<Element>& elems) : name(n), elements(elems) {}
+
     bool operator==(const Group& rhs) const {
-        return elements == rhs.elements;
+        return name == rhs.name && elements == rhs.elements;
     }
 
     std::map<CoordinateId, std::vector<ElementId>> buildCoordToElemMap() const {
@@ -155,6 +165,7 @@ private:
     friend class boost::serialization::access;
     template<class Archive>
     void serialize(Archive& ar, const unsigned int version) {
+        ar& name;
         ar& elements;
     }
 };
@@ -214,4 +225,3 @@ private:
 };
 
 }
-

@@ -5,9 +5,12 @@
 #include "Collapser.h"
 #include "Geometry.h"
 #include "MeshTools.h"
-#include "app/vtkIO.h"
 #include "utils/RedundancyCleaner.h"
 #include "utils/CoordGraph.h"
+
+#if APP_LOADED
+    #include "app/vtkIO.h"
+#endif
 
 namespace meshlib::core {
 
@@ -990,6 +993,7 @@ TEST_F(SlicerTest, canKeepOppositeLinesInLineDimensionPolicy)
     }
 }
 
+#if APP_LOADED
 
 TEST_F(SlicerTest, preserves_topological_closedness_for_alhambra)
 {
@@ -1024,6 +1028,8 @@ TEST_F(SlicerTest, preserves_topological_closedness_for_sphere)
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
+#endif
+
 TEST_F(SlicerTest, sphere_case_patch_contour_check_1)
 {
     Mesh m;
@@ -1044,13 +1050,16 @@ TEST_F(SlicerTest, sphere_case_patch_contour_check_1)
     
     EXPECT_EQ(countContours(m), countContours(slicedMesh));
 
+    #if APP_LOADED
     //For debugging.
 	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
 
 	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+    #endif
 }
+
 
 TEST_F(SlicerTest, sphere_case_patch_contour_check_2)
 {
@@ -1071,13 +1080,14 @@ TEST_F(SlicerTest, sphere_case_patch_contour_check_2)
     auto slicedMesh = Slicer{m}.getMesh();
     
     EXPECT_EQ(countContours(m), countContours(slicedMesh));
-
+    #if APP_LOADED
     // For debugging.
-	meshTools::convertToAbsoluteCoordinates(slicedMesh);
-	vtkIO::exportMeshToVTU("sliced.vtk", slicedMesh);
+	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+	// vtkIO::exportMeshToVTU("sliced.vtk", slicedMesh);
 
-	auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
-	vtkIO::exportMeshToVTU("contour.vtk", contourMesh);
+	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+	// vtkIO::exportMeshToVTU("contour.vtk", contourMesh);
+    #endif
 }
 
 }

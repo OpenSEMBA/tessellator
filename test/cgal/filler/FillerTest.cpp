@@ -155,6 +155,14 @@ public:
         return r;
     }
 
+    static Mesh toAbsolute(const Mesh& m) 
+    {
+        auto r{ m };
+        r.coordinates = 
+            utils::GridTools{ m.grid }.relativeToAbsolute(m.coordinates);
+        return r;
+    }
+
     static bool allAreSimple(const FaceFilling& ff)
     {
         for (const auto [pr, ss] : ff.tris) {
@@ -336,6 +344,59 @@ TEST_F(FillerTest, parallelogram_as_surface)
     EXPECT_EQ(1, countPWHs(f.getFaceFilling({ Cell({0, 0, 0}), Z })));
     EXPECT_EQ(0, countPWHs(f.getFaceFilling({ Cell({0, 0, 1}), Z })));
 }
+
+TEST_F(FillerTest, fill_cube1x1x1_size1_grid)
+{
+    Mesh m = buildCubeSurfaceMesh(01.0);
+        
+    Mesh out;
+    ASSERT_NO_THROW(out = Slicer{m}.getMesh());
+    EXPECT_EQ(12, countMeshElementsIf(out, isTriangle));
+
+    Mesh filled = Filler{out}.getMeshFilling();
+    EXPECT_EQ(12, countMeshElementsIf(filled, isTriangle));
+}
+
+TEST_F(FillerTest, fill_cube1x1x1_size05_grid)
+{
+    //filling with unstruc. triangles
+    Mesh m = buildCubeSurfaceMesh(0.5);
+    Mesh filled = Filler{Slicer{buildCubeSurfaceMesh(0.5) }.getMesh()}.getMeshFilling();
+    Mesh filled_no_slicing = Filler{toRelative(buildCubeSurfaceMesh(0.5))}.getMeshFilling();
+    EXPECT_EQ(18, countMeshElementsIf(filled, isTriangle));
+    EXPECT_EQ(18, countMeshElementsIf(filled_no_slicing, isTriangle));
+        
+    //slicing hull
+    Mesh out_1;
+    ASSERT_NO_THROW(out_1 = Slicer{buildCubeSurfaceMesh(0.5) }.getMesh());
+    EXPECT_EQ(48, countMeshElementsIf(out_1, isTriangle));
+
+    //filling and slicing
+    Mesh out_2;
+    ASSERT_NO_THROW(out_2 = Slicer{toAbsolute(filled) }.getMesh());
+    EXPECT_EQ(72, countMeshElementsIf(out_2, isTriangle));
+
+    ASSERT_NO_THROW(out_2 = Slicer{toAbsolute(filled_no_slicing)}.getMesh());
+    EXPECT_EQ(72, countMeshElementsIf(out_2, isTriangle));
+
+}
+
+TEST_F(FillerTest, fill_cube1x1x1_size025_grid)
+{
+    Mesh m = buildCubeSurfaceMesh(0.25);
+    Mesh filled = Filler{Slicer{buildCubeSurfaceMesh(0.25) }.getMesh()}.getMeshFilling();
+    EXPECT_EQ(30, countMeshElementsIf(filled, isTriangle));
+        
+    Mesh out_1;
+    ASSERT_NO_THROW(out_1 = Slicer{buildCubeSurfaceMesh(0.25) }.getMesh());
+    EXPECT_EQ(192, countMeshElementsIf(out_1, isTriangle));
+
+    Mesh out_2;
+    ASSERT_NO_THROW(out_2 = Slicer{toAbsolute(filled) }.getMesh());
+    EXPECT_EQ(480, countMeshElementsIf(out_2, isTriangle));
+
+}
+
 
 TEST_F(FillerTest, planeXY_mesh_filling)
 {

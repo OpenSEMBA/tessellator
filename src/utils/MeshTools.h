@@ -19,6 +19,8 @@ static bool isQuad(const Element& e) { return e.isQuad(); }
 static bool isNotQuad(const Element& e) { return !e.isQuad(); }
 static bool isTetrahedron(const Element& e) { return e.isTetrahedron(); }
 static bool isNotTetrahedron(const Element& e) { return !e.isTetrahedron(); }
+static bool isHexahedron(const Element& e) { return e.isHexahedron(); }
+static bool isNotHexahedron(const Element& e) { return !e.isHexahedron(); }
 
 std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter);
 std::vector<Element::Type> getHighestDimensionByGroup(const Mesh& mesh);
@@ -35,6 +37,7 @@ void reduceGrid(Mesh&, const Grid&);
 Mesh reduceGrid(const Mesh& m, const Grid& g);
 
 void convertToAbsoluteCoordinates(Mesh&);
+void convertToRelativeCoordinates(Mesh&);
 	
 void checkSlicedMeshInvariants(Mesh& m);
 	
@@ -49,5 +52,7 @@ void mergeMesh(Mesh& lMesh, const Mesh& iMesh);
 void mergeMeshAsNewGroup(Mesh& lMesh, const Mesh& iMesh);
 
 bool isAClosedTopology(const Elements& es);
+
+Mesh extractGroupsByName(const Mesh& mesh, const std::vector<std::string>& groupNames);
 
 }

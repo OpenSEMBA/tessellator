@@ -81,6 +81,10 @@ CoordGraph::CoordGraph(const Elements& elems)
 CoordGraph::CoordGraph(const ElementsView& es)
 {
     for (auto const& e : es) {
+        if (e->vertices.size() == 1) {
+            addVertex(e->vertices.front());
+            continue;
+        }
         for (std::size_t i = 0; i < e->vertices.size(); i++) {
             this->addEdge(
                 e->vertices[i], 
@@ -95,6 +99,10 @@ CoordGraph::CoordGraph(const ElementsView& es)
 
 CoordGraph::CoordGraph(const Paths& paths) {
     for (const auto& p : paths) {
+        if (p.size() == 1) {
+            addVertex(p.front());
+            continue;
+        }
         for (std::size_t i = 0; i < p.size(); i++) {
             this->addEdge(
                 p[i],
@@ -221,7 +229,7 @@ IdSet CoordGraph::getClosestVerticesInSet(
         }
         auto path = findShortestPath(vI, vB);
         if (path.empty()) {
-            throw std::runtime_error("Can not find path to point in set.");
+            continue;
         }
         paths.insert(path);
     }

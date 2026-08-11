@@ -341,6 +341,20 @@ TEST_F(CoordGraphTest, ctors)
 	EXPECT_EQ(cG.verticesSize(), cGViews.verticesSize());
 	EXPECT_EQ(cG.edgesSize(), cGViews.edgesSize());
 }
+
+TEST_F(CoordGraphTest, constructorsAcceptSingleVertexInputs)
+{
+	const Elements elements = {
+		Element({7}, Element::Type::Node),
+	};
+	const CoordGraph fromElements(elements);
+	const CoordGraph fromPaths(CoordGraph::Paths{{9}});
+
+	EXPECT_EQ(IdSet({7}), fromElements.getVertices());
+	EXPECT_EQ(IdSet({9}), fromPaths.getVertices());
+	EXPECT_EQ(0, fromElements.edgesSize());
+	EXPECT_EQ(0, fromPaths.edgesSize());
+}
 TEST_F(CoordGraphTest, adding_edge_with_non_existingvertices)
 {
 	CoordGraph g;
@@ -563,6 +577,17 @@ TEST_F(CoordGraphTest, getClosestVerticesInSet_2)
 	EXPECT_EQ(IdSet({ 3 }), g.getClosestVerticesInSet(2, { 3, 4 }));
 	
 }
+
+TEST_F(CoordGraphTest, getClosestVerticesInSet_ignoresDisconnectedTargets)
+{
+	CoordGraph g;
+	g.addEdge(1, 2);
+	g.addEdge(3, 4);
+
+	EXPECT_EQ(IdSet({2}), g.getClosestVerticesInSet(1, {2, 3}));
+	EXPECT_TRUE(g.getClosestVerticesInSet(1, {3}).empty());
+}
+
 TEST_F(CoordGraphTest, graphIntersection) 
 {
 
