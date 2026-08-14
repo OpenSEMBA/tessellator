@@ -317,6 +317,27 @@ TEST_F(LauncherTest, readObjectsFromJSON_legacyFormat)
     EXPECT_TRUE(objects[0].isVolume);
 }
 
+TEST_F(LauncherTest, readObjectsFromJSON_solenoid)
+{
+    std::ifstream input("testData/cases/solenoid/solenoid.tessellator.json");
+    nlohmann::json config;
+    input >> config;
+
+    const auto objects = readObjectsFromJSON(config);
+
+    ASSERT_EQ(objects.size(), 5);
+    EXPECT_EQ(objects[0].filename, "solenoid.vtu");
+    EXPECT_EQ(objects[0].group, "Solenoid");
+    EXPECT_EQ(objects[1].filename, "BC.vtu");
+    EXPECT_EQ(objects[1].group, "BC");
+    EXPECT_EQ(objects[2].filename, "Generator.vtu");
+    EXPECT_EQ(objects[2].group, "Generator");
+    EXPECT_EQ(objects[3].filename, "Line.vtu");
+    EXPECT_EQ(objects[3].group, "Line");
+    EXPECT_EQ(objects[4].filename, "Line001.vtu");
+    EXPECT_EQ(objects[4].group, "Line001");
+}
+
 TEST_F(LauncherTest, builds_staircased_mesher_with_override)
 {
     meshlib::Mesh meshMock;
@@ -374,6 +395,15 @@ TEST_F(LauncherTest, launches_multiObject_sameFileMultipleGroups)
 {
     int ac = 3;
     const char* av[] = { NULL, "-i", "testData/cases/multiObject/sameFileMultipleGroups.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launches_solenoid_multiObject_case)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/solenoid/solenoid.tessellator.json"};
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
