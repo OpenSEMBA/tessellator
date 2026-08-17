@@ -16,6 +16,7 @@ struct ObjectDefinition {
     std::string filename;
     std::string group;
     bool isVolume = false;
+    bool ghost = false;
     std::optional<nlohmann::json> mesherOverride;
 };
 

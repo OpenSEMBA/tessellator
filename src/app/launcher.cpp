@@ -63,6 +63,7 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData
             if (obj.contains("volume")){
                 objDef.isVolume = obj["volume"];
             }
+            objDef.ghost = obj.value("ghost", false);
             if (obj.contains("mesher")) {
                 objDef.mesherOverride = obj["mesher"];
             }
@@ -75,6 +76,7 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData
         if (fileData["object"].contains("volume")){
             objDef.isVolume = fileData["object"]["volume"];
         }
+        objDef.ghost = fileData["object"].value("ghost", false);
         if (fileData.contains("mesher")) {
             objDef.mesherOverride = fileData["mesher"];
         }
@@ -291,22 +293,35 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 {
     const bool hasEnabledConformalObject = std::any_of(
         objects.begin(), objects.end(), [](const MeshedObject& object) {
-            return object.mesherType == conformal_mesher && object.staircaseSharedCells;
+            return !object.definition.ghost &&
+                object.mesherType == conformal_mesher &&
+                object.staircaseSharedCells;
         });
-    if (!hasEnabledConformalObject || objects.size() < 2) {
+    const auto participatingObjectCount = std::count_if(
+        objects.begin(), objects.end(), [](const MeshedObject& object) {
+            return !object.definition.ghost;
+        });
+    if (!hasEnabledConformalObject || participatingObjectCount < 2) {
         return;
     }
 
     Mesh relativeCombined = mergeObjectMeshes(objects);
     utils::meshTools::convertToRelativeCoordinates(relativeCombined);
-    const auto sharedCells =
-        meshlib::meshers::ConformalMesher::cellsSharedByGroups(relativeCombined);
+    std::set<GroupId> ghostGroups;
+    for (GroupId groupId = 0; groupId < objects.size(); ++groupId) {
+        if (objects[groupId].definition.ghost) {
+            ghostGroups.insert(groupId);
+        }
+    }
+    const auto sharedCells = meshlib::meshers::ConformalMesher::cellsSharedByGroups(
+        relativeCombined, ghostGroups);
     if (sharedCells.empty()) {
         return;
     }
 
     for (auto& object : objects) {
-        if (object.mesherType != conformal_mesher || !object.staircaseSharedCells) {
+        if (object.definition.ghost || object.mesherType != conformal_mesher ||
+            !object.staircaseSharedCells) {
             continue;
         }
 

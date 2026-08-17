@@ -80,6 +80,28 @@ TEST_F(ConformalMesherTest, includesBothCellsWhenGroupsMeetOnCellFace)
     EXPECT_EQ(result, std::set<Cell>({Cell({0, 0, 0}), Cell({1, 0, 0})}));
 }
 
+TEST_F(ConformalMesherTest, ignoresSelectedGroupsWhenFindingSharedCells)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(0.5);
+    mesh.coordinates = {
+        Relative({0.25, 0.25, 0.25}),
+        Relative({0.75, 0.75, 0.75}),
+        Relative({1.25, 0.25, 0.25}),
+        Relative({1.75, 0.75, 0.75})
+    };
+    mesh.groups = {
+        Group("first", {Element({0}, Element::Type::Node)}),
+        Group("ghost", {Element({1}, Element::Type::Node)}),
+        Group("second", {Element({2}, Element::Type::Node)}),
+        Group("third", {Element({3}, Element::Type::Node)})
+    };
+
+    const auto result = ConformalMesher::cellsSharedByGroups(mesh, {1});
+
+    EXPECT_EQ(result, std::set<Cell>({Cell({1, 0, 0})}));
+}
+
 TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_1)
 {
     // This is non-conformal.

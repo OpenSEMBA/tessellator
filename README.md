@@ -95,11 +95,12 @@ This contains the information about the mesh file(s). You can specify a single o
 - `objects`: An array of object definitions. Each object can have:
   - `filename`: (required) The mesh file name, relative to the JSON file location
   - `group`: (optional) Group name for the object (defaults to filename without extension)
+  - `ghost`: (optional boolean, default: false) Excludes the object from cross-object decisions while still meshing and exporting it normally
   - `mesher`: (optional) Override the global mesher settings for this specific object
 
 ```json
   "objects": [
-    {"filename": "object1.stl", "group": "group1"},
+    {"filename": "object1.stl", "group": "group1", "ghost": true},
     {"filename": "object2.stl", "group": "group2", "mesher": {"type": "conformal"}}
   ]
 ```

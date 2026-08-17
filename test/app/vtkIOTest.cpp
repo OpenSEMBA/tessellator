@@ -43,6 +43,23 @@ TEST_F(VTKIOTest, readElementTypes)
     EXPECT_TRUE(m.groups[0].elements[2].isTriangle());
 }
 
+TEST_F(VTKIOTest, readsSolenoidBoundaryConditionAsRectangle)
+{
+    const auto mesh = readInputMesh("testData/cases/solenoid/BC.vtu");
+
+    ASSERT_EQ(mesh.coordinates.size(), 4);
+    ASSERT_EQ(mesh.groups.size(), 1);
+    ASSERT_EQ(mesh.groups[0].elements.size(), 2);
+    EXPECT_TRUE(mesh.groups[0].elements[0].isTriangle());
+    EXPECT_TRUE(mesh.groups[0].elements[1].isTriangle());
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][0], -5.8284271247);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][1], -5.7573593129);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][2], 10.0);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][0], 19.627416998);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][1], 19.69848481);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][2], 10.0);
+}
+
 TEST_F(VTKIOTest, exportAndReadHexahedron)
 {
     meshlib::Mesh mesh;

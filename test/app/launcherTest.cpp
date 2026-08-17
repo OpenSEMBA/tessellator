@@ -303,10 +303,12 @@ TEST_F(LauncherTest, readObjectsFromJSON_basic)
     EXPECT_EQ(objects[0].filename, "sphere.stl");
     EXPECT_EQ(objects[0].group, "sphere_group");
     EXPECT_TRUE(objects[0].isVolume);
+    EXPECT_FALSE(objects[0].ghost);
     EXPECT_FALSE(objects[0].mesherOverride.has_value());
     EXPECT_EQ(objects[1].filename, "cone.stl");
     EXPECT_EQ(objects[1].group, "cone_group");
     EXPECT_FALSE(objects[1].isVolume);
+    EXPECT_FALSE(objects[1].ghost);
     EXPECT_FALSE(objects[1].mesherOverride.has_value());
 }
 
@@ -380,14 +382,38 @@ TEST_F(LauncherTest, readObjectsFromJSON_solenoid)
     ASSERT_EQ(objects.size(), 5);
     EXPECT_EQ(objects[0].filename, "solenoid.vtu");
     EXPECT_EQ(objects[0].group, "Solenoid");
+    EXPECT_FALSE(objects[0].ghost);
+    ASSERT_TRUE(objects[0].mesherOverride.has_value());
+    EXPECT_EQ(objects[0].mesherOverride.value()["type"], "conformal");
     EXPECT_EQ(objects[1].filename, "BC.vtu");
     EXPECT_EQ(objects[1].group, "BC");
+    EXPECT_TRUE(objects[1].ghost);
     EXPECT_EQ(objects[2].filename, "Generator.vtu");
     EXPECT_EQ(objects[2].group, "Generator");
+    EXPECT_FALSE(objects[2].ghost);
     EXPECT_EQ(objects[3].filename, "Line.vtu");
     EXPECT_EQ(objects[3].group, "Line");
+    EXPECT_FALSE(objects[3].ghost);
     EXPECT_EQ(objects[4].filename, "Line001.vtu");
     EXPECT_EQ(objects[4].group, "Line001");
+    EXPECT_FALSE(objects[4].ghost);
+
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    auto solenoidMesher = buildMesher(meshMock, config, objects[0]);
+    EXPECT_NE(
+        dynamic_cast<meshlib::meshers::ConformalMesher*>(solenoidMesher.get()),
+        nullptr);
+    for (std::size_t objectIndex = 1; objectIndex < objects.size(); ++objectIndex) {
+        auto mesher = buildMesher(meshMock, config, objects[objectIndex]);
+        EXPECT_NE(
+            dynamic_cast<meshlib::meshers::StaircaseMesher*>(mesher.get()),
+            nullptr);
+    }
 }
 
 TEST_F(LauncherTest, builds_staircased_mesher_with_override)
