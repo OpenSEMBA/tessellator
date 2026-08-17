@@ -391,11 +391,11 @@ TEST_F(LauncherTest, readObjectsFromJSON_solenoid)
     EXPECT_EQ(objects[2].filename, "Generator.vtu");
     EXPECT_EQ(objects[2].group, "Generator");
     EXPECT_FALSE(objects[2].ghost);
-    EXPECT_EQ(objects[3].filename, "Line.vtu");
-    EXPECT_EQ(objects[3].group, "Line");
+    EXPECT_EQ(objects[3].filename, "wire_left.vtu");
+    EXPECT_EQ(objects[3].group, "Wire_left");
     EXPECT_FALSE(objects[3].ghost);
-    EXPECT_EQ(objects[4].filename, "Line001.vtu");
-    EXPECT_EQ(objects[4].group, "Line001");
+    EXPECT_EQ(objects[4].filename, "wire_right.vtu");
+    EXPECT_EQ(objects[4].group, "Wire_right");
     EXPECT_FALSE(objects[4].ghost);
 
     meshlib::Mesh meshMock;

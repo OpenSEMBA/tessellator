@@ -1,6 +1,9 @@
 {
     "_version": "0.1",
     "_format": "Tessellator Data File in JSON format",
+      "output": {
+        "singleFile": true
+    },
     "grid": {
         "numberOfCells": [74, 75, 60],
         "boundingBox": [
@@ -12,7 +15,12 @@
         {"filename": "solenoid.vtu", "group": "Solenoid", "mesher": {"type": "conformal"}},
         {"filename": "BC.vtu", "group": "BC", "ghost": true},
         {"filename": "Generator.vtu", "group": "Generator"},
-        {"filename": "Line.vtu", "group": "Line"},
-        {"filename": "Line001.vtu", "group": "Line001"}
-    ]
+        {"filename": "wire_left.vtu", "group": "Wire_left"},
+        {"filename": "wire_right.vtu", "group": "Wire_right"}
+    ],
+    "mesher": {
+        "options": {
+            "exportGrid": true
+        }
+    }
 }
