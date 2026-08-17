@@ -148,11 +148,16 @@ Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
     if (vtu->GetCellData()->HasArray(GROUPS_TAG_NAME)) {
         vtkIntArray* groupsDataArray = 
             vtkIntArray::SafeDownCast(vtu->GetCellData()->GetArray(GROUPS_TAG_NAME));
+        vtkStringArray* groupNamesDataArray = vtkStringArray::SafeDownCast(
+            vtu->GetCellData()->GetAbstractArray("groupNames"));
         mesh.groups.resize(groupsDataArray->GetRange()[1] + 1);
         for (vtkIdType i = 0; i < vtu->GetNumberOfCells(); i++) {
             auto g = groupsDataArray->GetValue(i);
             mesh.groups[g].elements.push_back(
                 vtkCellToElement(vtu->GetCell(i)));
+            if (groupNamesDataArray != nullptr && mesh.groups[g].name.empty()) {
+                mesh.groups[g].name = groupNamesDataArray->GetValue(i);
+            }
         }
     } else {
         mesh.groups.resize(1);

@@ -137,6 +137,30 @@ std::set<Cell> ConformalMesher::cellsWithAVertexInAnEdgeForbiddenRegion(const Me
     return res;
 }
 
+std::set<Cell> ConformalMesher::cellsSharedByGroups(const Mesh& mesh)
+{
+    const GridTools gridTools(mesh.grid);
+    std::map<Cell, std::set<GroupId>> groupsByCell;
+
+    for (GroupId groupId = 0; groupId < mesh.groups.size(); ++groupId) {
+        const auto elementsByCell = gridTools.buildCellElemMap(
+            mesh.groups[groupId].elements, mesh.coordinates);
+        for (const auto& [cell, elements] : elementsByCell) {
+            if (!elements.empty()) {
+                groupsByCell[cell].insert(groupId);
+            }
+        }
+    }
+
+    std::set<Cell> sharedCells;
+    for (const auto& [cell, groups] : groupsByCell) {
+        if (groups.size() > 1) {
+            sharedCells.insert(cell);
+        }
+    }
+    return sharedCells;
+}
+
 std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
 {
     std::set<Cell> res;

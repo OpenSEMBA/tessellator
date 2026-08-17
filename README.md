@@ -120,6 +120,7 @@ For **staircase** mesher:
 For **conformal** mesher:
 - `edgePoints`: Controls edge point snapping behavior
 - `forbiddenLength`: Minimum length threshold for snapping
+- `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file
@@ -132,6 +133,20 @@ Example with staircase mesher and compression enabled:
       "compress": true,
       "exportGrid": true
     }
+  }
+```
+
+### `<output>`
+This optional entry controls how multi-object results are written:
+
+- `singleFile`: (boolean, default: false) Writes all objects to one
+  `{basename}.tessellator.vtk` file instead of separate per-object mesh files.
+  Object groups remain identifiable through the `group` and `groupNames` cell
+  attributes. Group names must be unique.
+
+```json
+  "output": {
+    "singleFile": true
   }
 ```
 
@@ -150,6 +165,7 @@ Example with conformal mesher:
 The tessellator generates output files with the following naming convention:
 - `{group_name}.tessellator.str.vtk` - Staircase meshed object
 - `{group_name}.tessellator.cmsh.vtk` - Conformal meshed object
+- `{basename}.tessellator.vtk` - Combined multi-object mesh when `output.singleFile` is true
 - `{basename}.tessellator.grid.vtk` - Grid file (if `exportGrid` is true)
 
 ### Complete Example

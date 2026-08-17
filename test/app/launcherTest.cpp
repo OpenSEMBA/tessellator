@@ -3,6 +3,7 @@
 #include "app/launcher.h"
 #include "types/Mesh.h"
 #include "meshers/StaircaseMesher.h"
+#include "meshers/ConformalMesher.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -97,6 +98,57 @@ TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
         dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
 
     EXPECT_TRUE(staircase.getOptions().splitHexahedra);
+}
+
+TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
+{
+    EXPECT_FALSE(readSingleFileOutputOption(nlohmann::json::object()));
+    EXPECT_TRUE(readSingleFileOutputOption({
+        {"output", {{"singleFile", true}}}
+    }));
+}
+
+TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {{"type", "conformal"}}}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& conformal =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
+
+    EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
+}
+
+TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "conformal"},
+            {"options", {{"staircaseSharedCells", false}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& conformal =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
+
+    EXPECT_FALSE(conformal.getOptions().staircaseSharedCells);
 }
 
 TEST_F(LauncherTest, builds_staircased_mesher_without_compression)
@@ -371,6 +423,90 @@ TEST_F(LauncherTest, launches_multiObject_basic)
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launchesMultiObjectIntoSingleGroupedFile)
+{
+    const auto temp = std::filesystem::temp_directory_path();
+    const auto input = temp / "tessellator_single_file.tessellator.json";
+    const auto output = temp / "tessellator_single_file.tessellator.vtk";
+    const auto gridOutput = temp / "tessellator_single_file.tessellator.grid.vtk";
+    const auto sphereOutput = temp / "sphere_group.tessellator.str.vtk";
+    const auto coneOutput = temp / "cone_group.tessellator.str.vtk";
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+    std::filesystem::remove(sphereOutput);
+    std::filesystem::remove(coneOutput);
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {10, 10, 10}},
+            {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+        }},
+        {"mesher", {{"type", "staircase"}}},
+        {"output", {{"singleFile", true}}},
+        {"objects", {
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/sphere.stl").string()},
+                {"volume", true},
+                {"group", "sphere_group"}
+            },
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/cone.stl").string()},
+                {"group", "cone_group"}
+            }
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    const std::string inputString = input.string();
+    const char* av[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, av), EXIT_SUCCESS);
+
+    ASSERT_TRUE(std::filesystem::exists(output));
+    EXPECT_FALSE(std::filesystem::exists(sphereOutput));
+    EXPECT_FALSE(std::filesystem::exists(coneOutput));
+    std::ifstream stream(output);
+    const std::string contents{
+        std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    EXPECT_NE(contents.find("groupNames"), std::string::npos);
+    EXPECT_NE(contents.find("sphere_group"), std::string::npos);
+    EXPECT_NE(contents.find("cone_group"), std::string::npos);
+
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+    std::filesystem::remove(input);
+}
+
+TEST_F(LauncherTest, rejectsDuplicateGroupNamesInSingleFileOutput)
+{
+    const auto input = std::filesystem::temp_directory_path()
+        / "tessellator_duplicate_groups.json";
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {1, 1, 1}},
+            {"boundingBox", {{0, 0, 0}, {1, 1, 1}}}
+        }},
+        {"output", {{"singleFile", true}}},
+        {"objects", {
+            {{"filename", "first.stl"}, {"group", "duplicate"}},
+            {{"filename", "second.stl"}, {"group", "duplicate"}}
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+    const std::string inputString = input.string();
+    const char* av[] = {nullptr, "-i", inputString.c_str()};
+
+    EXPECT_THROW(launcher(3, av), std::runtime_error);
+
+    std::filesystem::remove(input);
 }
 
 TEST_F(LauncherTest, launches_multiObject_mixedMesher)

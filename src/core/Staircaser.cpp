@@ -17,6 +17,9 @@ Staircaser::Staircaser(const Mesh& inputMesh) : GridTools(inputMesh.grid)
     mesh_.coordinates.reserve(inputMesh.coordinates.size() * 2);
 
     mesh_.groups.resize(inputMesh.groups.size());
+    for (std::size_t groupId = 0; groupId < inputMesh.groups.size(); ++groupId) {
+        mesh_.groups[groupId].name = inputMesh.groups[groupId].name;
+    }
 
 }
 
@@ -155,23 +158,33 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
 
         auto cellElemMap = buildCellElemMap(inputGroup.elements, inputMesh_.coordinates);
         
+        CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
         for (const auto& c : cellsToStructure) {
             if (!cellElemMap.count(c)) {
                 continue;
             }
             for (const auto e:  cellElemMap.at(c)) {
-                if (e->isLine()) {  
+                if (e->isNode()) {
+                    this->processNodeAndAddToGroup(
+                        *e, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
+                }
+                else if (e->isLine()) {
                     this->processLineAndAddToGroup(*e, inputMesh_.coordinates, mesh_.coordinates, meshGroup);
                 }
                 else if (e->isTriangle()) {
                     this->processTriangleAndAddToGroup(*e, inputMesh_.coordinates, meshGroup);
+                }
+                else {
+                    auto [newElement, ignoredBoundaryCoordinates] =
+                        obtainNewIndexForElement(*e, {}, coordinateMap);
+                    meshGroup.elements.push_back(std::move(newElement));
                 }
             }
         } 
 
         meshGroup.elements.reserve(meshGroup.elements.size() + inputGroup.elements.size());
         std::map<Cell, std::vector<const Element*>> cellElemMap_withNewElements;
-        CoordinateMap coordinateMap = buildCoordinateMap(mesh_.coordinates);
+        coordinateMap = buildCoordinateMap(mesh_.coordinates);
 
         for (const auto& [cell, elements] : cellElemMap) {
             if (cellsToStructure.count(cell) ) {

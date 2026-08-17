@@ -419,7 +419,7 @@ void mergeMeshAsNewGroup(Mesh& lMesh, const Mesh& iMesh)
     lMesh.coordinates.insert(lMesh.coordinates.end(),
         iMesh.coordinates.begin(), iMesh.coordinates.end());
 
-    lMesh.groups.push_back(Group());
+    lMesh.groups.push_back(Group(iMesh.groups.front().name, {}));
     mergeGroup(lMesh.groups.back(), iMesh.groups.front(), coordCount);
 }
 

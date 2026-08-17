@@ -2842,3 +2842,25 @@ TEST_F(StaircaserTest, selectiveStructurer_SplitLinesWithNeighborTriangle)
     }
     
 }
+
+TEST_F(StaircaserTest, selectiveStaircasingPreservesStructuredElementsAndGroupName)
+{
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    mesh.coordinates = {
+        Relative({0.1, 0.1, 0.5}),
+        Relative({0.9, 0.1, 0.5}),
+        Relative({0.9, 0.9, 0.5}),
+        Relative({0.1, 0.9, 0.5})
+    };
+    mesh.groups = {
+        Group("structured", {Element({0, 1, 2, 3}, Element::Type::Surface)})
+    };
+
+    const auto result = Staircaser{mesh}.getSelectiveMesh({Cell({0, 0, 0})});
+
+    ASSERT_EQ(result.groups.size(), 1);
+    EXPECT_EQ(result.groups.front().name, "structured");
+    ASSERT_EQ(result.groups.front().elements.size(), 1);
+    EXPECT_TRUE(result.groups.front().elements.front().isQuad());
+}

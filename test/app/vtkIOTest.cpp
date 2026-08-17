@@ -67,6 +67,31 @@ TEST_F(VTKIOTest, exportAndReadHexahedron)
     EXPECT_EQ(mesh.coordinates, result.coordinates);
 }
 
+TEST_F(VTKIOTest, exportAndReadGroupNames)
+{
+    meshlib::Mesh mesh;
+    mesh.coordinates = {
+        meshlib::Coordinate({0.0, 0.0, 0.0}),
+        meshlib::Coordinate({1.0, 0.0, 0.0})
+    };
+    mesh.groups = {
+        meshlib::Group("first", {
+            meshlib::Element({0}, meshlib::Element::Type::Node)}),
+        meshlib::Group("second", {
+            meshlib::Element({1}, meshlib::Element::Type::Node)})
+    };
+
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_group_names_roundtrip.vtu";
+    exportMeshToVTU(filename, mesh);
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(result.groups.size(), 2);
+    EXPECT_EQ(result.groups[0].name, "first");
+    EXPECT_EQ(result.groups[1].name, "second");
+}
+
 TEST_F(VTKIOTest, exportGridToVTU)
 {
     meshlib::Grid grid;
