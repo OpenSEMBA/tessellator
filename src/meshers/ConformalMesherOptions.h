@@ -10,7 +10,6 @@ class ConformalMesherOptions : public MesherBaseOptions {
 public:
     core::SnapperOptions snapperOptions;
     bool staircaseSharedCells = true;
-    // std::set<GroupId> volumeGroups{};
 };
 
 }
