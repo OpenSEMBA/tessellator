@@ -119,8 +119,13 @@ For **staircase** mesher:
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
 
 For **conformal** mesher:
-- `edgePoints`: Controls edge point snapping behavior
-- `forbiddenLength`: Minimum length threshold for snapping
+- `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced
+  candidate snap points added along each grid edge. These points are placed in
+  the portion of the edge outside the endpoint exclusion regions defined by
+  `forbiddenLength`. Set to `0` to add no interior edge points.
+- `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
+  clear next to both endpoints when placing or snapping to edge points. It must
+  not exceed `0.5`.
 - `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 
 **Global options:**
@@ -156,7 +161,7 @@ Example with conformal mesher:
   "mesher": {
     "type": "conformal",
     "options": {
-      "edgePoints": true,
+      "edgePoints": 3,
       "forbiddenLength": 0.001
     }
   }
