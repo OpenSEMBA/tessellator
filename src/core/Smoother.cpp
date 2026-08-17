@@ -167,5 +167,33 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
     meshTools::checkNoCellsAreCrossed(mesh_);
 }
 
+Mesh Smoother::retriangulatePlanarPatches(
+    const Mesh& mesh,
+    double featureDetectionAngle)
+{
+    Mesh result = mesh;
+    SmootherTools tools(result.grid);
+    for (auto& group : result.groups) {
+        std::vector<ElementsView> patches;
+        for (const auto& cell : tools.buildCellElemMap(group.elements, result.coordinates)) {
+            for (const auto& patch : Geometry::buildDisjointSmoothSets(
+                    cell.second, result.coordinates, featureDetectionAngle)) {
+                if (CoordGraph(patch).getBoundAndInteriorVertices().second.empty()) {
+                    patches.push_back(patch);
+                }
+            }
+        }
+        for (const auto& patch : patches) {
+            tools.retriangulatePlanarPatch(
+                group.elements, result.coordinates, patch);
+        }
+    }
+
+    RedundancyCleaner::removeDegenerateElements(result);
+    RedundancyCleaner::cleanCoords(result);
+    meshTools::checkNoCellsAreCrossed(result);
+    return result;
+}
+
 }
 }

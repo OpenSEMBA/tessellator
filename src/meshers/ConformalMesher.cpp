@@ -216,6 +216,10 @@ Mesh ConformalMesher::mesh() const
     
     log("Snapping.", 1);
     res = Snapper(res, opts_.snapperOptions).getMesh();
+
+    log("Retriangulating planar patches.", 1);
+    res = Smoother::retriangulatePlanarPatches(
+        res, smootherOpts.featureDetectionAngle);
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
     // Find cells which break conformal FDTD rules.

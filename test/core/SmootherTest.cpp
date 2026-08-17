@@ -7,6 +7,8 @@
 #include "utils/MeshTools.h"
 #include "core/Slicer.h"
 
+#include <map>
+
 #if APP_LOADED
 	#include "app/vtkIO.h"
 #endif
@@ -88,6 +90,53 @@ TEST_F(SmootherTest, touching_by_single_point)
 	auto r{ Smoother{m}.getMesh() };
 
 	EXPECT_EQ(1, countMeshElementsIf(r, isTriangle));
+}
+
+TEST_F(SmootherTest, retriangulatesMirroredPlanarPatchesWithMirroredDiagonals)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+	mesh.coordinates = {
+		Relative({0.0, 0.0, 0.0}),
+		Relative({0.0, 0.0, 1.0}),
+		Relative({1.0, 1.0, 1.0}),
+		Relative({1.0, 1.0, 0.0})
+	};
+	mesh.groups = {Group(), Group()};
+	mesh.groups[0].elements = {
+		Element({0, 3, 1}, Element::Type::Surface),
+		Element({1, 3, 2}, Element::Type::Surface)
+	};
+	mesh.groups[1].elements = {
+		Element({0, 2, 3}, Element::Type::Surface),
+		Element({0, 1, 2}, Element::Type::Surface)
+	};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+	const auto internalEdge = [](const Elements& elements) {
+		std::map<std::pair<CoordinateId, CoordinateId>, std::size_t> edgeUses;
+		for (const auto& triangle : elements) {
+			for (std::size_t vertex = 0; vertex < triangle.vertices.size(); ++vertex) {
+				++edgeUses[std::minmax(
+					triangle.vertices[vertex],
+					triangle.vertices[(vertex + 1) % triangle.vertices.size()])];
+			}
+		}
+		return std::find_if(
+			edgeUses.begin(), edgeUses.end(),
+			[](const auto& edgeUse) { return edgeUse.second == 2; })->first;
+	};
+
+	EXPECT_EQ((std::pair<CoordinateId, CoordinateId>{0, 2}),
+		internalEdge(result.groups[0].elements));
+	EXPECT_EQ((std::pair<CoordinateId, CoordinateId>{1, 3}),
+		internalEdge(result.groups[1].elements));
+	for (const auto& triangle : result.groups[0].elements) {
+		EXPECT_GT(Geometry::normal(Geometry::asTriV(triangle, result.coordinates))[X], 0.0);
+	}
+	for (const auto& triangle : result.groups[1].elements) {
+		EXPECT_LT(Geometry::normal(Geometry::asTriV(triangle, result.coordinates))[X], 0.0);
+	}
 }
 
 #if APP_LOADED

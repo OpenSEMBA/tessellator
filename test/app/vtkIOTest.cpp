@@ -3,6 +3,8 @@
 #include "app/vtkIO.h"
 #include "utils/GridTools.h"
 
+#include <map>
+
 using namespace meshlib::vtkIO;
 
 class VTKIOTest : public ::testing::Test
@@ -58,6 +60,32 @@ TEST_F(VTKIOTest, readsSolenoidBoundaryConditionAsRectangle)
     EXPECT_DOUBLE_EQ(mesh.coordinates[2][0], 19.627416998);
     EXPECT_DOUBLE_EQ(mesh.coordinates[2][1], 19.69848481);
     EXPECT_DOUBLE_EQ(mesh.coordinates[2][2], 10.0);
+}
+
+TEST_F(VTKIOTest, solenoidTrianglesHaveConsistentWindingAcrossSharedEdges)
+{
+    const auto mesh = readInputMesh("testData/cases/solenoid/solenoid.vtu");
+    ASSERT_EQ(mesh.groups.size(), 1);
+
+    using Edge = std::pair<meshlib::CoordinateId, meshlib::CoordinateId>;
+    std::map<Edge, std::vector<Edge>> edgeUses;
+    for (const auto& triangle : mesh.groups[0].elements) {
+        ASSERT_TRUE(triangle.isTriangle());
+        for (std::size_t vertex = 0; vertex < triangle.vertices.size(); ++vertex) {
+            const Edge oriented{
+                triangle.vertices[vertex],
+                triangle.vertices[(vertex + 1) % triangle.vertices.size()]};
+            edgeUses[std::minmax(oriented.first, oriented.second)].push_back(oriented);
+        }
+    }
+
+    for (const auto& [edge, uses] : edgeUses) {
+        ASSERT_LE(uses.size(), 2) << "Non-manifold edge " << edge.first << '-' << edge.second;
+        if (uses.size() == 2) {
+            EXPECT_EQ(uses[0], Edge(uses[1].second, uses[1].first))
+                << "Inconsistent winding at edge " << edge.first << '-' << edge.second;
+        }
+    }
 }
 
 TEST_F(VTKIOTest, exportAndReadHexahedron)
