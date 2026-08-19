@@ -3,6 +3,7 @@
 #include "app/vtkIO.h"
 #include "utils/GridTools.h"
 
+#include <fstream>
 #include <map>
 
 using namespace meshlib::vtkIO;
@@ -129,6 +130,43 @@ TEST_F(VTKIOTest, exportAndReadGroupNames)
     const auto filename = std::filesystem::temp_directory_path()
         / "tessellator_group_names_roundtrip.vtu";
     exportMeshToVTU(filename, mesh);
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(result.groups.size(), 2);
+    EXPECT_EQ(result.groups[0].name, "first");
+    EXPECT_EQ(result.groups[1].name, "second");
+}
+
+TEST_F(VTKIOTest, readsGroupNamesFromLegacyVTKWithCRLFLineEndings)
+{
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_crlf_group_names.vtu";
+    {
+        std::ofstream stream(filename, std::ios::binary);
+        stream
+            << "# vtk DataFile Version 3.0\r\n"
+            << "group names with CRLF\r\n"
+            << "ASCII\r\n"
+            << "DATASET UNSTRUCTURED_GRID\r\n"
+            << "POINTS 2 float\r\n"
+            << "0 0 0\r\n"
+            << "1 0 0\r\n"
+            << "CELLS 2 4\r\n"
+            << "1 0\r\n"
+            << "1 1\r\n"
+            << "CELL_TYPES 2\r\n"
+            << "1\r\n"
+            << "1\r\n"
+            << "CELL_DATA 2\r\n"
+            << "FIELD FieldData 2\r\n"
+            << "group 1 2 int\r\n"
+            << "0 1\r\n"
+            << "groupNames 1 2 string\r\n"
+            << "first\r\n"
+            << "second\r\n";
+    }
+
     const auto result = readInputMesh(filename);
     std::filesystem::remove(filename);
 

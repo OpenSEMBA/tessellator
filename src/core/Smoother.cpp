@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <set>
 
@@ -176,8 +177,20 @@ Mesh Smoother::retriangulatePlanarPatches(
     for (auto& group : result.groups) {
         std::vector<ElementsView> patches;
         for (const auto& cell : tools.buildCellElemMap(group.elements, result.coordinates)) {
+            ElementsView triangles;
+            std::copy_if(
+                cell.second.begin(), cell.second.end(),
+                std::back_inserter(triangles),
+                [&](const Element* element) {
+                    return element->isTriangle()
+                        && !Geometry::isDegenerate(
+                            Geometry::asTriV(*element, result.coordinates));
+                });
+            if (triangles.empty()) {
+                continue;
+            }
             for (const auto& patch : Geometry::buildDisjointSmoothSets(
-                    cell.second, result.coordinates, featureDetectionAngle)) {
+                    triangles, result.coordinates, featureDetectionAngle)) {
                 if (CoordGraph(patch).getBoundAndInteriorVertices().second.empty()) {
                     patches.push_back(patch);
                 }

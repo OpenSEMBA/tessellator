@@ -496,12 +496,14 @@ TEST_F(LauncherTest, launchesMultiObjectIntoSingleGroupedFile)
     ASSERT_TRUE(std::filesystem::exists(output));
     EXPECT_FALSE(std::filesystem::exists(sphereOutput));
     EXPECT_FALSE(std::filesystem::exists(coneOutput));
-    std::ifstream stream(output);
-    const std::string contents{
-        std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-    EXPECT_NE(contents.find("groupNames"), std::string::npos);
-    EXPECT_NE(contents.find("sphere_group"), std::string::npos);
-    EXPECT_NE(contents.find("cone_group"), std::string::npos);
+    {
+        std::ifstream stream(output);
+        const std::string contents{
+            std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+        EXPECT_NE(contents.find("groupNames"), std::string::npos);
+        EXPECT_NE(contents.find("sphere_group"), std::string::npos);
+        EXPECT_NE(contents.find("cone_group"), std::string::npos);
+    }
 
     std::filesystem::remove(output);
     std::filesystem::remove(gridOutput);

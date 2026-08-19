@@ -8,6 +8,7 @@
 #include "core/Slicer.h"
 
 #include <map>
+#include <set>
 
 #if APP_LOADED
 	#include "app/vtkIO.h"
@@ -137,6 +138,156 @@ TEST_F(SmootherTest, retriangulatesMirroredPlanarPatchesWithMirroredDiagonals)
 	for (const auto& triangle : result.groups[1].elements) {
 		EXPECT_LT(Geometry::normal(Geometry::asTriV(triangle, result.coordinates))[X], 0.0);
 	}
+}
+
+TEST_F(SmootherTest, retriangulatesTrianglesAndPreservesNonTriangularElements)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+	mesh.coordinates = {
+		Relative({0.0, 0.0, 0.0}),
+		Relative({0.0, 0.0, 1.0}),
+		Relative({1.0, 1.0, 1.0}),
+		Relative({1.0, 1.0, 0.0})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {
+		Element({0}, Element::Type::Node),
+		Element({0, 1}, Element::Type::Line),
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+		Element({0, 3, 1}, Element::Type::Surface),
+		Element({1, 3, 2}, Element::Type::Surface)
+	};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+
+	ASSERT_EQ(result.groups[0].elements.size(), 5);
+	EXPECT_EQ(result.groups[0].elements[0], mesh.groups[0].elements[0]);
+	EXPECT_EQ(result.groups[0].elements[1], mesh.groups[0].elements[1]);
+	EXPECT_EQ(result.groups[0].elements[2], mesh.groups[0].elements[2]);
+	std::map<std::pair<CoordinateId, CoordinateId>, std::size_t> triangleEdgeUses;
+	for (const auto& element : result.groups[0].elements) {
+		if (!element.isTriangle()) {
+			continue;
+		}
+		for (std::size_t vertex = 0; vertex < element.vertices.size(); ++vertex) {
+			++triangleEdgeUses[std::minmax(
+				element.vertices[vertex],
+				element.vertices[(vertex + 1) % element.vertices.size()])];
+		}
+	}
+	EXPECT_EQ((triangleEdgeUses[std::pair<CoordinateId, CoordinateId>{0, 2}]), 2);
+	EXPECT_EQ((triangleEdgeUses[std::pair<CoordinateId, CoordinateId>{1, 3}]), 0);
+}
+
+TEST_F(SmootherTest, preservesConcavePlanarPatch)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+	mesh.coordinates = {
+		Relative({0.1, 0.1, 0.5}), Relative({0.9, 0.1, 0.5}),
+		Relative({0.9, 0.5, 0.5}), Relative({0.5, 0.5, 0.5}),
+		Relative({0.5, 0.9, 0.5}), Relative({0.1, 0.9, 0.5})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {
+		Element({0, 1, 3}), Element({1, 2, 3}),
+		Element({0, 3, 5}), Element({3, 4, 5})
+	};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+
+	EXPECT_EQ(result.groups[0].elements, mesh.groups[0].elements);
+}
+
+TEST_F(SmootherTest, preservesDegenerateTriangles)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+	mesh.coordinates = {
+		Relative({0.1, 0.1, 0.5}),
+		Relative({0.5, 0.5, 0.5}),
+		Relative({0.9, 0.9, 0.5})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {Element({0, 1, 2})};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+
+	ASSERT_EQ(result.groups[0].elements.size(), 1);
+	EXPECT_EQ(result.groups[0].elements[0], mesh.groups[0].elements[0]);
+}
+
+TEST_F(SmootherTest, preservesPlanarPatchWithMultipleBoundaryCycles)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+	mesh.coordinates = {
+		Relative({0.1, 0.1, 0.5}), Relative({0.9, 0.1, 0.5}),
+		Relative({0.9, 0.9, 0.5}), Relative({0.1, 0.9, 0.5}),
+		Relative({0.35, 0.35, 0.5}), Relative({0.65, 0.35, 0.5}),
+		Relative({0.65, 0.65, 0.5}), Relative({0.35, 0.65, 0.5})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {
+		Element({0, 1, 5}), Element({0, 5, 4}),
+		Element({1, 2, 6}), Element({1, 6, 5}),
+		Element({2, 3, 7}), Element({2, 7, 6}),
+		Element({3, 0, 4}), Element({3, 4, 7})
+	};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+
+	EXPECT_EQ(result.groups[0].elements, mesh.groups[0].elements);
+}
+
+TEST_F(SmootherTest, retriangulatesPlanarPatchesInAdjacentCellsIndependently)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 2.0, 3);
+	mesh.coordinates = {
+		Relative({0.1, 0.1, 0.5}), Relative({0.1, 0.9, 0.5}),
+		Relative({1.0, 0.9, 0.5}), Relative({1.0, 0.1, 0.5}),
+		Relative({1.9, 0.9, 0.5}), Relative({1.9, 0.1, 0.5})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {
+		Element({0, 3, 1}), Element({1, 3, 2}),
+		Element({3, 5, 2}), Element({2, 5, 4})
+	};
+
+	const auto result = Smoother::retriangulatePlanarPatches(mesh);
+	std::set<std::pair<CoordinateId, CoordinateId>> edges;
+	for (const auto& triangle : result.groups[0].elements) {
+		for (std::size_t vertex = 0; vertex < triangle.vertices.size(); ++vertex) {
+			edges.insert(std::minmax(
+				triangle.vertices[vertex],
+				triangle.vertices[(vertex + 1) % triangle.vertices.size()]));
+		}
+	}
+
+	EXPECT_EQ(edges.count({0, 2}), 1);
+	EXPECT_EQ(edges.count({3, 4}), 1);
+	EXPECT_EQ(edges.count({1, 3}), 0);
+	EXPECT_EQ(edges.count({2, 5}), 0);
+	EXPECT_NO_THROW(meshTools::checkNoCellsAreCrossed(result));
+}
+
+TEST_F(SmootherTest, rejectsElementsCrossingCellBoundaries)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 2.0, 3);
+	mesh.coordinates = {
+		Relative({0.5, 0.2, 0.5}),
+		Relative({1.5, 0.2, 0.5}),
+		Relative({0.5, 0.8, 0.5})
+	};
+	mesh.groups = {Group()};
+	mesh.groups[0].elements = {Element({0, 1, 2})};
+
+	EXPECT_THROW(
+		Smoother::retriangulatePlanarPatches(mesh),
+		std::runtime_error);
 }
 
 #if APP_LOADED

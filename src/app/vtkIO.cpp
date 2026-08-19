@@ -24,6 +24,19 @@ const char* GROUPS_TAG_NAME = "group";
 namespace meshlib::vtkIO
 {
 
+namespace
+{
+
+std::string normalizeLegacyVTKString(std::string value)
+{
+    if (!value.empty() && value.back() == '\r') {
+        value.pop_back();
+    }
+    return value;
+}
+
+}
+
 vtkSmartPointer<vtkUnstructuredGrid> vtkPolyDataToVTU(vtkPolyData* polyData)
 {
     vtkNew<vtkAppendFilter> appendFilter;
@@ -156,7 +169,8 @@ Mesh vtuToMesh(vtkUnstructuredGrid* vtu)
             mesh.groups[g].elements.push_back(
                 vtkCellToElement(vtu->GetCell(i)));
             if (groupNamesDataArray != nullptr && mesh.groups[g].name.empty()) {
-                mesh.groups[g].name = groupNamesDataArray->GetValue(i);
+                mesh.groups[g].name = normalizeLegacyVTKString(
+                    groupNamesDataArray->GetValue(i));
             }
         }
     } else {
