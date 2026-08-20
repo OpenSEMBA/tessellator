@@ -58,6 +58,7 @@ void OffgridMesher::process(Mesh& mesh) const
     if (opts_.snap) {
         log("Snapping.", 1);
         mesh = Snapper(mesh, opts_.snapperOptions).getMesh();
+        mesh = Smoother::retriangulatePlanarPatches(mesh);
         logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     }
 }

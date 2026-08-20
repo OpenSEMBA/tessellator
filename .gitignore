@@ -29,5 +29,5 @@ CMakeUserPresets.json
 sliced.vtk
 contour.vtk
 
-testData/
+testData/cases/*/*.vtk 
 build

@@ -3,6 +3,9 @@
 #include "app/vtkIO.h"
 #include "utils/GridTools.h"
 
+#include <fstream>
+#include <map>
+
 using namespace meshlib::vtkIO;
 
 class VTKIOTest : public ::testing::Test
@@ -43,6 +46,49 @@ TEST_F(VTKIOTest, readElementTypes)
     EXPECT_TRUE(m.groups[0].elements[2].isTriangle());
 }
 
+TEST_F(VTKIOTest, readsSolenoidBoundaryConditionAsRectangle)
+{
+    const auto mesh = readInputMesh("testData/cases/solenoid/BC.vtu");
+
+    ASSERT_EQ(mesh.coordinates.size(), 4);
+    ASSERT_EQ(mesh.groups.size(), 1);
+    ASSERT_EQ(mesh.groups[0].elements.size(), 2);
+    EXPECT_TRUE(mesh.groups[0].elements[0].isTriangle());
+    EXPECT_TRUE(mesh.groups[0].elements[1].isTriangle());
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][0], -5.8284271247);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][1], -5.7573593129);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[0][2], 10.0);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][0], 19.627416998);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][1], 19.69848481);
+    EXPECT_DOUBLE_EQ(mesh.coordinates[2][2], 10.0);
+}
+
+TEST_F(VTKIOTest, solenoidTrianglesHaveConsistentWindingAcrossSharedEdges)
+{
+    const auto mesh = readInputMesh("testData/cases/solenoid/solenoid.vtu");
+    ASSERT_EQ(mesh.groups.size(), 1);
+
+    using Edge = std::pair<meshlib::CoordinateId, meshlib::CoordinateId>;
+    std::map<Edge, std::vector<Edge>> edgeUses;
+    for (const auto& triangle : mesh.groups[0].elements) {
+        ASSERT_TRUE(triangle.isTriangle());
+        for (std::size_t vertex = 0; vertex < triangle.vertices.size(); ++vertex) {
+            const Edge oriented{
+                triangle.vertices[vertex],
+                triangle.vertices[(vertex + 1) % triangle.vertices.size()]};
+            edgeUses[std::minmax(oriented.first, oriented.second)].push_back(oriented);
+        }
+    }
+
+    for (const auto& [edge, uses] : edgeUses) {
+        ASSERT_LE(uses.size(), 2) << "Non-manifold edge " << edge.first << '-' << edge.second;
+        if (uses.size() == 2) {
+            EXPECT_EQ(uses[0], Edge(uses[1].second, uses[1].first))
+                << "Inconsistent winding at edge " << edge.first << '-' << edge.second;
+        }
+    }
+}
+
 TEST_F(VTKIOTest, exportAndReadHexahedron)
 {
     meshlib::Mesh mesh;
@@ -65,6 +111,68 @@ TEST_F(VTKIOTest, exportAndReadHexahedron)
     ASSERT_EQ(1, result.countElems());
     EXPECT_TRUE(result.groups[0].elements[0].isHexahedron());
     EXPECT_EQ(mesh.coordinates, result.coordinates);
+}
+
+TEST_F(VTKIOTest, exportAndReadGroupNames)
+{
+    meshlib::Mesh mesh;
+    mesh.coordinates = {
+        meshlib::Coordinate({0.0, 0.0, 0.0}),
+        meshlib::Coordinate({1.0, 0.0, 0.0})
+    };
+    mesh.groups = {
+        meshlib::Group("first", {
+            meshlib::Element({0}, meshlib::Element::Type::Node)}),
+        meshlib::Group("second", {
+            meshlib::Element({1}, meshlib::Element::Type::Node)})
+    };
+
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_group_names_roundtrip.vtu";
+    exportMeshToVTU(filename, mesh);
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(result.groups.size(), 2);
+    EXPECT_EQ(result.groups[0].name, "first");
+    EXPECT_EQ(result.groups[1].name, "second");
+}
+
+TEST_F(VTKIOTest, readsGroupNamesFromLegacyVTKWithCRLFLineEndings)
+{
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_crlf_group_names.vtu";
+    {
+        std::ofstream stream(filename, std::ios::binary);
+        stream
+            << "# vtk DataFile Version 3.0\r\n"
+            << "group names with CRLF\r\n"
+            << "ASCII\r\n"
+            << "DATASET UNSTRUCTURED_GRID\r\n"
+            << "POINTS 2 float\r\n"
+            << "0 0 0\r\n"
+            << "1 0 0\r\n"
+            << "CELLS 2 4\r\n"
+            << "1 0\r\n"
+            << "1 1\r\n"
+            << "CELL_TYPES 2\r\n"
+            << "1\r\n"
+            << "1\r\n"
+            << "CELL_DATA 2\r\n"
+            << "FIELD FieldData 2\r\n"
+            << "group 1 2 int\r\n"
+            << "0 1\r\n"
+            << "groupNames 1 2 string\r\n"
+            << "first\r\n"
+            << "second\r\n";
+    }
+
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(result.groups.size(), 2);
+    EXPECT_EQ(result.groups[0].name, "first");
+    EXPECT_EQ(result.groups[1].name, "second");
 }
 
 TEST_F(VTKIOTest, exportGridToVTU)

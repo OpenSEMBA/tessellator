@@ -75,6 +75,11 @@ public:
         const Coordinates& meshCs,
         const ElementsView& patch);
 
+    void retriangulatePlanarPatch(
+        Elements& es,
+        const Coordinates& cs,
+        const ElementsView& patch);
+
     SingularIds buildSingularIds(
         const Elements& es,
         const Coordinates& cs,

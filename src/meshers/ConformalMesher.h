@@ -23,6 +23,8 @@ public:
     static std::set<Cell> findNonConformalCells(const Mesh& mesh);
     static std::set<Cell> cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh);
     static std::set<Cell> cellsWithMoreThanAPathPerFace(const Mesh& mesh);
+    static std::set<Cell> cellsSharedByGroups(
+        const Mesh& mesh, const std::set<GroupId>& ignoredGroups = {});
     static std::set<Cell> cellsWithInteriorDisconnectedPatches(const Mesh& mesh);
     static std::set<Cell> cellsWithAVertexInAnEdgeForbiddenRegion(const Mesh& mesh);
 private:

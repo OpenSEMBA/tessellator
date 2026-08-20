@@ -28,8 +28,8 @@ jobs:
         
     name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
     runs-on: ${{ matrix.preset.os }}
-    env:
-      VCPKG_BINARY_SOURCES: clear
+    # Inherit the workflow-level x-gha binary cache.  Do not override this
+    # with `clear`: Windows VTK is otherwise rebuilt from source on every run.
 
     steps:
     - name: checkout repository

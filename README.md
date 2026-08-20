@@ -95,11 +95,12 @@ This contains the information about the mesh file(s). You can specify a single o
 - `objects`: An array of object definitions. Each object can have:
   - `filename`: (required) The mesh file name, relative to the JSON file location
   - `group`: (optional) Group name for the object (defaults to filename without extension)
+  - `ghost`: (optional boolean, default: false) Excludes the object from cross-object decisions while still meshing and exporting it normally
   - `mesher`: (optional) Override the global mesher settings for this specific object
 
 ```json
   "objects": [
-    {"filename": "object1.stl", "group": "group1"},
+    {"filename": "object1.stl", "group": "group1", "ghost": true},
     {"filename": "object2.stl", "group": "group2", "mesher": {"type": "conformal"}}
   ]
 ```
@@ -118,8 +119,14 @@ For **staircase** mesher:
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
 
 For **conformal** mesher:
-- `edgePoints`: Controls edge point snapping behavior
-- `forbiddenLength`: Minimum length threshold for snapping
+- `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced
+  candidate snap points added along each grid edge. These points are placed in
+  the portion of the edge outside the endpoint exclusion regions defined by
+  `forbiddenLength`. Set to `0` to add no interior edge points.
+- `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
+  clear next to both endpoints when placing or snapping to edge points. It must
+  not exceed `0.5`.
+- `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file
@@ -135,12 +142,26 @@ Example with staircase mesher and compression enabled:
   }
 ```
 
+### `<output>`
+This optional entry controls how multi-object results are written:
+
+- `singleFile`: (boolean, default: false) Writes all objects to one
+  `{basename}.tessellator.vtk` file instead of separate per-object mesh files.
+  Object groups remain identifiable through the `group` and `groupNames` cell
+  attributes. Group names must be unique.
+
+```json
+  "output": {
+    "singleFile": true
+  }
+```
+
 Example with conformal mesher:
 ```json
   "mesher": {
     "type": "conformal",
     "options": {
-      "edgePoints": true,
+      "edgePoints": 3,
       "forbiddenLength": 0.001
     }
   }
@@ -150,6 +171,7 @@ Example with conformal mesher:
 The tessellator generates output files with the following naming convention:
 - `{group_name}.tessellator.str.vtk` - Staircase meshed object
 - `{group_name}.tessellator.cmsh.vtk` - Conformal meshed object
+- `{basename}.tessellator.vtk` - Combined multi-object mesh when `output.singleFile` is true
 - `{basename}.tessellator.grid.vtk` - Grid file (if `exportGrid` is true)
 
 ### Complete Example
