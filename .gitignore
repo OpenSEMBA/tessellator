@@ -31,3 +31,4 @@ contour.vtk
 
 testData/cases/*/*.vtk 
 build
+git_info.txt

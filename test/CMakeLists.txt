@@ -44,6 +44,7 @@ target_link_libraries(tessellator_tests
 
 if(TESSELLATOR_ENABLE_APP)
 	target_sources(tessellator_tests PRIVATE 
+		"app/buildInfoTest.cpp"
 		"app/launcherTest.cpp"
 		"app/vtkIOTest.cpp"
 	)

@@ -47,6 +47,7 @@ endif()
 project(tessellator VERSION 1.0.0 LANGUAGES CXX)
 
 if(TESSELLATOR_ENABLE_APP)
+   include("${CMAKE_CURRENT_SOURCE_DIR}/get_commit_info.cmake")
    find_package(VTK REQUIRED COMPONENTS
       CommonCore
       IOGeometry

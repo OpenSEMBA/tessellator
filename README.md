@@ -33,6 +33,14 @@ ctest --test-dir build --output-on-failure
 `ctest` automatically runs from the source directory, so no `testData` symlinks
 are required.
 
+The launcher prints its build version, commit, compiler, and flags on startup.
+For source bundles built without Git, generate `git_info.txt` in a checkout and
+include it at the source root before packaging:
+
+```shell
+./scripts/write_git_info.sh
+```
+
 This can be done using a `CMakeUserPreset.json` file, for example:
 
 ```json
