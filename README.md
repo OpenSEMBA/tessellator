@@ -86,21 +86,30 @@ This contains the information about the mesh file(s). You can specify a single o
 
 **Single object:**
 - `filename`: A string containing the name of the mesh file. Its location is relative to that of the json file.
+- `volume`: (optional boolean, default: `false`) Treats the object as a volume.
+  A volume may be supplied as a closed triangle/quad surface or as
+  tetrahedral/hexahedral cells. Its input boundary is validated before
+  meshing. Conformal volume components that collapse geometrically to a
+  surface, line, or point are selectively staircased and remain valid. The
+  output may therefore contain a different number of closed volume regions,
+  together with surface, line, or point remnants.
 
 ```json
-  "object": {"filename": "thinCylinder.stl"}
+  "object": {"filename": "thinCylinder.stl", "volume": true}
 ```
 
 **Multiple objects:**
 - `objects`: An array of object definitions. Each object can have:
   - `filename`: (required) The mesh file name, relative to the JSON file location
   - `group`: (optional) Group name for the object (defaults to filename without extension)
+  - `volume`: (optional boolean, default: `false`) Applies the same volume
+    validation and meshing behavior as the single-object form
   - `ghost`: (optional boolean, default: false) Excludes the object from cross-object decisions while still meshing and exporting it normally
   - `mesher`: (optional) Override the global mesher settings for this specific object
 
 ```json
   "objects": [
-    {"filename": "object1.stl", "group": "group1", "ghost": true},
+    {"filename": "object1.stl", "group": "group1", "volume": true, "ghost": true},
     {"filename": "object2.stl", "group": "group2", "mesher": {"type": "conformal"}}
   ]
 ```

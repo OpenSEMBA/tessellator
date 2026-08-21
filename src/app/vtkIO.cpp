@@ -15,7 +15,7 @@
 #include <vtkAppendFilter.h>
 #include <vtkSTLReader.h>
 #include <vtkUnstructuredGridReader.h>
-#include <vtkPolyDataReader.h>
+#include <vtkGenericDataObjectReader.h>
 
 #include <vtkUnstructuredGridWriter.h>
 
@@ -70,10 +70,18 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
         reader->Update();
         vtu = vtkPolyDataToVTU(reader->GetOutput());
     } else if (extension == ".vtk") {
-        vtkNew<vtkPolyDataReader> reader;
+        vtkNew<vtkGenericDataObjectReader> reader;
         reader->SetFileName(fn.c_str());
         reader->Update();
-        vtu = vtkPolyDataToVTU(reader->GetOutput());
+        if (auto* unstructured = vtkUnstructuredGrid::SafeDownCast(
+                reader->GetOutput())) {
+            vtu = unstructured;
+        } else if (auto* polyData = vtkPolyData::SafeDownCast(
+                reader->GetOutput())) {
+            vtu = vtkPolyDataToVTU(polyData);
+        } else {
+            throw std::runtime_error("Unsupported VTK dataset type");
+        }
     } else if (extension == ".vtu") {
         vtkNew<vtkUnstructuredGridReader> reader;
         reader->SetFileName(fn.c_str());
@@ -92,6 +100,7 @@ Element vtkCellToElement(vtkCell* cell)
     vtkVertex* vertex = nullptr;
     vtkLine* line = nullptr;
     vtkTriangle* triangle = nullptr;
+    vtkQuad* quad = nullptr;
     vtkTetra* tetra = nullptr;
     vtkHexahedron* hexahedron = nullptr;
 
@@ -117,6 +126,17 @@ Element vtkCellToElement(vtkCell* cell)
             CoordinateId(triangle->GetPointIds()->GetId(0)),
             CoordinateId(triangle->GetPointIds()->GetId(1)),
             CoordinateId(triangle->GetPointIds()->GetId(2))
+        };
+        elem.type = meshlib::Element::Type::Surface;
+        break;
+
+    case VTK_QUAD:
+        quad = vtkQuad::SafeDownCast(cell);
+        elem.vertices = {
+            CoordinateId(quad->GetPointIds()->GetId(0)),
+            CoordinateId(quad->GetPointIds()->GetId(1)),
+            CoordinateId(quad->GetPointIds()->GetId(2)),
+            CoordinateId(quad->GetPointIds()->GetId(3))
         };
         elem.type = meshlib::Element::Type::Surface;
         break;
