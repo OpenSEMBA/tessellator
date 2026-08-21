@@ -30,7 +30,7 @@ option(TESSELLATOR_ENABLE_TESTS "Compile tests" ON)
 option(TESSELLATOR_ENABLE_CGAL "Compile using CGAL library" OFF)
 option(TESSELLATOR_EXECUTION_POLICIES OFF)
 option(DOCKER_EXPORT_COMPILE_COMMANDS "Information for the 'clangd' linter extension" OFF)
-option(TESSELLATOR_LOAD_APP "Compile app" OFF)
+option(TESSELLATOR_ENABLE_APP "Compile the tessellator launcher application" ON)
 
 if(DOCKER_EXPORT_COMPILE_COMMANDS)
    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -44,22 +44,18 @@ if(TESSELLATOR_ENABLE_CGAL)
     endif()
 endif()
 					  
-project(tessellator CXX)
+project(tessellator VERSION 1.0.0 LANGUAGES CXX)
 
-find_package(VTK COMPONENTS
-  CommonCore
-  IOGeometry
-  IOLegacy
-  FiltersCore
-)
-
-if(VTK_FOUND)
-   set(TESSELLATOR_LOAD_APP ON)
-   add_definitions(-DAPP_LOADED=1)
-
+if(TESSELLATOR_ENABLE_APP)
+   find_package(VTK REQUIRED COMPONENTS
+      CommonCore
+      IOGeometry
+      IOLegacy
+      FiltersCore
+   )
+   add_compile_definitions(APP_LOADED=1)
 else()
-   message(STATUS "VTK not found - tessellator app will not be built")
-   add_definitions(-DAPP_LOADED=0)
+   add_compile_definitions(APP_LOADED=0)
 endif()
 
 add_subdirectory(src/)
@@ -67,5 +63,4 @@ add_subdirectory(src/)
 if(TESSELLATOR_ENABLE_TESTS)
     enable_testing()
     add_subdirectory(test/)
-    add_test(tessellator ${CMAKE_BINARY_DIR}/tessellator_tests)
 endif()

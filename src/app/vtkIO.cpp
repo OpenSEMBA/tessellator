@@ -11,11 +11,12 @@
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkStringArray.h>
+#include <vtkNew.h>
 
 #include <vtkAppendFilter.h>
+#include <vtkDataSetReader.h>
 #include <vtkSTLReader.h>
 #include <vtkUnstructuredGridReader.h>
-#include <vtkPolyDataReader.h>
 
 #include <vtkUnstructuredGridWriter.h>
 
@@ -70,10 +71,16 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
         reader->Update();
         vtu = vtkPolyDataToVTU(reader->GetOutput());
     } else if (extension == ".vtk") {
-        vtkNew<vtkPolyDataReader> reader;
+        vtkNew<vtkDataSetReader> reader;
         reader->SetFileName(fn.c_str());
         reader->Update();
-        vtu = vtkPolyDataToVTU(reader->GetOutput());
+        if (auto* unstructuredGrid = vtkUnstructuredGrid::SafeDownCast(reader->GetOutput())) {
+            vtu = unstructuredGrid;
+        } else if (auto* polyData = vtkPolyData::SafeDownCast(reader->GetOutput())) {
+            vtu = vtkPolyDataToVTU(polyData);
+        } else {
+            throw std::runtime_error("Unsupported VTK dataset type");
+        }
     } else if (extension == ".vtu") {
         vtkNew<vtkUnstructuredGridReader> reader;
         reader->SetFileName(fn.c_str());

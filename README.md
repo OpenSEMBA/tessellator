@@ -19,6 +19,20 @@ Tessellator is a mesher focused on generate meshes and data structures which are
 
 When using presets, make sure to define the environment variable `VCPKG_ROOT` to your `vcpkg` installation.
 The standard presets build without CGAL; use the `gnu-cgal` preset for the optional CGAL algorithms.
+The launcher application is enabled by default (`TESSELLATOR_ENABLE_APP=ON`) and
+requires VTK 7.1 or newer. CMake fails during configuration when the launcher is enabled but VTK is unavailable. To build the mesh library and its non-app tests without VTK, configure with `-DTESSELLATOR_ENABLE_APP=OFF`.
+
+For a clean build with the launcher enabled:
+
+```shell
+cmake --preset gnu -S . -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+`ctest` automatically runs from the source directory, so no `testData` symlinks
+are required.
+
 This can be done using a `CMakeUserPreset.json` file, for example:
 
 ```json
@@ -120,12 +134,11 @@ For **staircase** mesher:
 
 For **conformal** mesher:
 - `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced
-  candidate snap points added along each grid edge. These points are placed in
-  the portion of the edge outside the endpoint exclusion regions defined by
+  candidate snap points added along each grid edge.
+  These points are placed in the portion of the edge outside the endpoint exclusion regions defined by
   `forbiddenLength`. Set to `0` to add no interior edge points.
 - `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
-  clear next to both endpoints when placing or snapping to edge points. It must
-  not exceed `0.5`.
+  clear next to both endpoints when placing or snapping to edge points. It must be between `0.0` and `0.5`, inclusive.
 - `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 
 **Global options:**
