@@ -113,6 +113,30 @@ TEST_F(VTKIOTest, exportAndReadHexahedron)
     EXPECT_EQ(mesh.coordinates, result.coordinates);
 }
 
+TEST_F(VTKIOTest, exportAndReadQuad)
+{
+    meshlib::Mesh mesh;
+    mesh.coordinates = {
+        meshlib::Coordinate({0.0, 0.0, 0.0}),
+        meshlib::Coordinate({1.0, 0.0, 0.0}),
+        meshlib::Coordinate({1.0, 1.0, 0.0}),
+        meshlib::Coordinate({0.0, 1.0, 0.0})
+    };
+    mesh.groups = {meshlib::Group("quad", {
+        meshlib::Element({0, 1, 2, 3}, meshlib::Element::Type::Surface)
+    })};
+
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_quad_roundtrip.vtu";
+    exportMeshToVTU(filename, mesh);
+    const auto result = readInputMesh(filename);
+    std::filesystem::remove(filename);
+
+    ASSERT_EQ(result.countElems(), 1);
+    EXPECT_TRUE(result.groups[0].elements[0].isQuad());
+    EXPECT_EQ(mesh.coordinates, result.coordinates);
+}
+
 TEST_F(VTKIOTest, exportAndReadGroupNames)
 {
     meshlib::Mesh mesh;

@@ -402,6 +402,118 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_8)
     EXPECT_EQ(2, res.size());
 }
 
+TEST_F(ConformalMesherTest, preservesClosedMarkedVolume)
+{
+    Mesh input = buildCubeSurfaceMesh(0.5);
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    ASSERT_FALSE(result.groups[0].elements.empty());
+    EXPECT_TRUE(isAClosedTopology(result.groups[0].elements));
+}
+
+TEST_F(ConformalMesherTest, rejectsOpenMarkedVolume)
+{
+    Mesh input = buildTetSurfaceMesh(0.5);
+    input.groups[0].elements.pop_back();
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+
+    EXPECT_THROW(
+        ConformalMesher(input, options).mesh(),
+        std::runtime_error);
+}
+
+TEST_F(ConformalMesherTest, acceptsMultipleRegionsWithoutPreservingTheirCount)
+{
+    Mesh input = buildCubeSurfaceMesh(0.5);
+    for (Coordinate& coordinate : input.coordinates) {
+        coordinate *= 0.4;
+    }
+    const CoordinateId coordinateOffset = input.coordinates.size();
+    const Coordinates firstCoordinates = input.coordinates;
+    const Elements firstCube = input.groups[0].elements;
+    for (Coordinate coordinate : firstCoordinates) {
+        coordinate[X] += 1.0;
+        input.coordinates.push_back(coordinate);
+    }
+    for (Element element : firstCube) {
+        for (CoordinateId& vertex : element.vertices) {
+            vertex += coordinateOffset;
+        }
+        input.groups[0].elements.push_back(std::move(element));
+    }
+
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(result.countElems(), 0);
+}
+
+TEST_F(ConformalMesherTest, staircasesPlanarVolumeDegeneration)
+{
+    Mesh input = buildSlabSurfaceMesh(1.0, 0.01);
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isQuad), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
+}
+
+TEST_F(ConformalMesherTest, staircasesLinearVolumeDegeneration)
+{
+    Mesh input = buildCubeSurfaceMesh(1.0);
+    for (Coordinate& coordinate : input.coordinates) {
+        for (Axis axis : {Y, Z}) {
+            if (coordinate[axis] == 1.0) {
+                coordinate[axis] = 0.01;
+            }
+        }
+    }
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isLine), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
+}
+
+TEST_F(ConformalMesherTest, staircasesPointVolumeDegeneration)
+{
+    Mesh input = buildCubeSurfaceMesh(1.0);
+    for (Coordinate& coordinate : input.coordinates) {
+        for (Axis axis : {X, Y, Z}) {
+            if (coordinate[axis] == 1.0) {
+                coordinate[axis] = 0.01;
+            }
+        }
+    }
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isNode), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
+}
+
 #if APP_LOADED
 
 TEST_F(ConformalMesherTest, sphere)

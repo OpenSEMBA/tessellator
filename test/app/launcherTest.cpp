@@ -4,6 +4,9 @@
 #include "types/Mesh.h"
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
+#include "core/VolumeShellExtractor.h"
+#include "utils/MeshTools.h"
+#include "app/vtkIO.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -288,6 +291,49 @@ TEST_F(LauncherTest, launches_conformal_cone_case)
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, launchesTypicalCasesAsStaircaseVolumes)
+{
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {"testData/cases/alhambra/alhambra.volume.tessellator.json", "alhambra"},
+        {"testData/cases/sphere/sphere.volume.tessellator.json", "sphere"},
+        {"testData/cases/cone/cone.volume.tessellator.json", "cone"}
+    };
+
+    for (const auto& [input, group] : cases) {
+        SCOPED_TRACE(input);
+        const char* arguments[] = {nullptr, "-i", input.c_str()};
+        ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+
+        const auto output = std::filesystem::path(input).parent_path()
+            / (group + ".tessellator.str.vtk");
+        const auto mesh = meshlib::vtkIO::readInputMesh(output);
+        ASSERT_GT(mesh.countElems(), 0);
+        EXPECT_EQ(mesh.countElems(), meshlib::utils::meshTools::countMeshElementsIf(
+            mesh, meshlib::utils::meshTools::isHexahedron));
+    }
+}
+
+TEST_F(LauncherTest, launchesTypicalCasesAsConformalVolumes)
+{
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {"testData/cases/alhambra/alhambra.volume.conformal.tessellator.json", "alhambra"},
+        {"testData/cases/sphere/sphere.volume.conformal.tessellator.json", "sphere"},
+        {"testData/cases/cone/cone.volume.conformal.tessellator.json", "cone"}
+    };
+
+    for (const auto& [input, group] : cases) {
+        SCOPED_TRACE(input);
+        const char* arguments[] = {nullptr, "-i", input.c_str()};
+        ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+
+        const auto output = std::filesystem::path(input).parent_path()
+            / (group + ".tessellator.cmsh.vtk");
+        const auto mesh = meshlib::vtkIO::readInputMesh(output);
+        ASSERT_EQ(mesh.groups.size(), 1);
+        EXPECT_GT(mesh.countElems(), 0);
+    }
 }
 
 TEST_F(LauncherTest, readObjectsFromJSON_basic)
