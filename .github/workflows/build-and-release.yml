@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev
+      - 66-release-issues
 
 permissions:
   contents: write
