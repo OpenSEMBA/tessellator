@@ -89,11 +89,35 @@ jobs:
         shell: bash
         run: |
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
-            binary="build/bin/Release/tessellator.exe"
+            archive_root="opensemba-tessellator-windows-x64"
+            cmake \
+              -DTESSELLATOR_EXECUTABLE="${PWD}/build/bin/Release/tessellator.exe" \
+              -DTESSELLATOR_RUNTIME_DIRECTORY="${PWD}/build/vcpkg_installed/x64-windows/bin" \
+              -DTESSELLATOR_STAGING_DIRECTORY="${PWD}/release/${archive_root}" \
+              -DTESSELLATOR_LICENSE="${PWD}/LICENSE" \
+              -DTESSELLATOR_README="${PWD}/README.md" \
+              -P .github/scripts/package-windows-release.cmake
+            tar -czvf "${{ matrix.archive }}" -C release "${archive_root}"
           else
             binary="build/bin/tessellator"
+            tar -czvf "${{ matrix.archive }}" "$binary" LICENSE
           fi
-          tar -czvf "${{ matrix.archive }}" "$binary" LICENSE
+
+      - name: Verify Windows release archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $extractDir = Join-Path $PWD 'release-check'
+          New-Item -ItemType Directory -Path $extractDir | Out-Null
+          tar -xzf '${{ matrix.archive }}' -C $extractDir
+          $bundleDir = Join-Path $extractDir 'opensemba-tessellator-windows-x64'
+          foreach ($requiredFile in @('tessellator.exe', 'LICENSE', 'README.md')) {
+            if (-not (Test-Path (Join-Path $bundleDir $requiredFile))) {
+              throw "Release archive is missing $requiredFile"
+            }
+          }
+          & (Join-Path $bundleDir 'tessellator.exe') -h
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
