@@ -102,7 +102,11 @@ TEST_F(ConformalMesherTest, ignoresSelectedGroupsWhenFindingSharedCells)
     EXPECT_EQ(result, std::set<Cell>({Cell({1, 0, 0})}));
 }
 
+<<<<<<< HEAD
 TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesByDefault)
+=======
+TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesIntoQuads)
+>>>>>>> 91-conformal-mesher-refinements
 {
     Mesh input;
     input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
@@ -126,7 +130,11 @@ TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesByDefault)
     EXPECT_EQ(0, countMeshElementsIf(result, isNode));
 }
 
+<<<<<<< HEAD
 TEST_F(ConformalMesherTest, canDisableCellSizedAxisAlignedTriangleMerging)
+=======
+TEST_F(ConformalMesherTest, doesNotMergeAxisAlignedTrianglesFromDifferentGroups)
+>>>>>>> 91-conformal-mesher-refinements
 {
     Mesh input;
     input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
@@ -136,6 +144,7 @@ TEST_F(ConformalMesherTest, canDisableCellSizedAxisAlignedTriangleMerging)
         Coordinate({1.0, 1.0, 0.25}),
         Coordinate({0.0, 1.0, 0.25})
     };
+<<<<<<< HEAD
     input.groups = {Group("surface", {
         Element({0, 1, 2}),
         Element({0, 2, 3})
@@ -144,6 +153,14 @@ TEST_F(ConformalMesherTest, canDisableCellSizedAxisAlignedTriangleMerging)
     options.mergeAxisAlignedTriangles = false;
 
     const Mesh result = ConformalMesher(input, options).mesh();
+=======
+    input.groups = {
+        Group("first", {Element({0, 1, 2})}),
+        Group("second", {Element({0, 2, 3})})
+    };
+
+    const Mesh result = ConformalMesher(input).mesh();
+>>>>>>> 91-conformal-mesher-refinements
 
     EXPECT_EQ(0, countMeshElementsIf(result, isQuad));
     EXPECT_EQ(2, countMeshElementsIf(result, isTriangle));
