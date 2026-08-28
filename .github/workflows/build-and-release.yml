@@ -38,16 +38,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            container: ubuntu:26.04
             preset: gnu
             platform: ubuntu-gnu
             archive: opensemba-tessellator-linux-x64.tar.gz
           - os: windows-2022
+            container: null
             preset: msbuild
             platform: windows-msbuild
             archive: opensemba-tessellator-windows-x64.tar.gz
 
     name: ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
 
     steps:
       - name: Checkout repository
@@ -62,8 +65,8 @@ jobs:
       - name: Install Ubuntu VTK
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvtk9-dev
+          apt-get update
+          apt-get install -y libvtk9-dev
 
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v7
@@ -118,6 +121,10 @@ jobs:
           }
           & (Join-Path $bundleDir 'tessellator.exe') -h
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Ubuntu release binary
+        if: runner.os == 'Linux'
+        run: build/bin/tessellator -h
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
