@@ -102,6 +102,51 @@ TEST_F(ConformalMesherTest, ignoresSelectedGroupsWhenFindingSharedCells)
     EXPECT_EQ(result, std::set<Cell>({Cell({1, 0, 0})}));
 }
 
+TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesIntoQuads)
+{
+    Mesh input;
+    input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    input.coordinates = {
+        Coordinate({0.0, 0.0, 0.25}),
+        Coordinate({1.0, 0.0, 0.25}),
+        Coordinate({1.0, 1.0, 0.25}),
+        Coordinate({0.0, 1.0, 0.25})
+    };
+    input.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({0, 2, 3}),
+        Element({0, 1}, Element::Type::Line),
+        Element({0}, Element::Type::Node)
+    })};
+
+    const Mesh result = ConformalMesher(input).mesh();
+
+    EXPECT_EQ(1, countMeshElementsIf(result, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(result, isLine));
+    EXPECT_EQ(0, countMeshElementsIf(result, isNode));
+}
+
+TEST_F(ConformalMesherTest, doesNotMergeAxisAlignedTrianglesFromDifferentGroups)
+{
+    Mesh input;
+    input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    input.coordinates = {
+        Coordinate({0.0, 0.0, 0.25}),
+        Coordinate({1.0, 0.0, 0.25}),
+        Coordinate({1.0, 1.0, 0.25}),
+        Coordinate({0.0, 1.0, 0.25})
+    };
+    input.groups = {
+        Group("first", {Element({0, 1, 2})}),
+        Group("second", {Element({0, 2, 3})})
+    };
+
+    const Mesh result = ConformalMesher(input).mesh();
+
+    EXPECT_EQ(0, countMeshElementsIf(result, isQuad));
+    EXPECT_EQ(2, countMeshElementsIf(result, isTriangle));
+}
+
 TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_1)
 {
     // This is non-conformal.
