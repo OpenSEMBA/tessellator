@@ -129,6 +129,30 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
     EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
+    EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
+}
+
+TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "conformal"},
+            {"options", {{"mergeAxisAlignedTriangles", false}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& conformal =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
+
+    EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
 TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)

@@ -10,6 +10,7 @@ class ConformalMesherOptions : public MesherBaseOptions {
 public:
     core::SnapperOptions snapperOptions;
     bool staircaseSharedCells = true;
+    bool mergeAxisAlignedTriangles = true;
 };
 
 }

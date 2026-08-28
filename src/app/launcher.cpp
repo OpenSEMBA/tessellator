@@ -200,6 +200,8 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
             "forbiddenLength", res.snapperOptions.forbiddenLength);
         res.staircaseSharedCells = options.value(
             "staircaseSharedCells", res.staircaseSharedCells);
+        res.mergeAxisAlignedTriangles = options.value(
+            "mergeAxisAlignedTriangles", res.mergeAxisAlignedTriangles);
     }
     return res;
 }

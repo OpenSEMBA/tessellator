@@ -136,6 +136,7 @@ For **conformal** mesher:
   clear next to both endpoints when placing or snapping to edge points. It must
   not exceed `0.5`.
 - `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
+- `mergeAxisAlignedTriangles`: (boolean, default: true) Merges two triangles that form a cell-sized quad parallel to a grid plane
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file

@@ -412,6 +412,196 @@ void validateConformalVolumeComponents(
     }
 }
 
+using Edge = std::pair<CoordinateId, CoordinateId>;
+
+Edge edgeKey(CoordinateId first, CoordinateId second)
+{
+    return std::minmax(first, second);
+}
+
+bool isAxisAlignedCellSizedQuad(
+    const CoordinateIds& vertices,
+    const Coordinates& coordinates,
+    Axis normalAxis)
+{
+    constexpr double tolerance = 1e-9;
+    const double planePosition = coordinates[vertices.front()][normalAxis];
+    for (CoordinateId vertex : vertices) {
+        if (std::abs(coordinates[vertex][normalAxis] - planePosition)
+            > tolerance) {
+            return false;
+        }
+    }
+
+    for (Axis axis = X; axis <= Z; ++axis) {
+        if (axis == normalAxis) {
+            continue;
+        }
+
+        double lower = coordinates[vertices.front()][axis];
+        double upper = lower;
+        for (CoordinateId vertex : vertices) {
+            lower = std::min(lower, coordinates[vertex][axis]);
+            upper = std::max(upper, coordinates[vertex][axis]);
+        }
+
+        const double cellLower = std::round(lower);
+        if (std::abs(lower - cellLower) > tolerance
+            || std::abs(upper - (cellLower + 1.0)) > tolerance) {
+            return false;
+        }
+        for (CoordinateId vertex : vertices) {
+            const double position = coordinates[vertex][axis];
+            if (std::abs(position - cellLower) > tolerance
+                && std::abs(position - (cellLower + 1.0)) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool buildAxisAlignedCellSizedQuad(
+    const Element& first,
+    const Element& second,
+    const Coordinates& coordinates,
+    Element& quad)
+{
+    if (!first.isTriangle() || !second.isTriangle()) {
+        return false;
+    }
+
+    const VecD firstNormal = Geometry::normal(
+        Geometry::asTriV(first, coordinates));
+    const VecD secondNormal = Geometry::normal(
+        Geometry::asTriV(second, coordinates));
+    if (firstNormal.norm() <= Geometry::NORM_TOLERANCE
+        || secondNormal.norm() <= Geometry::NORM_TOLERANCE
+        || firstNormal * secondNormal <= 0.0) {
+        return false;
+    }
+
+    const VecD firstUnitNormal = firstNormal / firstNormal.norm();
+    const VecD secondUnitNormal = secondNormal / secondNormal.norm();
+    Axis normalAxis = X;
+    for (Axis axis = Y; axis <= Z; ++axis) {
+        if (std::abs(firstUnitNormal[axis])
+            > std::abs(firstUnitNormal[normalAxis])) {
+            normalAxis = axis;
+        }
+    }
+    constexpr double tolerance = 1e-9;
+    for (Axis axis = X; axis <= Z; ++axis) {
+        if (axis != normalAxis
+            && (std::abs(firstUnitNormal[axis]) > tolerance
+                || std::abs(secondUnitNormal[axis]) > tolerance)) {
+            return false;
+        }
+    }
+
+    std::map<Edge, std::size_t> edgeOccurrences;
+    std::vector<Edge> directedBoundary;
+    for (const Element* triangle : {&first, &second}) {
+        for (std::size_t vertex = 0; vertex < triangle->vertices.size(); ++vertex) {
+            const Edge edge{
+                triangle->vertices[vertex],
+                triangle->vertices[(vertex + 1) % triangle->vertices.size()]};
+            ++edgeOccurrences[edgeKey(edge.first, edge.second)];
+            directedBoundary.push_back(edge);
+        }
+    }
+
+    std::map<CoordinateId, CoordinateId> nextVertex;
+    CoordinateIds vertices;
+    for (const Edge& edge : directedBoundary) {
+        if (edgeOccurrences[edgeKey(edge.first, edge.second)] == 1) {
+            if (!nextVertex.emplace(edge.first, edge.second).second) {
+                return false;
+            }
+            vertices.push_back(edge.first);
+        }
+    }
+    if (vertices.size() != 4 || nextVertex.size() != 4) {
+        return false;
+    }
+
+    CoordinateIds orderedVertices;
+    orderedVertices.reserve(4);
+    CoordinateId vertex = vertices.front();
+    for (std::size_t i = 0; i < 4; ++i) {
+        orderedVertices.push_back(vertex);
+        const auto next = nextVertex.find(vertex);
+        if (next == nextVertex.end()) {
+            return false;
+        }
+        vertex = next->second;
+    }
+    if (vertex != orderedVertices.front()
+        || !isAxisAlignedCellSizedQuad(
+            orderedVertices, coordinates, normalAxis)) {
+        return false;
+    }
+
+    quad = Element(orderedVertices, Element::Type::Surface);
+    return true;
+}
+
+void mergeAxisAlignedCellSizedTrianglePairs(Mesh& mesh)
+{
+    for (Group& group : mesh.groups) {
+        std::map<Edge, std::vector<ElementId>> trianglesByEdge;
+        for (ElementId elementId = 0; elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle()) {
+                continue;
+            }
+            for (std::size_t vertex = 0; vertex < element.vertices.size(); ++vertex) {
+                trianglesByEdge[edgeKey(
+                    element.vertices[vertex],
+                    element.vertices[(vertex + 1) % element.vertices.size()])]
+                    .push_back(elementId);
+            }
+        }
+
+        std::map<ElementId, Element> replacements;
+        std::set<ElementId> removed;
+        for (const auto& entry : trianglesByEdge) {
+            const auto& triangles = entry.second;
+            if (triangles.size() != 2
+                || removed.count(triangles[0]) != 0
+                || removed.count(triangles[1]) != 0) {
+                continue;
+            }
+
+            Element quad;
+            if (!buildAxisAlignedCellSizedQuad(
+                    group.elements[triangles[0]], group.elements[triangles[1]],
+                    mesh.coordinates, quad)) {
+                continue;
+            }
+            const ElementId retained = std::min(triangles[0], triangles[1]);
+            const ElementId discarded = std::max(triangles[0], triangles[1]);
+            replacements.emplace(retained, std::move(quad));
+            removed.insert(discarded);
+        }
+
+        if (replacements.empty()) {
+            continue;
+        }
+        Elements normalized;
+        normalized.reserve(group.elements.size() - removed.size());
+        for (ElementId elementId = 0; elementId < group.elements.size(); ++elementId) {
+            const auto replacement = replacements.find(elementId);
+            if (replacement != replacements.end()) {
+                normalized.push_back(replacement->second);
+            } else if (removed.count(elementId) == 0) {
+                normalized.push_back(group.elements[elementId]);
+            }
+        }
+        group.elements = std::move(normalized);
+    }
+}
+
 }
 
 std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh)
@@ -656,7 +846,14 @@ Mesh ConformalMesher::mesh() const
     log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
 
 
-    // Merges triangles which are on same cell face.
+    if (opts_.mergeAxisAlignedTriangles) {
+        log("Merging axis-aligned cell-sized triangle pairs.", 1);
+        mergeAxisAlignedCellSizedTrianglePairs(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::cleanCoords(res);
+        logNumberOfQuads(countMeshElementsIf(res, isQuad));
+    }
     
     reduceGrid(res, originalGrid_);
     
