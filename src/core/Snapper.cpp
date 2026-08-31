@@ -5,6 +5,8 @@
 #include "utils/MeshTools.h"
 #include "Collapser.h"
 
+#include <cmath>
+
 namespace meshlib {
 namespace core {
 
@@ -13,7 +15,8 @@ Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :
     mesh_{ mesh },
     opts_{ opts }
 {
-    if (opts.forbiddenLength > 0.5) {
+    if (!std::isfinite(opts.forbiddenLength) ||
+        opts.forbiddenLength < 0.0 || opts.forbiddenLength > 0.5) {
         throw std::logic_error("Invalid forbidden length");
     }
     snap();

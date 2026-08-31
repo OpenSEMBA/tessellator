@@ -42,8 +42,9 @@ target_link_libraries(tessellator_tests
 	GTest::gtest_main
 )
 
-if(TESSELLATOR_LOAD_APP)
+if(TESSELLATOR_ENABLE_APP)
 	target_sources(tessellator_tests PRIVATE 
+		"app/buildInfoTest.cpp"
 		"app/launcherTest.cpp"
 		"app/vtkIOTest.cpp"
 	)
@@ -69,4 +70,5 @@ if (TESSELLATOR_ENABLE_CGAL)
 	target_link_libraries(tessellator_tests tessellator-cgal)
 endif()
 
-add_test(tessellator ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tessellator_tests)
+add_test(NAME tessellator COMMAND $<TARGET_FILE:tessellator_tests>)
+set_tests_properties(tessellator PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

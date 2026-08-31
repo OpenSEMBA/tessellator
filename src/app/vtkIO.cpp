@@ -11,8 +11,10 @@
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkStringArray.h>
+#include <vtkNew.h>
 
 #include <vtkAppendFilter.h>
+#include <vtkDataSetReader.h>
 #include <vtkSTLReader.h>
 #include <vtkUnstructuredGridReader.h>
 #include <vtkGenericDataObjectReader.h>

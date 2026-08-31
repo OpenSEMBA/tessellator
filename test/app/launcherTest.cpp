@@ -154,6 +154,57 @@ TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
     EXPECT_FALSE(conformal.getOptions().staircaseSharedCells);
 }
 
+TEST_F(LauncherTest, parsesConformalSnapOptions)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "conformal"},
+            {"options", {{"edgePoints", 3}, {"forbiddenLength", 0.25}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    const auto mesher = buildMesher(meshMock, config, object);
+    const auto& conformal =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
+
+    EXPECT_EQ(conformal.getOptions().snapperOptions.edgePoints, 3);
+    EXPECT_DOUBLE_EQ(conformal.getOptions().snapperOptions.forbiddenLength, 0.25);
+}
+
+TEST_F(LauncherTest, rejectsInvalidConformalSnapOptions)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    ObjectDefinition object;
+
+    for (const nlohmann::json& edgePoints : {
+            nlohmann::json(true), nlohmann::json(1.0), nlohmann::json(-1)}) {
+        const nlohmann::json config = {
+            {"mesher", {{"type", "conformal"}, {"options", {{"edgePoints", edgePoints}}}}}
+        };
+        EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+    }
+
+    for (const nlohmann::json& forbiddenLength : {
+            nlohmann::json(-0.1), nlohmann::json(0.6), nlohmann::json("invalid")}) {
+        const nlohmann::json config = {
+            {"mesher", {{"type", "conformal"}, {"options", {{"forbiddenLength", forbiddenLength}}}}}
+        };
+        EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+    }
+}
+
 TEST_F(LauncherTest, builds_staircased_mesher_without_compression)
 {
     meshlib::Mesh meshMock;
