@@ -1,0 +1,17 @@
+{
+    "grid": {
+        "numberOfCells": [5, 5, 5],
+        "boundingBox": [
+            [-3.0, -3.0, -3.0],
+            [ 2.0,  2.0,  2.0]
+        ]
+    },
+    "object": {"filename": "smallSphere.stl"},
+    "mesher": {
+        "type": "conformal",
+        "options": {
+            "edgePoints": 4,
+            "forbiddenLength": 0.0
+        }
+    }
+}

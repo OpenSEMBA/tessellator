@@ -299,6 +299,15 @@ TEST_F(LauncherTest, launches_conformal_sphere_case)
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
+TEST_F(LauncherTest, launches_conformal_smallSphere_case)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/smallSphere/smallSphere.conformal.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
 TEST_F(LauncherTest, launches_conformal_thinCylinder_case)
 {
     int ac = 3;
