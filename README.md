@@ -124,7 +124,7 @@ This optional entry configures the meshing algorithm and its options. If not spe
 **Mesher options:**
 
 For **staircase** mesher:
-- `compress`: (boolean, default: false) Enables surface compression to merge adjacent coplanar quads into larger surfaces
+- `compress`: (boolean, default: true) Merges compatible adjacent surfaces and lines to minimize exported element counts
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
 
 For **conformal** mesher:
@@ -135,18 +135,19 @@ For **conformal** mesher:
 - `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
   clear next to both endpoints when placing or snapping to edge points. It must
   not exceed `0.5`.
+- `compress`: (boolean, default: true) Applies final surface and line compression after conformal validation and any selective staircasing
 - `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 - `mergeAxisAlignedTriangles`: (boolean, default: true) Merges two triangles that form a cell-sized quad parallel to a grid plane
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file
 
-Example with staircase mesher and compression enabled:
+Example with staircase mesher and compression disabled:
 ```json
   "mesher": {
     "type": "staircase",
     "options": {
-      "compress": true,
+      "compress": false,
       "exportGrid": true
     }
   }

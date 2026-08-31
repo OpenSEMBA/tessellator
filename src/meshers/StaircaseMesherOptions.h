@@ -6,7 +6,7 @@ namespace meshlib::meshers {
 
 class StaircaseMesherOptions : public MesherBaseOptions {
 public:
-    bool compress = false;
+    bool compress = true;
     bool splitHexahedra = false;
 };
 

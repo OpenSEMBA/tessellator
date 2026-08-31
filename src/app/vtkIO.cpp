@@ -7,6 +7,7 @@
 #include <vtkHexahedron.h>
 #include <vtkQuad.h>
 #include <vtkCellArray.h>
+#include <vtkUnsignedCharArray.h>
 #include <vtkLine.h>
 #include <vtkVertex.h>
 #include <vtkUnstructuredGrid.h>
@@ -251,30 +252,30 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
     vtu->GetCellData()->AddArray(toVTKGroupsArray(mesh));
     vtu->GetCellData()->AddArray(toVTKGroupNamesArray(mesh));
 
-    std::vector<int> cellTypes;
-    cellTypes.reserve(mesh.countElems());
+    vtkNew<vtkUnsignedCharArray> cellTypes;
+    cellTypes->Allocate(mesh.countElems());
     vtkNew<vtkCellArray> vtkCells;
     vtkCells->Allocate(mesh.countElems());
     for (const auto& group : mesh.groups) {
         for (const auto& elem : group.elements) {
             vtkSmartPointer<vtkCell> cell;
             if (elem.isTriangle()) {
-                cellTypes.push_back(VTK_TRIANGLE);
+                cellTypes->InsertNextValue(VTK_TRIANGLE);
                 cell = vtkSmartPointer<vtkTriangle>::New();
             } else if (elem.isQuad()) {
-                cellTypes.push_back(VTK_QUAD);
+                cellTypes->InsertNextValue(VTK_QUAD);
                 cell = vtkSmartPointer<vtkQuad>::New();
             } else if (elem.isLine()) {
-                cellTypes.push_back(VTK_LINE);
+                cellTypes->InsertNextValue(VTK_LINE);
                 cell = vtkSmartPointer<vtkLine>::New();
             } else if (elem.isNode()) {
-                cellTypes.push_back(VTK_VERTEX);
+                cellTypes->InsertNextValue(VTK_VERTEX);
                 cell = vtkSmartPointer<vtkVertex>::New();
             } else if (elem.isTetrahedron()) {
-                cellTypes.push_back(VTK_TETRA);
+                cellTypes->InsertNextValue(VTK_TETRA);
                 cell = vtkSmartPointer<vtkTetra>::New();
             } else if (elem.isHexahedron()) {
-                cellTypes.push_back(VTK_HEXAHEDRON);
+                cellTypes->InsertNextValue(VTK_HEXAHEDRON);
                 cell = vtkSmartPointer<vtkHexahedron>::New();
             } else {
                 throw std::runtime_error("Unsupported element type");
@@ -287,7 +288,7 @@ vtkSmartPointer<vtkUnstructuredGrid> elementsToVTU(const Mesh& mesh)
         }
     }
 
-    vtu->SetCells(cellTypes.data(), vtkCells);
+    vtu->SetCells(cellTypes, vtkCells);
 
     return vtu;
 }

@@ -5,6 +5,7 @@
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
 #include "core/Staircaser.h"
+#include "core/Compressor.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 #include "utils/RedundancyCleaner.h"
@@ -198,6 +199,7 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
             "edgePoints", res.snapperOptions.edgePoints);
         res.snapperOptions.forbiddenLength = options.value(
             "forbiddenLength", res.snapperOptions.forbiddenLength);
+        res.compress = options.value("compress", res.compress);
         res.staircaseSharedCells = options.value(
             "staircaseSharedCells", res.staircaseSharedCells);
         res.mergeAxisAlignedTriangles = options.value(
@@ -246,6 +248,7 @@ struct MeshedObject {
     std::string mesherType;
     std::string extension;
     bool staircaseSharedCells = false;
+    bool compress = false;
     Mesh mesh;
 };
 
@@ -329,8 +332,25 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 
         Mesh relativeMesh = object.mesh;
         utils::meshTools::convertToRelativeCoordinates(relativeMesh);
-        object.mesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
+        relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
             sharedCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+        const auto nonConformalCells = meshlib::meshers::ConformalMesher::findNonConformalCells(
+            relativeMesh);
+        if (!nonConformalCells.empty()) {
+            relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
+                nonConformalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+        }
+        utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+            relativeMesh);
+        if (object.compress && !object.definition.isVolume) {
+            meshlib::core::Compressor::compressSurfacesInMesh(relativeMesh);
+            meshlib::core::Compressor::compressLinesInMesh(relativeMesh);
+            utils::RedundancyCleaner::fuseCoords(relativeMesh);
+            utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+                relativeMesh);
+        }
+        utils::RedundancyCleaner::cleanCoords(relativeMesh);
+        object.mesh = std::move(relativeMesh);
         object.mesh.groups.front().name = object.definition.group;
         utils::meshTools::convertToAbsoluteCoordinates(object.mesh);
     }
@@ -388,16 +408,19 @@ int launcher(int argc, const char* argv[])
 
         const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
         bool staircaseSharedCells = false;
+        bool compress = false;
         if (mesherType == conformal_mesher) {
-            staircaseSharedCells = readConformalMesherOptions(
-                inputFileData, objDef.isVolume, objDef.mesherOverride)
-                .staircaseSharedCells;
+            const auto conformalOptions = readConformalMesherOptions(
+                inputFileData, objDef.isVolume, objDef.mesherOverride);
+            staircaseSharedCells = conformalOptions.staircaseSharedCells;
+            compress = conformalOptions.compress;
         }
         meshedObjects.push_back({
             objDef,
             mesherType,
             readExtension(inputFileData, objDef.mesherOverride),
             staircaseSharedCells,
+            compress,
             std::move(resultMesh)
         });
     }

@@ -6,12 +6,42 @@
 #include "meshers/ConformalMesher.h"
 #include "core/VolumeShellExtractor.h"
 #include "utils/MeshTools.h"
+#include "utils/GridTools.h"
 #include "app/vtkIO.h"
 
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 using namespace meshlib::app;
+
+namespace {
+
+bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
+{
+    meshlib::utils::GridTools gridTools(mesh.grid);
+    for (const meshlib::Group& group : mesh.groups) {
+        const auto cellElements = gridTools.buildCellElemMap(
+            group.elements, mesh.coordinates);
+        for (const auto& [cell, elements] : cellElements) {
+            const bool hasSurface = std::any_of(
+                elements.begin(), elements.end(), [](const meshlib::Element* element) {
+                    return element->isTriangle() || element->isQuad();
+                });
+            const bool hasLowerDimensionalElement = std::any_of(
+                elements.begin(), elements.end(), [](const meshlib::Element* element) {
+                    return element->isLine() || element->isNode();
+                });
+            if (hasSurface && hasLowerDimensionalElement) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 class LauncherTest : public ::testing::Test
 {
@@ -76,7 +106,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
     EXPECT_EQ(options.volumeGroups.size(), 0);
-    EXPECT_EQ(options.compress, false);
+    EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
 }
 
@@ -128,6 +158,7 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
     const auto& conformal =
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
+    EXPECT_TRUE(conformal.getOptions().compress);
     EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
     EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
@@ -143,7 +174,10 @@ TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
     const nlohmann::json config = {
         {"mesher", {
             {"type", "conformal"},
-            {"options", {{"mergeAxisAlignedTriangles", false}}}
+            {"options", {
+                {"compress", false},
+                {"mergeAxisAlignedTriangles", false}
+            }}
         }}
     };
 
@@ -152,6 +186,7 @@ TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
     const auto& conformal =
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
+    EXPECT_FALSE(conformal.getOptions().compress);
     EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
@@ -224,6 +259,35 @@ TEST_F(LauncherTest, builds_staircased_mesher_with_compression)
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
     EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
+}
+
+TEST_F(LauncherTest, solenoidSnapperCaseExportsNoMixedDimensionalCells)
+{
+    const auto sourceDirectory = std::filesystem::path(
+        "testData/cases/solenoid");
+    const auto outputDirectory = std::filesystem::temp_directory_path()
+        / "tessellator_solenoid_snapper_launcher";
+    std::filesystem::remove_all(outputDirectory);
+    std::filesystem::copy(
+        sourceDirectory,
+        outputDirectory,
+        std::filesystem::copy_options::recursive);
+
+    const auto input = outputDirectory / "solenoid.conformal.tessellator.json";
+    const std::string inputString = input.string();
+    const char* argv[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
+
+    auto result = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "solenoid.tessellator.cmsh.vtk");
+    nlohmann::json inputData;
+    std::ifstream(input) >> inputData;
+    result.grid = parseGridFromJSON(inputData["grid"]);
+    EXPECT_EQ(meshlib::utils::meshTools::countMeshElementsIf(
+        result, meshlib::utils::meshTools::isNode), 0);
+    EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(result));
+
+    std::filesystem::remove_all(outputDirectory);
 }
 
 TEST_F(LauncherTest, launches_alhambra_case)

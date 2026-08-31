@@ -3,6 +3,7 @@
 #include "MesherBase.h"
 #include "core/Slicer.h"
 #include "core/Collapser.h"
+#include "core/Compressor.h"
 #include "core/Smoother.h" 
 #include "core/Snapper.h"
 #include "core/Staircaser.h"
@@ -771,9 +772,29 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
 
     // Rule #3: Conformal cells can't contain node or line elements.
-    // res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
+    res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
 
     return res;
+}
+
+std::set<Cell> ConformalMesher::cellsContainingNodeOrLineElements(const Mesh& mesh)
+{
+    GridTools gridTools(mesh.grid);
+    std::set<Cell> result;
+    for (const Group& group : mesh.groups) {
+        const auto cellElements = gridTools.buildCellElemMap(
+            group.elements, mesh.coordinates);
+        for (const auto& entry : cellElements) {
+            const bool containsLowerDimensionalElement = std::any_of(
+                entry.second.begin(), entry.second.end(), [](const Element* element) {
+                    return element->isNode() || element->isLine();
+                });
+            if (containsLowerDimensionalElement) {
+                result.insert(entry.first);
+            }
+        }
+    }
+    return result;
 }
 
 Mesh ConformalMesher::mesh() const 
@@ -853,6 +874,15 @@ Mesh ConformalMesher::mesh() const
         RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
         RedundancyCleaner::cleanCoords(res);
         logNumberOfQuads(countMeshElementsIf(res, isQuad));
+    }
+
+    if (opts_.compress && opts_.volumeGroups.empty()) {
+        log("Compressing final mesh.", 1);
+        Compressor::compressSurfacesInMesh(res);
+        Compressor::compressLinesInMesh(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::cleanCoords(res);
     }
     
     reduceGrid(res, originalGrid_);
