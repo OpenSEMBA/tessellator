@@ -18,6 +18,8 @@
 #include <fstream>
 #include <array>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -195,11 +197,27 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
     }
     if (mesherConfig.contains("options")) {
         const auto& options = mesherConfig["options"];
-        res.snapperOptions.edgePoints = options.value(
-            "edgePoints", res.snapperOptions.edgePoints);
-        res.snapperOptions.forbiddenLength = options.value(
-            "forbiddenLength", res.snapperOptions.forbiddenLength);
-        res.compress = options.value("compress", res.compress);
+        if (options.contains("edgePoints")) {
+            const auto& edgePoints = options["edgePoints"];
+            if (!edgePoints.is_number_integer() && !edgePoints.is_number_unsigned()) {
+                throw std::runtime_error("edgePoints must be a non-negative integer");
+            }
+            if (edgePoints.is_number_integer() && edgePoints.get<std::int64_t>() < 0) {
+                throw std::runtime_error("edgePoints must be a non-negative integer");
+            }
+            res.snapperOptions.edgePoints = edgePoints.get<std::size_t>();
+        }
+        if (options.contains("forbiddenLength")) {
+            const auto& forbiddenLength = options["forbiddenLength"];
+            if (!forbiddenLength.is_number()) {
+                throw std::runtime_error("forbiddenLength must be a number between 0.0 and 0.5");
+            }
+            const auto value = forbiddenLength.get<double>();
+            if (!std::isfinite(value) || value < 0.0 || value > 0.5) {
+                throw std::runtime_error("forbiddenLength must be a number between 0.0 and 0.5");
+            }
+            res.snapperOptions.forbiddenLength = value;
+        }
         res.staircaseSharedCells = options.value(
             "staircaseSharedCells", res.staircaseSharedCells);
         res.mergeAxisAlignedTriangles = options.value(

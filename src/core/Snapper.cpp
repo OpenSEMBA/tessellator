@@ -12,6 +12,8 @@
 #include <optional>
 #include <set>
 
+#include <cmath>
+
 namespace meshlib {
 namespace core {
 
@@ -180,7 +182,8 @@ Snapper::Snapper(
     opts_{ opts },
     surfaceInversionPolicy_{ surfaceInversionPolicy }
 {
-    if (opts.forbiddenLength > 0.5) {
+    if (!std::isfinite(opts.forbiddenLength) ||
+        opts.forbiddenLength < 0.0 || opts.forbiddenLength > 0.5) {
         throw std::logic_error("Invalid forbidden length");
     }
     snap();

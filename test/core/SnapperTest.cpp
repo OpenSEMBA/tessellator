@@ -87,6 +87,24 @@ TEST_F(SnapperTest, rejectsSnapsThatInvertIncidentTriangles)
         std::set<Cell>({Cell({0, 0, 0})}));
 }
 
+TEST_F(SnapperTest, acceptsForbiddenLengthBoundaryValues)
+{
+    for (const double forbiddenLength : {0.0, 0.5}) {
+        SnapperOptions options;
+        options.forbiddenLength = forbiddenLength;
+        EXPECT_NO_THROW(Snapper(buildPlane45Mesh(1.0), options));
+    }
+}
+
+TEST_F(SnapperTest, rejectsInvalidForbiddenLength)
+{
+    for (const double forbiddenLength : {-0.1, 0.6}) {
+        SnapperOptions options;
+        options.forbiddenLength = forbiddenLength;
+        EXPECT_THROW(Snapper(buildPlane45Mesh(1.0), options), std::logic_error);
+    }
+}
+
 #if APP_LOADED
 
 TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
