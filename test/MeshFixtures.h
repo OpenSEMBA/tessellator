@@ -1,6 +1,9 @@
 #include "types/Mesh.h"
+#include "utils/Geometry.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
+
+#include <map>
 
 namespace meshlib {
 namespace meshFixtures {
@@ -11,6 +14,89 @@ static Grid buildUnitLengthGrid(double stepSize)
     const double boxMax = 1.0;
     const std::size_t gridLinesNum = (std::size_t)((boxMax - boxMin) / (double)stepSize) + 1;
     return utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
+}
+
+static bool hasInvalidSurfaceAdjacency(const Mesh& mesh)
+{
+    std::map<Coordinate, CoordinateId> canonicalCoordinateIds;
+    std::vector<CoordinateId> canonicalIds(mesh.coordinates.size());
+    for (CoordinateId coordinateId = 0;
+         coordinateId < mesh.coordinates.size(); ++coordinateId) {
+        const auto [position, inserted] = canonicalCoordinateIds.emplace(
+            mesh.coordinates[coordinateId], coordinateId);
+        canonicalIds[coordinateId] = position->second;
+    }
+
+    struct EdgeUse {
+        ElementId elementId;
+        CoordinateId first;
+        CoordinateId second;
+    };
+    using Edge = std::pair<CoordinateId, CoordinateId>;
+
+    for (const Group& group : mesh.groups) {
+        std::map<Edge, std::vector<EdgeUse>> edgeUses;
+        std::set<CoordinateIds> faces;
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle() && !element.isQuad()) {
+                continue;
+            }
+
+            CoordinateIds face;
+            face.reserve(element.vertices.size());
+            for (CoordinateId vertex : element.vertices) {
+                face.push_back(canonicalIds[vertex]);
+            }
+            CoordinateIds sortedFace = face;
+            std::sort(sortedFace.begin(), sortedFace.end());
+            if (!faces.insert(std::move(sortedFace)).second) {
+                return true;
+            }
+
+            for (std::size_t vertex = 0; vertex < face.size(); ++vertex) {
+                const CoordinateId first = face[vertex];
+                const CoordinateId second = face[(vertex + 1) % face.size()];
+                edgeUses[std::minmax(first, second)].push_back(
+                    {elementId, first, second});
+            }
+        }
+
+        for (const auto& [edge, uses] : edgeUses) {
+            if (uses.size() > 2) {
+                return true;
+            }
+            if (uses.size() != 2) {
+                continue;
+            }
+            if (uses[0].first == uses[1].first
+                && uses[0].second == uses[1].second) {
+                return true;
+            }
+
+            const Element& first = group.elements[uses[0].elementId];
+            const Element& second = group.elements[uses[1].elementId];
+            const Coordinate firstNormal =
+                (mesh.coordinates[first.vertices[1]]
+                    - mesh.coordinates[first.vertices[0]])
+                ^ (mesh.coordinates[first.vertices[2]]
+                    - mesh.coordinates[first.vertices[0]]);
+            const Coordinate secondNormal =
+                (mesh.coordinates[second.vertices[1]]
+                    - mesh.coordinates[second.vertices[0]])
+                ^ (mesh.coordinates[second.vertices[2]]
+                    - mesh.coordinates[second.vertices[0]]);
+            if (firstNormal.norm() > utils::Geometry::NORM_TOLERANCE
+                && secondNormal.norm() > utils::Geometry::NORM_TOLERANCE
+                && firstNormal * secondNormal
+                    <= -(1.0 - 1e-9)
+                        * firstNormal.norm() * secondNormal.norm()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 static Mesh buildNonManifoldPatchMesh(double stepSize)

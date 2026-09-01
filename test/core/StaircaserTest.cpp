@@ -2843,6 +2843,53 @@ TEST_F(StaircaserTest, selectiveStructurer_SplitLinesWithNeighborTriangle)
     
 }
 
+TEST_F(StaircaserTest, splitLineRepairPreservesCyclicSurfaceOrientation)
+{
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(-5.0, 5.0, 3);
+    mesh.coordinates = {
+        Relative({0.4, 2.0, 1.0}),
+        Relative({1.0, 1.4, 1.0}),
+        Relative({1.0, 2.0, 1.0}),
+        Relative({1.4, 1.0, 1.0}),
+        Relative({2.0, 1.0, 1.0}),
+        Relative({2.0, 2.0, 1.0}),
+        Relative({2.0, 0.0, 1.0}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({1, 3, 2}),
+        Element({3, 4, 2}),
+        Element({2, 4, 5}),
+        Element({3, 6, 4}),
+    })};
+
+    std::size_t permutationCount = 1;
+    for (std::size_t element = 0;
+         element < mesh.groups.front().elements.size(); ++element) {
+        permutationCount *= 3;
+    }
+    for (std::size_t permutation = 0;
+         permutation < permutationCount; ++permutation) {
+        SCOPED_TRACE("cyclic permutation=" + std::to_string(permutation));
+        Mesh permuted = mesh;
+        std::size_t rotations = permutation;
+        for (Element& element : permuted.groups.front().elements) {
+            const std::size_t rotation = rotations % 3;
+            std::rotate(
+                element.vertices.begin(),
+                element.vertices.begin() + rotation,
+                element.vertices.end());
+            rotations /= 3;
+        }
+
+        const Mesh result = Staircaser{permuted}.getSelectiveMesh(
+            {Cell({1, 0, 0})});
+
+        EXPECT_FALSE(hasInvalidSurfaceAdjacency(result));
+    }
+}
+
 TEST_F(StaircaserTest, selectiveStaircasingPreservesStructuredElementsAndGroupName)
 {
     Mesh mesh;

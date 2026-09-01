@@ -774,7 +774,105 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
     // Rule #3: Conformal cells can't contain node or line elements.
     res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
 
+    // Rule #4: Surface elements must preserve a consistent local orientation.
+    res = mergeCellSets(res, cellsWithInvalidSurfaceOrientations(mesh));
+
     return res;
+}
+
+std::set<Cell> ConformalMesher::cellsWithInvalidSurfaceOrientations(
+    const Mesh& mesh)
+{
+    Mesh fused = mesh;
+    RedundancyCleaner::fuseCoords(fused);
+    GridTools gridTools(fused.grid);
+    std::set<Cell> result;
+
+    struct EdgeUse {
+        ElementId elementId;
+        CoordinateId first;
+        CoordinateId second;
+    };
+    using Edge = std::pair<CoordinateId, CoordinateId>;
+
+    for (const Group& group : fused.groups) {
+        std::map<Edge, std::vector<EdgeUse>> edgeUses;
+        std::map<CoordinateIds, ElementId> faces;
+        std::set<ElementId> invalidElements;
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle() && !element.isQuad()) {
+                continue;
+            }
+
+            CoordinateIds face = element.vertices;
+            std::sort(face.begin(), face.end());
+            const auto [existingFace, inserted] = faces.emplace(face, elementId);
+            if (!inserted) {
+                invalidElements.insert(existingFace->second);
+                invalidElements.insert(elementId);
+            }
+
+            for (std::size_t vertex = 0;
+                 vertex < element.vertices.size(); ++vertex) {
+                const CoordinateId first = element.vertices[vertex];
+                const CoordinateId second = element.vertices[
+                    (vertex + 1) % element.vertices.size()];
+                edgeUses[edgeKey(first, second)].push_back(
+                    {elementId, first, second});
+            }
+        }
+
+        for (const auto& [edge, uses] : edgeUses) {
+            if (uses.size() > 2) {
+                for (const EdgeUse& use : uses) {
+                    invalidElements.insert(use.elementId);
+                }
+                continue;
+            }
+            if (uses.size() != 2) {
+                continue;
+            }
+
+            const Element& firstElement = group.elements[uses[0].elementId];
+            const Element& secondElement = group.elements[uses[1].elementId];
+            const Coordinate firstNormal =
+                (fused.coordinates[firstElement.vertices[1]]
+                    - fused.coordinates[firstElement.vertices[0]])
+                ^ (fused.coordinates[firstElement.vertices[2]]
+                    - fused.coordinates[firstElement.vertices[0]]);
+            const Coordinate secondNormal =
+                (fused.coordinates[secondElement.vertices[1]]
+                    - fused.coordinates[secondElement.vertices[0]])
+                ^ (fused.coordinates[secondElement.vertices[2]]
+                    - fused.coordinates[secondElement.vertices[0]]);
+            const bool sameDirectedEdge = uses[0].first == uses[1].first
+                && uses[0].second == uses[1].second;
+            const bool foldedBack =
+                firstNormal.norm() > Geometry::NORM_TOLERANCE
+                && secondNormal.norm() > Geometry::NORM_TOLERANCE
+                && firstNormal * secondNormal
+                    <= -(1.0 - 1e-9)
+                        * firstNormal.norm() * secondNormal.norm();
+            if (sameDirectedEdge || foldedBack) {
+                invalidElements.insert(uses[0].elementId);
+                invalidElements.insert(uses[1].elementId);
+            }
+        }
+
+        for (ElementId elementId : invalidElements) {
+            const Element& element = group.elements[elementId];
+            Coordinate centroid;
+            for (CoordinateId vertex : element.vertices) {
+                centroid += fused.coordinates[vertex]
+                    / static_cast<double>(element.vertices.size());
+            }
+            const auto touchingCells = gridTools.getTouchingCells(centroid);
+            result.insert(touchingCells.begin(), touchingCells.end());
+        }
+    }
+    return result;
 }
 
 std::set<Cell> ConformalMesher::cellsContainingNodeOrLineElements(const Mesh& mesh)
@@ -830,7 +928,8 @@ Mesh ConformalMesher::mesh() const
     const Mesh conformalMeshBeforeSnapping = res;
 
     log("Snapping.", 1);
-    res = Snapper(res, opts_.snapperOptions).getMesh();
+    const Snapper snapper(res, opts_.snapperOptions);
+    res = snapper.getMesh();
 
     Mesh conformalMeshBeforeStructuring = res;
     try {
@@ -847,6 +946,8 @@ Mesh ConformalMesher::mesh() const
 
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
+    nonConformalCells = mergeCellSets(
+        nonConformalCells, snapper.getCellsToStructure());
     nonConformalCells = mergeCellSets(
         nonConformalCells,
         cellsOccupiedByDegenerateVolumeComponents(res, opts_.volumeGroups));
@@ -865,6 +966,20 @@ Mesh ConformalMesher::mesh() const
     // Find cells which break conformal FDTD rules after selective structuring.
     nonConformalCells = findNonConformalCells(res);
     log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
+
+    const auto invalidOrientationCells =
+        cellsWithInvalidSurfaceOrientations(res);
+    if (!invalidOrientationCells.empty()) {
+        log("Restaircasing cells with invalid surface orientation: "
+            + std::to_string(invalidOrientationCells.size()), 1);
+        res = Staircaser{res}.getSelectiveMesh(
+            invalidOrientationCells, Staircaser::GapsFillingType::Insert);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+            res);
+        restoreThreeDimensionalVolumeComponents(
+            res, conformalMeshBeforeStructuring, opts_.volumeGroups);
+        normalizeVolumeGroups(res, opts_.volumeGroups);
+    }
 
 
     if (opts_.mergeAxisAlignedTriangles) {

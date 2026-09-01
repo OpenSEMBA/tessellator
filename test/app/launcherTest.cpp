@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "app/launcher.h"
+#include "MeshFixtures.h"
 #include "types/Mesh.h"
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
@@ -279,13 +280,14 @@ TEST_F(LauncherTest, solenoidSnapperCaseExportsNoMixedDimensionalCells)
     EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
 
     auto result = meshlib::vtkIO::readInputMesh(
-        outputDirectory / "solenoid.tessellator.cmsh.vtk");
+        outputDirectory / "Solenoid.tessellator.cmsh.vtk");
     nlohmann::json inputData;
     std::ifstream(input) >> inputData;
     result.grid = parseGridFromJSON(inputData["grid"]);
     EXPECT_EQ(meshlib::utils::meshTools::countMeshElementsIf(
         result, meshlib::utils::meshTools::isNode), 0);
     EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(result));
+    EXPECT_FALSE(meshlib::meshFixtures::hasInvalidSurfaceAdjacency(result));
 
     std::filesystem::remove_all(outputDirectory);
 }

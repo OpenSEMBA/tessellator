@@ -49,6 +49,44 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
+TEST_F(SnapperTest, rejectsSnapsThatInvertIncidentTriangles)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.328, 0.499, 0.0}),
+        Relative({0.206, 0.935, 0.0}),
+        Relative({0.355, 0.190, 0.0}),
+        Relative({0.466, 0.718, 0.0}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({1, 0, 3}),
+    })};
+    SnapperOptions options;
+    options.edgePoints = 4;
+    options.forbiddenLength = 0.25;
+
+    const Snapper snapper(mesh, options);
+    const Mesh result = snapper.getMesh();
+
+    ASSERT_EQ(result.groups.size(), 1);
+    ASSERT_EQ(result.groups[0].elements.size(), 2);
+    for (ElementId elementId = 0; elementId < 2; ++elementId) {
+        const Coordinate originalNormal = Geometry::normal(
+            Geometry::asTriV(mesh.groups[0].elements[elementId], mesh.coordinates));
+        const Coordinate resultNormal = Geometry::normal(
+            Geometry::asTriV(
+                result.groups[0].elements[elementId], result.coordinates));
+        EXPECT_GT(originalNormal * resultNormal, 0.0);
+    }
+    EXPECT_NO_THROW(meshTools::checkNoOverlaps(result));
+    EXPECT_FALSE(hasInvalidSurfaceAdjacency(result));
+    EXPECT_EQ(
+        snapper.getCellsToStructure(),
+        std::set<Cell>({Cell({0, 0, 0})}));
+}
+
 #if APP_LOADED
 
 TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)

@@ -158,6 +158,26 @@ TEST_F(ConformalMesherTest, marksCellsContainingLinesOrNodesAsNonConformal)
         std::set<Cell>({Cell({0, 0, 0})}));
 }
 
+TEST_F(ConformalMesherTest, marksCellsWithInconsistentlyOrientedSurfaces)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.2, 0.5, 0.5}),
+        Relative({0.8, 0.5, 0.5}),
+        Relative({0.2, 0.8, 0.5}),
+        Relative({0.8, 0.2, 0.5}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({0, 1, 3}),
+    })};
+
+    EXPECT_EQ(
+        ConformalMesher::cellsWithInvalidSurfaceOrientations(mesh),
+        std::set<Cell>({Cell({0, 0, 0})}));
+}
+
 TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesByDefault)
 {
     Mesh input;
@@ -237,6 +257,8 @@ TEST_F(ConformalMesherTest, solenoidSnappingLeavesNoMixedDimensionalCells)
         EXPECT_EQ(countMeshElementsIf(exported, isNode), 0);
         EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(result));
         EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(exported));
+        EXPECT_FALSE(meshFixtures::hasInvalidSurfaceAdjacency(result));
+        EXPECT_FALSE(meshFixtures::hasInvalidSurfaceAdjacency(exported));
     }
 }
 #endif

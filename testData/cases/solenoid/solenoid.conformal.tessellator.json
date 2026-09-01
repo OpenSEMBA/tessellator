@@ -8,14 +8,24 @@
             [39.858, 49.243, 40.0]
         ]
     },
-    "object": {
-        "filename": "solenoid.vtu"
-    },
-    "mesher": {
-        "type": "conformal",
-        "options": {
-            "edgePoints": 4,
-            "forbiddenLength": 0.25
-        }
+    "objects": [
+        {
+            "filename": "solenoid.vtu",
+            "group": "Solenoid",
+            "mesher": {
+                "type": "conformal",
+                "options": {
+                    "edgePoints": 4,
+                    "forbiddenLength": 0.25
+                }
+            }
+        },
+        {"filename": "BC.vtu", "group": "BC", "ghost": true},
+        {"filename": "Generator.vtu", "group": "Generator"},
+        {"filename": "wire_left.vtu", "group": "Wire_left"},
+        {"filename": "wire_right.vtu", "group": "Wire_right"}
+    ],
+    "output": {
+        "singleFile": false
     }
 }
