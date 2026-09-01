@@ -218,6 +218,7 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
             }
             res.snapperOptions.forbiddenLength = value;
         }
+        res.compress = options.value("compress", res.compress);
         res.staircaseSharedCells = options.value(
             "staircaseSharedCells", res.staircaseSharedCells);
         res.mergeAxisAlignedTriangles = options.value(
