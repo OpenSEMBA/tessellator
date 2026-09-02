@@ -20,7 +20,7 @@ public:
 		SurfaceInversionPolicy surfaceInversionPolicy =
 			SurfaceInversionPolicy::Reject);
 	Mesh getMesh() const { return mesh_; };
-	const std::set<Cell>& getCellsToStructure() const { return cellsToStructure_; }
+	const std::set<Cell>& getCellsToStaircase() const { return cellsToStaircase_; }
 	
 private:
 	typedef size_t Component;
@@ -33,7 +33,7 @@ private:
 	Mesh mesh_;
 	SnapperOptions opts_;
 	SurfaceInversionPolicy surfaceInversionPolicy_;
-	std::set<Cell> cellsToStructure_;
+	std::set<Cell> cellsToStaircase_;
 
 	std::pair<Coordinate, Coordinate> findClosestSolverPoint(
 		const Relative& rel,

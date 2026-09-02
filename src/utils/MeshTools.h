@@ -44,6 +44,9 @@ void checkSlicedMeshInvariants(Mesh& m);
 void checkNoCellsAreCrossed(const Mesh& m);
 void checkNoOverlaps(const Mesh& m);
 void checkNoNullAreasExist(const Mesh& m);
+std::set<GroupElementId> getElementsWithInvalidSurfaceAdjacency(
+    const Mesh& mesh,
+    bool ignoreDegenerateSurfaces = false);
 
 std::string info(const Element& e, const Mesh& m);
 

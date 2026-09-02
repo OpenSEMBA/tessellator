@@ -59,7 +59,7 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, const Coordinates& meshCoordinates, std::set<ElementId>& overlappedElements);
+void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, std::set<ElementId>& overlappedElements);
 void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate>& meshCoordinates, std::set<ElementId>& overlappedElements);
 
 namespace {
@@ -170,8 +170,76 @@ void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(M
 
     for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
         auto & group = mesh.groups[g];
-        getOverlappedDimensionZeroElementsAndIdenticalLines(
-            group, mesh.coordinates, toRemove[g]);
+        getOverlappedDimensionZeroElementsAndIdenticalLines(group, toRemove[g]);
+    }
+
+    removeElements(mesh, toRemove);
+}
+
+void RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
+    Mesh& mesh)
+{
+    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+
+    for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
+        const Group& group = mesh.groups[g];
+        std::vector<const Element*> surfaces;
+        std::vector<const Element*> lines;
+        Coordinates nodeCoordinates;
+
+        for (const Element& element : group.elements) {
+            if (element.isTriangle() || element.isQuad()) {
+                surfaces.push_back(&element);
+            }
+        }
+
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (element.isLine()) {
+                const bool containedInSurface = std::any_of(
+                    surfaces.begin(), surfaces.end(), [&](const Element* surface) {
+                        return isLineInSurface(element, *surface, mesh.coordinates);
+                    });
+                if (containedInSurface) {
+                    toRemove[g].insert(elementId);
+                } else {
+                    lines.push_back(&element);
+                }
+                continue;
+            }
+        }
+
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isNode()) {
+                continue;
+            }
+
+            const Coordinate& coordinate = mesh.coordinates[element.vertices[0]];
+            const bool containedInLine = std::any_of(
+                lines.begin(), lines.end(), [&](const Element* line) {
+                    return isPointOnSegment(
+                        coordinate,
+                        mesh.coordinates[line->vertices[0]],
+                        mesh.coordinates[line->vertices[1]]);
+                });
+            const bool containedInSurface = std::any_of(
+                surfaces.begin(), surfaces.end(), [&](const Element* surface) {
+                    return isPointInSurface(coordinate, *surface, mesh.coordinates);
+                });
+            const bool coincidentWithNode = std::any_of(
+                nodeCoordinates.begin(), nodeCoordinates.end(),
+                [&](const Coordinate& nodeCoordinate) {
+                    return arePointsCoincident(coordinate, nodeCoordinate);
+                });
+            if (containedInLine || containedInSurface || coincidentWithNode) {
+                toRemove[g].insert(elementId);
+            } else {
+                nodeCoordinates.push_back(coordinate);
+            }
+        }
     }
 
     removeElements(mesh, toRemove);
@@ -191,18 +259,14 @@ void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalen
 
 void getOverlappedDimensionZeroElementsAndIdenticalLines(
     const Group& group,
-    const Coordinates& meshCoordinates,
     std::set<ElementId>& overlappedElements)
 {
     std::set<CoordinateId> usedCoordinates;
-    std::vector<const Element*> lines;
-    Coordinates nodeCoordinates;
     std::vector<ElementId> nodesToCheck;
 
     for (std::size_t e = 0; e < group.elements.size(); ++e) {
         auto& element = group.elements[e];
         if (element.isLine()) {
-            lines.push_back(&element);
             usedCoordinates.insert(element.vertices[0]);
             usedCoordinates.insert(element.vertices[1]);
         }
@@ -213,21 +277,8 @@ void getOverlappedDimensionZeroElementsAndIdenticalLines(
 
     for (auto e : nodesToCheck) {
         auto& node = group.elements[e];
-        const Coordinate& coordinate = meshCoordinates[node.vertices[0]];
-        const bool overlapsLine = std::any_of(
-            lines.begin(), lines.end(), [&](const Element* line) {
-                return isPointOnSegment(
-                    coordinate,
-                    meshCoordinates[line->vertices[0]],
-                    meshCoordinates[line->vertices[1]]);
-            });
-        const bool overlapsNode = std::any_of(
-            nodeCoordinates.begin(), nodeCoordinates.end(), [&](const Coordinate& nodeCoordinate) {
-                return arePointsCoincident(coordinate, nodeCoordinate);
-            });
-        if (usedCoordinates.count(node.vertices[0]) == 0 && !overlapsLine && !overlapsNode) {
+        if (usedCoordinates.count(node.vertices[0]) == 0) {
             usedCoordinates.insert(node.vertices[0]);
-            nodeCoordinates.push_back(coordinate);
         }
         else {
             overlappedElements.insert(e);
@@ -242,8 +293,6 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
     std::set<CoordinateId> usedCoordinates;
     std::vector<ElementId> linesToCheck;
     std::vector<ElementId> nodesToCheck;
-    std::vector<const Element*> surfaces;
-    Coordinates nodeCoordinates;
 
     for (std::size_t e = 0; e < group.elements.size(); ++e) {
         auto& element = group.elements[e];
@@ -255,7 +304,6 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
             }
         }
         if (element.isQuad() || element.isTriangle()) {
-            surfaces.push_back(&element);
             if (usedCoordinatesFromSurface.count(vIds) == 0) {
                 usedCoordinatesFromSurface.insert(vIds);
                 for (std::size_t v = 0; v < vIds.size(); ++v) {
@@ -290,12 +338,6 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
         if (usedCoordinatePairsFromSurface.count(vIds)) {
             overlappedElements.insert(e);
         }
-        else if (std::any_of(
-                     surfaces.begin(), surfaces.end(), [&](const Element* surface) {
-                         return isLineInSurface(line, *surface, meshCoordinates);
-                     })) {
-            overlappedElements.insert(e);
-        }
         else if (usedCoordinatePairsFromLine.count(vIds) == 0) {
             usedCoordinatePairsFromLine.emplace(vIds, e);
         }
@@ -320,29 +362,8 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
 
     for (auto e : nodesToCheck) {
         auto& node = group.elements[e];
-        const Coordinate& coordinate = meshCoordinates[node.vertices[0]];
-        const bool overlapsLine = std::any_of(
-            linesToCheck.begin(), linesToCheck.end(), [&](ElementId lineId) {
-                const Element& line = group.elements[lineId];
-                return isPointOnSegment(
-                    coordinate,
-                    meshCoordinates[line.vertices[0]],
-                    meshCoordinates[line.vertices[1]]);
-            });
-        const bool overlapsSurface = std::any_of(
-            surfaces.begin(), surfaces.end(), [&](const Element* surface) {
-                return isPointInSurface(coordinate, *surface, meshCoordinates);
-            });
-        const bool overlapsNode = std::any_of(
-            nodeCoordinates.begin(), nodeCoordinates.end(), [&](const Coordinate& nodeCoordinate) {
-                return arePointsCoincident(coordinate, nodeCoordinate);
-            });
-        if (usedCoordinates.count(node.vertices[0]) == 0
-            && !overlapsLine
-            && !overlapsSurface
-            && !overlapsNode) {
+        if (usedCoordinates.count(node.vertices[0]) == 0) {
             usedCoordinates.insert(node.vertices[0]);
-            nodeCoordinates.push_back(coordinate);
         }
         else {
             overlappedElements.insert(e);
@@ -363,8 +384,7 @@ void RedundancyCleaner::removeOverlappedElementsByDimension(Mesh& mesh, const st
                 getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(group, mesh.coordinates, toRemove[g]);
                 break;
             case Element::Type::Line:
-                getOverlappedDimensionZeroElementsAndIdenticalLines(
-                    group, mesh.coordinates, toRemove[g]);
+                getOverlappedDimensionZeroElementsAndIdenticalLines(group, toRemove[g]);
             default:
                 break;
         }

@@ -83,7 +83,7 @@ TEST_F(SnapperTest, rejectsSnapsThatInvertIncidentTriangles)
     EXPECT_NO_THROW(meshTools::checkNoOverlaps(result));
     EXPECT_FALSE(hasInvalidSurfaceAdjacency(result));
     EXPECT_EQ(
-        snapper.getCellsToStructure(),
+        snapper.getCellsToStaircase(),
         std::set<Cell>({Cell({0, 0, 0})}));
 }
 

@@ -361,11 +361,15 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
         }
         utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
             relativeMesh);
+        utils::RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
+            relativeMesh);
         if (object.compress && !object.definition.isVolume) {
             meshlib::core::Compressor::compressSurfacesInMesh(relativeMesh);
             meshlib::core::Compressor::compressLinesInMesh(relativeMesh);
             utils::RedundancyCleaner::fuseCoords(relativeMesh);
             utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+                relativeMesh);
+            utils::RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
                 relativeMesh);
         }
         utils::RedundancyCleaner::cleanCoords(relativeMesh);

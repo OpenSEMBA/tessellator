@@ -5,10 +5,32 @@
 #include "GridTools.h"
 #include "ElemGraph.h"
 #include "CoordGraph.h"
+#include "Geometry.h"
 
+#include <algorithm>
+#include <map>
+#include <set>
 #include <sstream>
 
 namespace meshlib::utils::meshTools {
+
+namespace {
+
+using Edge = std::pair<CoordinateId, CoordinateId>;
+
+struct EdgeUse {
+    ElementId elementId;
+    CoordinateId first;
+    CoordinateId second;
+};
+
+Coordinate surfaceNormal(const Element& element, const Coordinates& coordinates)
+{
+    return (coordinates[element.vertices[1]] - coordinates[element.vertices[0]])
+        ^ (coordinates[element.vertices[2]] - coordinates[element.vertices[0]]);
+}
+
+} // namespace
 
 std::size_t countMeshElementsIf(const Mesh& mesh, std::function<bool(const Element&)> countFilter) {
     std::size_t res = 0;
@@ -38,6 +60,82 @@ std::vector<Element::Type> getHighestDimensionByGroup(const Mesh& mesh) {
     }
 
     return highestDimensions;
+}
+
+std::set<GroupElementId> getElementsWithInvalidSurfaceAdjacency(
+    const Mesh& mesh,
+    bool ignoreDegenerateSurfaces)
+{
+    Mesh fused = mesh;
+    RedundancyCleaner::fuseCoords(fused);
+
+    std::set<GroupElementId> invalid;
+    for (GroupId groupId = 0; groupId < fused.groups.size(); ++groupId) {
+        const Group& group = fused.groups[groupId];
+        std::map<Edge, std::vector<EdgeUse>> edgeUses;
+        std::map<CoordinateIds, ElementId> faces;
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle() && !element.isQuad()) {
+                continue;
+            }
+            if (ignoreDegenerateSurfaces
+                && surfaceNormal(element, fused.coordinates).norm()
+                    <= Geometry::NORM_TOLERANCE) {
+                continue;
+            }
+
+            CoordinateIds face = element.vertices;
+            std::sort(face.begin(), face.end());
+            const auto [existingFace, inserted] = faces.emplace(face, elementId);
+            if (!inserted) {
+                invalid.insert({groupId, existingFace->second});
+                invalid.insert({groupId, elementId});
+            }
+
+            for (std::size_t vertex = 0;
+                 vertex < element.vertices.size(); ++vertex) {
+                const CoordinateId first = element.vertices[vertex];
+                const CoordinateId second = element.vertices[
+                    (vertex + 1) % element.vertices.size()];
+                edgeUses[std::minmax(first, second)].push_back(
+                    {elementId, first, second});
+            }
+        }
+
+        for (const auto& [edge, uses] : edgeUses) {
+            if (uses.size() > 2) {
+                for (const EdgeUse& use : uses) {
+                    invalid.insert({groupId, use.elementId});
+                }
+                continue;
+            }
+            if (uses.size() != 2) {
+                continue;
+            }
+
+            const Element& firstElement = group.elements[uses[0].elementId];
+            const Element& secondElement = group.elements[uses[1].elementId];
+            const Coordinate firstNormal = surfaceNormal(
+                firstElement, fused.coordinates);
+            const Coordinate secondNormal = surfaceNormal(
+                secondElement, fused.coordinates);
+            const bool sameDirectedEdge = uses[0].first == uses[1].first
+                && uses[0].second == uses[1].second;
+            const bool foldedBack =
+                firstNormal.norm() > Geometry::NORM_TOLERANCE
+                && secondNormal.norm() > Geometry::NORM_TOLERANCE
+                && firstNormal * secondNormal
+                    <= -(1.0 - 1e-9)
+                        * firstNormal.norm() * secondNormal.norm();
+            if (sameDirectedEdge || foldedBack) {
+                invalid.insert({groupId, uses[0].elementId});
+                invalid.insert({groupId, uses[1].elementId});
+            }
+        }
+    }
+    return invalid;
 }
 
 Mesh duplicateCoordinatesUsedByDifferentGroups(const Mesh& mesh)

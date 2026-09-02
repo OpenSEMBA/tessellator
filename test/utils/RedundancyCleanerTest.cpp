@@ -659,22 +659,27 @@ TEST_F(RedundancyCleanerTest, removesLinesAndNodesContainedInSurfaces)
 		Coordinate({0.5, 0.5, 0.0}),
 		Coordinate({0.5, 0.0, 0.0}),
 		Coordinate({0.5, 0.5, 1.0}),
+		Coordinate({0.5, 0.5, 2.0}),
 	};
 	mesh.groups = {Group("surface", {
 		Element({0, 1, 2, 3}, Element::Type::Surface),
 		Element({4, 5}, Element::Type::Line),
 		Element({6, 7}, Element::Type::Line),
+		Element({8, 10}, Element::Type::Line),
 		Element({8}, Element::Type::Node),
 		Element({9}, Element::Type::Node),
 		Element({10}, Element::Type::Node),
+		Element({11}, Element::Type::Node),
 	})};
 
-	RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(mesh);
+	RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(mesh);
 
-	ASSERT_EQ(mesh.groups[0].elements.size(), 2);
+	ASSERT_EQ(mesh.groups[0].elements.size(), 3);
 	EXPECT_TRUE(mesh.groups[0].elements[0].isQuad());
-	EXPECT_TRUE(mesh.groups[0].elements[1].isNode());
-    EXPECT_EQ(mesh.groups[0].elements[1].vertices[0], 10);
+	EXPECT_TRUE(mesh.groups[0].elements[1].isLine());
+	EXPECT_EQ(mesh.groups[0].elements[1].vertices, CoordinateIds({8, 10}));
+	EXPECT_TRUE(mesh.groups[0].elements[2].isNode());
+    EXPECT_EQ(mesh.groups[0].elements[2].vertices[0], 11);
 }
 
 TEST_F(RedundancyCleanerTest, removesNodesContainedInLines)
@@ -694,12 +699,36 @@ TEST_F(RedundancyCleanerTest, removesNodesContainedInLines)
 		Element({4}, Element::Type::Node),
 	})};
 
-	RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(mesh);
+	RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(mesh);
 
 	ASSERT_EQ(mesh.groups[0].elements.size(), 2);
 	EXPECT_TRUE(mesh.groups[0].elements[0].isLine());
 	EXPECT_TRUE(mesh.groups[0].elements[1].isNode());
 	EXPECT_EQ(mesh.groups[0].elements[1].vertices[0], 3);
+}
+
+TEST_F(RedundancyCleanerTest, staircaseCleanupDoesNotPerformGeometricContainmentChecks)
+{
+	Mesh mesh;
+	mesh.coordinates = {
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.0, 0.0}),
+		Coordinate({1.0, 1.0, 0.0}),
+		Coordinate({0.0, 1.0, 0.0}),
+		Coordinate({0.25, 0.25, 0.0}),
+		Coordinate({0.75, 0.25, 0.0}),
+	};
+	mesh.groups = {Group("surface", {
+		Element({0, 1, 2, 3}, Element::Type::Surface),
+		Element({4, 5}, Element::Type::Line),
+	})};
+
+	RedundancyCleaner::removeOverlappedElementsByDimension(
+		mesh, {Element::Type::Surface});
+
+	ASSERT_EQ(mesh.groups[0].elements.size(), 2);
+	EXPECT_TRUE(mesh.groups[0].elements[0].isQuad());
+	EXPECT_TRUE(mesh.groups[0].elements[1].isLine());
 }
 
 TEST_F(RedundancyCleanerTest, doNotRemoveOppositeLines)

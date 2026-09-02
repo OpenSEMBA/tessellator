@@ -42,6 +42,20 @@ bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
     return false;
 }
 
+void expectConformalVolumeLaunch(
+    const std::string& input,
+    const std::string& group)
+{
+    const char* arguments[] = {nullptr, "-i", input.c_str()};
+    ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+
+    const auto output = std::filesystem::path(input).parent_path()
+        / (group + ".tessellator.cmsh.vtk");
+    const auto mesh = meshlib::vtkIO::readInputMesh(output);
+    ASSERT_EQ(mesh.groups.size(), 1);
+    EXPECT_GT(mesh.countElems(), 0);
+}
+
 } // namespace
 
 class LauncherTest : public ::testing::Test
@@ -456,25 +470,25 @@ TEST_F(LauncherTest, launchesTypicalCasesAsStaircaseVolumes)
     }
 }
 
-TEST_F(LauncherTest, launchesTypicalCasesAsConformalVolumes)
+TEST_F(LauncherTest, launchesAlhambraAsConformalVolume)
 {
-    const std::vector<std::pair<std::string, std::string>> cases = {
-        {"testData/cases/alhambra/alhambra.volume.conformal.tessellator.json", "alhambra"},
-        {"testData/cases/sphere/sphere.volume.conformal.tessellator.json", "sphere"},
-        {"testData/cases/cone/cone.volume.conformal.tessellator.json", "cone"}
-    };
+    expectConformalVolumeLaunch(
+        "testData/cases/alhambra/alhambra.volume.conformal.tessellator.json",
+        "alhambra");
+}
 
-    for (const auto& [input, group] : cases) {
-        SCOPED_TRACE(input);
-        const char* arguments[] = {nullptr, "-i", input.c_str()};
-        ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+TEST_F(LauncherTest, launchesSphereAsConformalVolume)
+{
+    expectConformalVolumeLaunch(
+        "testData/cases/sphere/sphere.volume.conformal.tessellator.json",
+        "sphere");
+}
 
-        const auto output = std::filesystem::path(input).parent_path()
-            / (group + ".tessellator.cmsh.vtk");
-        const auto mesh = meshlib::vtkIO::readInputMesh(output);
-        ASSERT_EQ(mesh.groups.size(), 1);
-        EXPECT_GT(mesh.countElems(), 0);
-    }
+TEST_F(LauncherTest, launchesConeAsConformalVolume)
+{
+    expectConformalVolumeLaunch(
+        "testData/cases/cone/cone.volume.conformal.tessellator.json",
+        "cone");
 }
 
 TEST_F(LauncherTest, readObjectsFromJSON_basic)
