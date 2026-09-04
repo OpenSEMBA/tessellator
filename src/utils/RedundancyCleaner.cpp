@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <cmath>
 #include <unordered_set> 
 
 namespace meshlib {
@@ -61,6 +62,108 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
 void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, std::set<ElementId>& overlappedElements);
 void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate>& meshCoordinates, std::set<ElementId>& overlappedElements);
 
+namespace {
+
+bool isPointOnSegment(
+    const Coordinate& point,
+    const Coordinate& first,
+    const Coordinate& second)
+{
+    const Coordinate direction = second - first;
+    const Coordinate pointDirection = point - first;
+    const double directionSquared = direction * direction;
+    if (directionSquared == 0.0) {
+        return (point - first).norm() <= Geometry::NORM_TOLERANCE;
+    }
+
+    if ((direction ^ pointDirection).norm()
+        > Geometry::NORM_TOLERANCE * std::sqrt(directionSquared)) {
+        return false;
+    }
+
+    const double projection = direction * pointDirection;
+    return projection >= -Geometry::NORM_TOLERANCE
+        && projection <= directionSquared + Geometry::NORM_TOLERANCE;
+}
+
+bool arePointsCoincident(const Coordinate& first, const Coordinate& second)
+{
+    return (first - second).norm() <= Geometry::NORM_TOLERANCE;
+}
+
+bool isPointInTriangle(
+    const Coordinate& point,
+    const Coordinate& first,
+    const Coordinate& second,
+    const Coordinate& third)
+{
+    const Coordinate firstEdge = second - first;
+    const Coordinate secondEdge = third - first;
+    const Coordinate pointEdge = point - first;
+    const Coordinate normal = firstEdge ^ secondEdge;
+    const double normalSquared = normal * normal;
+    if (normalSquared == 0.0
+        || std::abs(normal * pointEdge)
+            > Geometry::NORM_TOLERANCE * std::sqrt(normalSquared)) {
+        return false;
+    }
+
+    const double dot00 = firstEdge * firstEdge;
+    const double dot01 = firstEdge * secondEdge;
+    const double dot02 = firstEdge * pointEdge;
+    const double dot11 = secondEdge * secondEdge;
+    const double dot12 = secondEdge * pointEdge;
+    const double denominator = dot00 * dot11 - dot01 * dot01;
+    if (std::abs(denominator) <= Geometry::NORM_TOLERANCE) {
+        return false;
+    }
+
+    const double u = (dot11 * dot02 - dot01 * dot12) / denominator;
+    const double v = (dot00 * dot12 - dot01 * dot02) / denominator;
+    return u >= -Geometry::NORM_TOLERANCE
+        && v >= -Geometry::NORM_TOLERANCE
+        && u + v <= 1.0 + Geometry::NORM_TOLERANCE;
+}
+
+bool isPointInSurface(
+    const Coordinate& point,
+    const Element& surface,
+    const Coordinates& coordinates)
+{
+    const auto& vertices = surface.vertices;
+    if (surface.isTriangle()) {
+        return isPointInTriangle(
+            point,
+            coordinates[vertices[0]],
+            coordinates[vertices[1]],
+            coordinates[vertices[2]]);
+    }
+    if (surface.isQuad()) {
+        return isPointInTriangle(
+                   point,
+                   coordinates[vertices[0]],
+                   coordinates[vertices[1]],
+                   coordinates[vertices[2]])
+            || isPointInTriangle(
+                   point,
+                   coordinates[vertices[0]],
+                   coordinates[vertices[2]],
+                   coordinates[vertices[3]]);
+    }
+    return false;
+}
+
+bool isLineInSurface(
+    const Element& line,
+    const Element& surface,
+    const Coordinates& coordinates)
+{
+    return isPointInSurface(coordinates[line.vertices[0]], surface, coordinates)
+        && isPointInSurface(coordinates[line.vertices[1]], surface, coordinates);
+}
+
+} // namespace
+
 void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh & mesh)
 {
     std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
@@ -68,6 +171,75 @@ void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(M
     for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
         auto & group = mesh.groups[g];
         getOverlappedDimensionZeroElementsAndIdenticalLines(group, toRemove[g]);
+    }
+
+    removeElements(mesh, toRemove);
+}
+
+void RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
+    Mesh& mesh)
+{
+    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+
+    for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
+        const Group& group = mesh.groups[g];
+        std::vector<const Element*> surfaces;
+        std::vector<const Element*> lines;
+        Coordinates nodeCoordinates;
+
+        for (const Element& element : group.elements) {
+            if (element.isTriangle() || element.isQuad()) {
+                surfaces.push_back(&element);
+            }
+        }
+
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (element.isLine()) {
+                const bool containedInSurface = std::any_of(
+                    surfaces.begin(), surfaces.end(), [&](const Element* surface) {
+                        return isLineInSurface(element, *surface, mesh.coordinates);
+                    });
+                if (containedInSurface) {
+                    toRemove[g].insert(elementId);
+                } else {
+                    lines.push_back(&element);
+                }
+                continue;
+            }
+        }
+
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isNode()) {
+                continue;
+            }
+
+            const Coordinate& coordinate = mesh.coordinates[element.vertices[0]];
+            const bool containedInLine = std::any_of(
+                lines.begin(), lines.end(), [&](const Element* line) {
+                    return isPointOnSegment(
+                        coordinate,
+                        mesh.coordinates[line->vertices[0]],
+                        mesh.coordinates[line->vertices[1]]);
+                });
+            const bool containedInSurface = std::any_of(
+                surfaces.begin(), surfaces.end(), [&](const Element* surface) {
+                    return isPointInSurface(coordinate, *surface, mesh.coordinates);
+                });
+            const bool coincidentWithNode = std::any_of(
+                nodeCoordinates.begin(), nodeCoordinates.end(),
+                [&](const Coordinate& nodeCoordinate) {
+                    return arePointsCoincident(coordinate, nodeCoordinate);
+                });
+            if (containedInLine || containedInSurface || coincidentWithNode) {
+                toRemove[g].insert(elementId);
+            } else {
+                nodeCoordinates.push_back(coordinate);
+            }
+        }
     }
 
     removeElements(mesh, toRemove);
@@ -85,7 +257,10 @@ void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalen
     removeElements(mesh, toRemove);
 }
 
-void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, std::set<ElementId>& overlappedElements) {
+void getOverlappedDimensionZeroElementsAndIdenticalLines(
+    const Group& group,
+    std::set<ElementId>& overlappedElements)
+{
     std::set<CoordinateId> usedCoordinates;
     std::vector<ElementId> nodesToCheck;
 

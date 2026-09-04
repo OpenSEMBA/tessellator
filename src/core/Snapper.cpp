@@ -1,19 +1,105 @@
 #include "Snapper.h"
 
 #include "utils/Geometry.h"
-#include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "Collapser.h"
+
+#include <algorithm>
+#include <array>
+#include <limits>
+#include <map>
+#include <optional>
+#include <set>
 
 #include <cmath>
 
 namespace meshlib {
 namespace core {
 
+namespace {
 
-Snapper::Snapper(const Mesh& mesh, const SnapperOptions& opts) :
+using ElementLocation = std::pair<GroupId, ElementId>;
+
+Coordinate surfaceNormal(const Element& element, const Coordinates& coordinates)
+{
+    return (coordinates[element.vertices[1]] - coordinates[element.vertices[0]])
+        ^ (coordinates[element.vertices[2]] - coordinates[element.vertices[0]]);
+}
+
+std::set<ElementLocation> findElementsWithUnsafeNormals(
+    const Mesh& mesh,
+    const Coordinates& originalCoordinates)
+{
+    std::set<ElementLocation> unsafe;
+    for (GroupId groupId = 0; groupId < mesh.groups.size(); ++groupId) {
+        const Group& group = mesh.groups[groupId];
+        for (ElementId elementId = 0;
+             elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle()) {
+                continue;
+            }
+            const Coordinate originalNormal = surfaceNormal(
+                element, originalCoordinates);
+            const Coordinate snappedNormal = surfaceNormal(
+                element, mesh.coordinates);
+            if (originalNormal.norm() <= utils::Geometry::NORM_TOLERANCE) {
+                continue;
+            }
+            if (snappedNormal.norm() > utils::Geometry::NORM_TOLERANCE
+                && originalNormal * snappedNormal <= 0.0) {
+                unsafe.insert({groupId, elementId});
+            }
+        }
+    }
+    return unsafe;
+}
+
+std::optional<CoordinateId> bestVertexToRestore(
+    const Element& element,
+    const Coordinates& snappedCoordinates,
+    const Coordinates& originalCoordinates)
+{
+    const Coordinate originalNormal = surfaceNormal(
+        element, originalCoordinates);
+    std::optional<CoordinateId> result;
+    double bestAlignment = -std::numeric_limits<double>::max();
+    for (std::size_t vertexIndex = 0;
+         vertexIndex < element.vertices.size(); ++vertexIndex) {
+        const CoordinateId vertex = element.vertices[vertexIndex];
+        if (snappedCoordinates[vertex] == originalCoordinates[vertex]) {
+            continue;
+        }
+        TriV trial{
+            snappedCoordinates[element.vertices[0]],
+            snappedCoordinates[element.vertices[1]],
+            snappedCoordinates[element.vertices[2]],
+        };
+        trial[vertexIndex] = originalCoordinates[vertex];
+        const Coordinate trialNormal = utils::Geometry::normal(trial);
+        const double alignment = trialNormal.norm()
+            <= utils::Geometry::NORM_TOLERANCE
+            ? -std::numeric_limits<double>::max()
+            : originalNormal * trialNormal
+                / (originalNormal.norm() * trialNormal.norm());
+        if (!result.has_value() || alignment > bestAlignment) {
+            result = vertex;
+            bestAlignment = alignment;
+        }
+    }
+    return result;
+}
+
+} // namespace
+
+
+Snapper::Snapper(
+    const Mesh& mesh,
+    const SnapperOptions& opts,
+    SurfaceInversionPolicy surfaceInversionPolicy) :
     mesh_{ mesh },
-    opts_{ opts }
+    opts_{ opts },
+    surfaceInversionPolicy_{ surfaceInversionPolicy }
 {
     if (!std::isfinite(opts.forbiddenLength) ||
         opts.forbiddenLength < 0.0 || opts.forbiddenLength > 0.5) {
@@ -100,6 +186,7 @@ bool edgeIsCandidate(
 
 void Snapper::snap()
 {
+    const Coordinates originalCoordinates = mesh_.coordinates;
     Coordinates solverPoints;
     std::map<Coordinate, std::set<LinV>> coordsToEdge;
     std::tie(solverPoints, coordsToEdge) = buildListOfValidSolverPoints();
@@ -152,8 +239,85 @@ void Snapper::snap()
     }
 
     mesh_.coordinates = r;
+    if (surfaceInversionPolicy_ == SurfaceInversionPolicy::Reject) {
+        rollbackUnsafeSurfaceSnaps(originalCoordinates);
+    }
 
  }
+
+void Snapper::rollbackUnsafeSurfaceSnaps(
+    const Coordinates& originalCoordinates)
+{
+    utils::GridTools gridTools(mesh_.grid);
+    Mesh originalMesh = mesh_;
+    originalMesh.coordinates = originalCoordinates;
+    const auto originalUnsafeAdjacency =
+        utils::meshTools::getElementsWithInvalidSurfaceAdjacency(
+            originalMesh, true);
+    const std::size_t maxIterations = mesh_.coordinates.size() + 1;
+    for (std::size_t iteration = 0; iteration < maxIterations; ++iteration) {
+        const std::set<ElementLocation> unsafeNormals =
+            findElementsWithUnsafeNormals(
+            mesh_, originalCoordinates);
+        std::set<ElementLocation> unsafeAdjacency =
+            utils::meshTools::getElementsWithInvalidSurfaceAdjacency(mesh_, true);
+        for (const ElementLocation& originalUnsafe : originalUnsafeAdjacency) {
+            unsafeAdjacency.erase(originalUnsafe);
+        }
+        std::set<ElementLocation> unsafe = unsafeNormals;
+        unsafe.insert(unsafeAdjacency.begin(), unsafeAdjacency.end());
+        if (unsafe.empty()) {
+            return;
+        }
+
+        std::set<CoordinateId> coordinatesToRestore;
+        for (const auto& [groupId, elementId] : unsafe) {
+            const Element& element = mesh_.groups[groupId].elements[elementId];
+            for (const Coordinates* coordinates :
+                 std::array<const Coordinates*, 2>{
+                     &originalCoordinates, &mesh_.coordinates}) {
+                Coordinate centroid;
+                for (CoordinateId vertex : element.vertices) {
+                    centroid += (*coordinates)[vertex]
+                        / static_cast<double>(element.vertices.size());
+                }
+                const auto touchingCells = gridTools.getTouchingCells(centroid);
+                cellsToStaircase_.insert(
+                    touchingCells.begin(), touchingCells.end());
+            }
+
+            if (unsafeNormals.count({groupId, elementId}) != 0) {
+                const auto vertex = bestVertexToRestore(
+                    element, mesh_.coordinates, originalCoordinates);
+                if (vertex.has_value()) {
+                    coordinatesToRestore.insert(*vertex);
+                }
+            }
+            else {
+                std::optional<CoordinateId> mostDisplacedVertex;
+                double greatestDisplacement = 0.0;
+                for (CoordinateId vertex : element.vertices) {
+                    const double displacement =
+                        (mesh_.coordinates[vertex]
+                            - originalCoordinates[vertex]).norm();
+                    if (displacement > greatestDisplacement) {
+                        greatestDisplacement = displacement;
+                        mostDisplacedVertex = vertex;
+                    }
+                }
+                if (mostDisplacedVertex.has_value()) {
+                    coordinatesToRestore.insert(*mostDisplacedVertex);
+                }
+            }
+        }
+        if (coordinatesToRestore.empty()) {
+            return;
+        }
+        for (CoordinateId vertex : coordinatesToRestore) {
+            mesh_.coordinates[vertex] = originalCoordinates[vertex];
+        }
+    }
+}
 
 std::pair<Coordinate, Coordinate> Snapper::findClosestSolverPoint(
     const Relative& rel,

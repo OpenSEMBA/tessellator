@@ -9,7 +9,9 @@ namespace meshlib::meshers {
 class ConformalMesherOptions : public MesherBaseOptions {
 public:
     core::SnapperOptions snapperOptions;
+    bool compress = true;
     bool staircaseSharedCells = true;
+    bool mergeAxisAlignedTriangles = true;
 };
 
 }

@@ -515,8 +515,6 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 
             IdSet sharedVertices;
             int sharedCount = 0;
-            bool correctOrientation = false;
-
             for (int i = 0; i < otherElementsInCell->vertices.size(); ++i) {
                 int vOther = otherElementsInCell->vertices[i];
 
@@ -536,11 +534,14 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 
                 auto itV1 = std::find(e.vertices.begin(), e.vertices.end(), v1);
                 auto itV2 = std::find(e.vertices.begin(), e.vertices.end(), v2);
-                correctOrientation = (itV1 < itV2);
+                const auto v1Index = std::distance(e.vertices.begin(), itV1);
+                const auto v2Index = std::distance(e.vertices.begin(), itV2);
+                const bool v2FollowsV1 =
+                    (v1Index + 1) % e.vertices.size() == v2Index;
 
-                if(!correctOrientation) {
+                if (!v2FollowsV1) {
                     std::swap(v1, v2);
-                } 
+                }
 
                 CoordinateId v4 = -1;
                 for (const auto& v : e.vertices) {

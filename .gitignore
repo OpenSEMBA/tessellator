@@ -31,4 +31,5 @@ contour.vtk
 
 testData/cases/*/*.vtk 
 build
+tmp/
 git_info.txt

@@ -3,6 +3,7 @@
 #include "MesherBase.h"
 #include "core/Slicer.h"
 #include "core/Collapser.h"
+#include "core/Compressor.h"
 #include "core/Smoother.h" 
 #include "core/Snapper.h"
 #include "core/Staircaser.h"
@@ -412,6 +413,196 @@ void validateConformalVolumeComponents(
     }
 }
 
+using Edge = std::pair<CoordinateId, CoordinateId>;
+
+Edge edgeKey(CoordinateId first, CoordinateId second)
+{
+    return std::minmax(first, second);
+}
+
+bool isAxisAlignedCellSizedQuad(
+    const CoordinateIds& vertices,
+    const Coordinates& coordinates,
+    Axis normalAxis)
+{
+    constexpr double tolerance = 1e-9;
+    const double planePosition = coordinates[vertices.front()][normalAxis];
+    for (CoordinateId vertex : vertices) {
+        if (std::abs(coordinates[vertex][normalAxis] - planePosition)
+            > tolerance) {
+            return false;
+        }
+    }
+
+    for (Axis axis = X; axis <= Z; ++axis) {
+        if (axis == normalAxis) {
+            continue;
+        }
+
+        double lower = coordinates[vertices.front()][axis];
+        double upper = lower;
+        for (CoordinateId vertex : vertices) {
+            lower = std::min(lower, coordinates[vertex][axis]);
+            upper = std::max(upper, coordinates[vertex][axis]);
+        }
+
+        const double cellLower = std::round(lower);
+        if (std::abs(lower - cellLower) > tolerance
+            || std::abs(upper - (cellLower + 1.0)) > tolerance) {
+            return false;
+        }
+        for (CoordinateId vertex : vertices) {
+            const double position = coordinates[vertex][axis];
+            if (std::abs(position - cellLower) > tolerance
+                && std::abs(position - (cellLower + 1.0)) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool buildAxisAlignedCellSizedQuad(
+    const Element& first,
+    const Element& second,
+    const Coordinates& coordinates,
+    Element& quad)
+{
+    if (!first.isTriangle() || !second.isTriangle()) {
+        return false;
+    }
+
+    const VecD firstNormal = Geometry::normal(
+        Geometry::asTriV(first, coordinates));
+    const VecD secondNormal = Geometry::normal(
+        Geometry::asTriV(second, coordinates));
+    if (firstNormal.norm() <= Geometry::NORM_TOLERANCE
+        || secondNormal.norm() <= Geometry::NORM_TOLERANCE
+        || firstNormal * secondNormal <= 0.0) {
+        return false;
+    }
+
+    const VecD firstUnitNormal = firstNormal / firstNormal.norm();
+    const VecD secondUnitNormal = secondNormal / secondNormal.norm();
+    Axis normalAxis = X;
+    for (Axis axis = Y; axis <= Z; ++axis) {
+        if (std::abs(firstUnitNormal[axis])
+            > std::abs(firstUnitNormal[normalAxis])) {
+            normalAxis = axis;
+        }
+    }
+    constexpr double tolerance = 1e-9;
+    for (Axis axis = X; axis <= Z; ++axis) {
+        if (axis != normalAxis
+            && (std::abs(firstUnitNormal[axis]) > tolerance
+                || std::abs(secondUnitNormal[axis]) > tolerance)) {
+            return false;
+        }
+    }
+
+    std::map<Edge, std::size_t> edgeOccurrences;
+    std::vector<Edge> directedBoundary;
+    for (const Element* triangle : {&first, &second}) {
+        for (std::size_t vertex = 0; vertex < triangle->vertices.size(); ++vertex) {
+            const Edge edge{
+                triangle->vertices[vertex],
+                triangle->vertices[(vertex + 1) % triangle->vertices.size()]};
+            ++edgeOccurrences[edgeKey(edge.first, edge.second)];
+            directedBoundary.push_back(edge);
+        }
+    }
+
+    std::map<CoordinateId, CoordinateId> nextVertex;
+    CoordinateIds vertices;
+    for (const Edge& edge : directedBoundary) {
+        if (edgeOccurrences[edgeKey(edge.first, edge.second)] == 1) {
+            if (!nextVertex.emplace(edge.first, edge.second).second) {
+                return false;
+            }
+            vertices.push_back(edge.first);
+        }
+    }
+    if (vertices.size() != 4 || nextVertex.size() != 4) {
+        return false;
+    }
+
+    CoordinateIds orderedVertices;
+    orderedVertices.reserve(4);
+    CoordinateId vertex = vertices.front();
+    for (std::size_t i = 0; i < 4; ++i) {
+        orderedVertices.push_back(vertex);
+        const auto next = nextVertex.find(vertex);
+        if (next == nextVertex.end()) {
+            return false;
+        }
+        vertex = next->second;
+    }
+    if (vertex != orderedVertices.front()
+        || !isAxisAlignedCellSizedQuad(
+            orderedVertices, coordinates, normalAxis)) {
+        return false;
+    }
+
+    quad = Element(orderedVertices, Element::Type::Surface);
+    return true;
+}
+
+void mergeAxisAlignedCellSizedTrianglePairs(Mesh& mesh)
+{
+    for (Group& group : mesh.groups) {
+        std::map<Edge, std::vector<ElementId>> trianglesByEdge;
+        for (ElementId elementId = 0; elementId < group.elements.size(); ++elementId) {
+            const Element& element = group.elements[elementId];
+            if (!element.isTriangle()) {
+                continue;
+            }
+            for (std::size_t vertex = 0; vertex < element.vertices.size(); ++vertex) {
+                trianglesByEdge[edgeKey(
+                    element.vertices[vertex],
+                    element.vertices[(vertex + 1) % element.vertices.size()])]
+                    .push_back(elementId);
+            }
+        }
+
+        std::map<ElementId, Element> replacements;
+        std::set<ElementId> removed;
+        for (const auto& entry : trianglesByEdge) {
+            const auto& triangles = entry.second;
+            if (triangles.size() != 2
+                || removed.count(triangles[0]) != 0
+                || removed.count(triangles[1]) != 0) {
+                continue;
+            }
+
+            Element quad;
+            if (!buildAxisAlignedCellSizedQuad(
+                    group.elements[triangles[0]], group.elements[triangles[1]],
+                    mesh.coordinates, quad)) {
+                continue;
+            }
+            const ElementId retained = std::min(triangles[0], triangles[1]);
+            const ElementId discarded = std::max(triangles[0], triangles[1]);
+            replacements.emplace(retained, std::move(quad));
+            removed.insert(discarded);
+        }
+
+        if (replacements.empty()) {
+            continue;
+        }
+        Elements normalized;
+        normalized.reserve(group.elements.size() - removed.size());
+        for (ElementId elementId = 0; elementId < group.elements.size(); ++elementId) {
+            const auto replacement = replacements.find(elementId);
+            if (replacement != replacements.end()) {
+                normalized.push_back(replacement->second);
+            } else if (removed.count(elementId) == 0) {
+                normalized.push_back(group.elements[elementId]);
+            }
+        }
+        group.elements = std::move(normalized);
+    }
+}
+
 }
 
 std::set<Cell> ConformalMesher::cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh)
@@ -581,9 +772,51 @@ std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
     res = mergeCellSets(res, cellsWithMoreThanAPathPerFace(mesh));
 
     // Rule #3: Conformal cells can't contain node or line elements.
-    // res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
+    res = mergeCellSets(res, cellsContainingNodeOrLineElements(mesh));
+
+    // Rule #4: Surface elements must preserve a consistent local orientation.
+    res = mergeCellSets(res, cellsWithInvalidSurfaceOrientations(mesh));
 
     return res;
+}
+
+std::set<Cell> ConformalMesher::cellsWithInvalidSurfaceOrientations(
+    const Mesh& mesh)
+{
+    GridTools gridTools(mesh.grid);
+    std::set<Cell> result;
+    for (const GroupElementId& location :
+         utils::meshTools::getElementsWithInvalidSurfaceAdjacency(mesh)) {
+        const Element& element = mesh.groups[location.first].elements[location.second];
+        Coordinate centroid;
+        for (CoordinateId vertex : element.vertices) {
+            centroid += mesh.coordinates[vertex]
+                / static_cast<double>(element.vertices.size());
+        }
+        const auto touchingCells = gridTools.getTouchingCells(centroid);
+        result.insert(touchingCells.begin(), touchingCells.end());
+    }
+    return result;
+}
+
+std::set<Cell> ConformalMesher::cellsContainingNodeOrLineElements(const Mesh& mesh)
+{
+    GridTools gridTools(mesh.grid);
+    std::set<Cell> result;
+    for (const Group& group : mesh.groups) {
+        const auto cellElements = gridTools.buildCellElemMap(
+            group.elements, mesh.coordinates);
+        for (const auto& entry : cellElements) {
+            const bool containsLowerDimensionalElement = std::any_of(
+                entry.second.begin(), entry.second.end(), [](const Element* element) {
+                    return element->isNode() || element->isLine();
+                });
+            if (containsLowerDimensionalElement) {
+                result.insert(entry.first);
+            }
+        }
+    }
+    return result;
 }
 
 Mesh ConformalMesher::mesh() const 
@@ -619,7 +852,8 @@ Mesh ConformalMesher::mesh() const
     const Mesh conformalMeshBeforeSnapping = res;
 
     log("Snapping.", 1);
-    res = Snapper(res, opts_.snapperOptions).getMesh();
+    const Snapper snapper(res, opts_.snapperOptions);
+    res = snapper.getMesh();
 
     Mesh conformalMeshBeforeStructuring = res;
     try {
@@ -637,6 +871,8 @@ Mesh ConformalMesher::mesh() const
     // Find cells which break conformal FDTD rules.
     auto nonConformalCells = findNonConformalCells(res);
     nonConformalCells = mergeCellSets(
+        nonConformalCells, snapper.getCellsToStaircase());
+    nonConformalCells = mergeCellSets(
         nonConformalCells,
         cellsOccupiedByDegenerateVolumeComponents(res, opts_.volumeGroups));
     log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
@@ -646,6 +882,7 @@ Mesh ConformalMesher::mesh() const
     res = Staircaser{res}.getSelectiveMesh(
         nonConformalCells, Staircaser::GapsFillingType::Insert);
     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+    RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
     restoreThreeDimensionalVolumeComponents(
         res, conformalMeshBeforeStructuring, opts_.volumeGroups);
     normalizeVolumeGroups(res, opts_.volumeGroups);
@@ -655,8 +892,41 @@ Mesh ConformalMesher::mesh() const
     nonConformalCells = findNonConformalCells(res);
     log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
 
+    const auto invalidOrientationCells =
+        cellsWithInvalidSurfaceOrientations(res);
+    if (!invalidOrientationCells.empty()) {
+        log("Restaircasing cells with invalid surface orientation: "
+            + std::to_string(invalidOrientationCells.size()), 1);
+        res = Staircaser{res}.getSelectiveMesh(
+            invalidOrientationCells, Staircaser::GapsFillingType::Insert);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+            res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        restoreThreeDimensionalVolumeComponents(
+            res, conformalMeshBeforeStructuring, opts_.volumeGroups);
+        normalizeVolumeGroups(res, opts_.volumeGroups);
+    }
 
-    // Merges triangles which are on same cell face.
+
+    if (opts_.mergeAxisAlignedTriangles) {
+        log("Merging axis-aligned cell-sized triangle pairs.", 1);
+        mergeAxisAlignedCellSizedTrianglePairs(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        RedundancyCleaner::cleanCoords(res);
+        logNumberOfQuads(countMeshElementsIf(res, isQuad));
+    }
+
+    if (opts_.compress && opts_.volumeGroups.empty()) {
+        log("Compressing final mesh.", 1);
+        Compressor::compressSurfacesInMesh(res);
+        Compressor::compressLinesInMesh(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        RedundancyCleaner::cleanCoords(res);
+    }
     
     reduceGrid(res, originalGrid_);
     

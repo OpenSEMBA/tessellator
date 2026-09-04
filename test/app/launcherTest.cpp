@@ -1,17 +1,62 @@
 #include <gtest/gtest.h>
 
 #include "app/launcher.h"
+#include "MeshFixtures.h"
 #include "types/Mesh.h"
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
 #include "core/VolumeShellExtractor.h"
 #include "utils/MeshTools.h"
+#include "utils/GridTools.h"
 #include "app/vtkIO.h"
 
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 using namespace meshlib::app;
+
+namespace {
+
+bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
+{
+    meshlib::utils::GridTools gridTools(mesh.grid);
+    for (const meshlib::Group& group : mesh.groups) {
+        const auto cellElements = gridTools.buildCellElemMap(
+            group.elements, mesh.coordinates);
+        for (const auto& [cell, elements] : cellElements) {
+            const bool hasSurface = std::any_of(
+                elements.begin(), elements.end(), [](const meshlib::Element* element) {
+                    return element->isTriangle() || element->isQuad();
+                });
+            const bool hasLowerDimensionalElement = std::any_of(
+                elements.begin(), elements.end(), [](const meshlib::Element* element) {
+                    return element->isLine() || element->isNode();
+                });
+            if (hasSurface && hasLowerDimensionalElement) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void expectConformalVolumeLaunch(
+    const std::string& input,
+    const std::string& group)
+{
+    const char* arguments[] = {nullptr, "-i", input.c_str()};
+    ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+
+    const auto output = std::filesystem::path(input).parent_path()
+        / (group + ".tessellator.cmsh.vtk");
+    const auto mesh = meshlib::vtkIO::readInputMesh(output);
+    ASSERT_EQ(mesh.groups.size(), 1);
+    EXPECT_GT(mesh.countElems(), 0);
+}
+
+} // namespace
 
 class LauncherTest : public ::testing::Test
 {
@@ -76,7 +121,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_NO_THROW(auto staircaseMesher = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher));
     const auto & options = dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
     EXPECT_EQ(options.volumeGroups.size(), 0);
-    EXPECT_EQ(options.compress, false);
+    EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
 }
 
@@ -128,7 +173,36 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
     const auto& conformal =
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
+    EXPECT_TRUE(conformal.getOptions().compress);
     EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
+    EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
+}
+
+TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "conformal"},
+            {"options", {
+                {"compress", false},
+                {"mergeAxisAlignedTriangles", false}
+            }}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& conformal =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
+
+    EXPECT_FALSE(conformal.getOptions().compress);
+    EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
 TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
@@ -253,6 +327,36 @@ TEST_F(LauncherTest, builds_staircased_mesher_with_compression)
     EXPECT_EQ(options.compress, true);
 }
 
+TEST_F(LauncherTest, solenoidSnapperCaseExportsNoMixedDimensionalCells)
+{
+    const auto sourceDirectory = std::filesystem::path(
+        "testData/cases/solenoid");
+    const auto outputDirectory = std::filesystem::temp_directory_path()
+        / "tessellator_solenoid_snapper_launcher";
+    std::filesystem::remove_all(outputDirectory);
+    std::filesystem::copy(
+        sourceDirectory,
+        outputDirectory,
+        std::filesystem::copy_options::recursive);
+
+    const auto input = outputDirectory / "solenoid.conformal.tessellator.json";
+    const std::string inputString = input.string();
+    const char* argv[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
+
+    auto result = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "Solenoid.tessellator.cmsh.vtk");
+    nlohmann::json inputData;
+    std::ifstream(input) >> inputData;
+    result.grid = parseGridFromJSON(inputData["grid"]);
+    EXPECT_EQ(meshlib::utils::meshTools::countMeshElementsIf(
+        result, meshlib::utils::meshTools::isNode), 0);
+    EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(result));
+    EXPECT_FALSE(meshlib::meshFixtures::hasInvalidSurfaceAdjacency(result));
+
+    std::filesystem::remove_all(outputDirectory);
+}
+
 TEST_F(LauncherTest, launches_alhambra_case)
 {
     int ac = 3;
@@ -366,25 +470,25 @@ TEST_F(LauncherTest, launchesTypicalCasesAsStaircaseVolumes)
     }
 }
 
-TEST_F(LauncherTest, launchesTypicalCasesAsConformalVolumes)
+TEST_F(LauncherTest, launchesAlhambraAsConformalVolume)
 {
-    const std::vector<std::pair<std::string, std::string>> cases = {
-        {"testData/cases/alhambra/alhambra.volume.conformal.tessellator.json", "alhambra"},
-        {"testData/cases/sphere/sphere.volume.conformal.tessellator.json", "sphere"},
-        {"testData/cases/cone/cone.volume.conformal.tessellator.json", "cone"}
-    };
+    expectConformalVolumeLaunch(
+        "testData/cases/alhambra/alhambra.volume.conformal.tessellator.json",
+        "alhambra");
+}
 
-    for (const auto& [input, group] : cases) {
-        SCOPED_TRACE(input);
-        const char* arguments[] = {nullptr, "-i", input.c_str()};
-        ASSERT_EQ(launcher(3, arguments), EXIT_SUCCESS);
+TEST_F(LauncherTest, launchesSphereAsConformalVolume)
+{
+    expectConformalVolumeLaunch(
+        "testData/cases/sphere/sphere.volume.conformal.tessellator.json",
+        "sphere");
+}
 
-        const auto output = std::filesystem::path(input).parent_path()
-            / (group + ".tessellator.cmsh.vtk");
-        const auto mesh = meshlib::vtkIO::readInputMesh(output);
-        ASSERT_EQ(mesh.groups.size(), 1);
-        EXPECT_GT(mesh.countElems(), 0);
-    }
+TEST_F(LauncherTest, launchesConeAsConformalVolume)
+{
+    expectConformalVolumeLaunch(
+        "testData/cases/cone/cone.volume.conformal.tessellator.json",
+        "cone");
 }
 
 TEST_F(LauncherTest, readObjectsFromJSON_basic)
