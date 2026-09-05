@@ -6,5 +6,6 @@
             [ 100.0,  100.0,  100.0]
         ]
     },
-    "object": {"filename": "sphere.stl"}
+    "object": {"filename": "sphere.stl", "volume": true},
+    "mesher": {"type": "staircase"}
 }

@@ -19,6 +19,28 @@ Tessellator is a mesher focused on generate meshes and data structures which are
 
 When using presets, make sure to define the environment variable `VCPKG_ROOT` to your `vcpkg` installation.
 The standard presets build without CGAL; use the `gnu-cgal` preset for the optional CGAL algorithms.
+The launcher application is enabled by default (`TESSELLATOR_ENABLE_APP=ON`) and
+requires VTK 7.1 or newer. CMake fails during configuration when the launcher is enabled but VTK is unavailable. To build the mesh library and its non-app tests without VTK, configure with `-DTESSELLATOR_ENABLE_APP=OFF`.
+
+For a clean build with the launcher enabled:
+
+```shell
+cmake --preset gnu -S . -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+`ctest` automatically runs from the source directory, so no `testData` symlinks
+are required.
+
+The launcher prints its build version, commit, compiler, and flags on startup.
+For source bundles built without Git, generate `git_info.txt` in a checkout and
+include it at the source root before packaging:
+
+```shell
+./scripts/write_git_info.sh
+```
+
 This can be done using a `CMakeUserPreset.json` file, for example:
 
 ```json
@@ -86,20 +108,30 @@ This contains the information about the mesh file(s). You can specify a single o
 
 **Single object:**
 - `filename`: A string containing the name of the mesh file. Its location is relative to that of the json file.
+- `volume`: (optional boolean, default: `false`) Treats the object as a volume.
+  A volume may be supplied as a closed triangle/quad surface or as
+  tetrahedral/hexahedral cells. Its input boundary is validated before
+  meshing. Conformal volume components that collapse geometrically to a
+  surface, line, or point are selectively staircased and remain valid. The
+  output may therefore contain a different number of closed volume regions,
+  together with surface, line, or point remnants.
 
 ```json
-  "object": {"filename": "thinCylinder.stl"}
+  "object": {"filename": "thinCylinder.stl", "volume": true}
 ```
 
 **Multiple objects:**
 - `objects`: An array of object definitions. Each object can have:
   - `filename`: (required) The mesh file name, relative to the JSON file location
   - `group`: (optional) Group name for the object (defaults to filename without extension)
+  - `volume`: (optional boolean, default: `false`) Applies the same volume
+    validation and meshing behavior as the single-object form
+  - `ghost`: (optional boolean, default: false) Excludes the object from cross-object decisions while still meshing and exporting it normally
   - `mesher`: (optional) Override the global mesher settings for this specific object
 
 ```json
   "objects": [
-    {"filename": "object1.stl", "group": "group1"},
+    {"filename": "object1.stl", "group": "group1", "volume": true, "ghost": true},
     {"filename": "object2.stl", "group": "group2", "mesher": {"type": "conformal"}}
   ]
 ```
@@ -114,24 +146,45 @@ This optional entry configures the meshing algorithm and its options. If not spe
 **Mesher options:**
 
 For **staircase** mesher:
-- `compress`: (boolean, default: false) Enables surface compression to merge adjacent coplanar quads into larger surfaces
+- `compress`: (boolean, default: true) Merges compatible adjacent surfaces and lines to minimize exported element counts
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
 
 For **conformal** mesher:
-- `edgePoints`: Controls edge point snapping behavior
-- `forbiddenLength`: Minimum length threshold for snapping
+- `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced
+  candidate snap points added along each grid edge.
+  These points are placed in the portion of the edge outside the endpoint exclusion regions defined by
+  `forbiddenLength`. Set to `0` to add no interior edge points.
+- `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
+  clear next to both endpoints when placing or snapping to edge points. It must be between `0.0` and `0.5`, inclusive.
+- `compress`: (boolean, default: true) Applies final surface and line compression after conformal validation and any selective staircasing
+- `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
+- `mergeAxisAlignedTriangles`: (boolean, default: true) Merges two triangles that form a cell-sized quad parallel to a grid plane
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file
 
-Example with staircase mesher and compression enabled:
+Example with staircase mesher and compression disabled:
 ```json
   "mesher": {
     "type": "staircase",
     "options": {
-      "compress": true,
+      "compress": false,
       "exportGrid": true
     }
+  }
+```
+
+### `<output>`
+This optional entry controls how multi-object results are written:
+
+- `singleFile`: (boolean, default: false) Writes all objects to one
+  `{basename}.tessellator.vtk` file instead of separate per-object mesh files.
+  Object groups remain identifiable through the `group` and `groupNames` cell
+  attributes. Group names must be unique.
+
+```json
+  "output": {
+    "singleFile": true
   }
 ```
 
@@ -140,7 +193,7 @@ Example with conformal mesher:
   "mesher": {
     "type": "conformal",
     "options": {
-      "edgePoints": true,
+      "edgePoints": 3,
       "forbiddenLength": 0.001
     }
   }
@@ -150,6 +203,7 @@ Example with conformal mesher:
 The tessellator generates output files with the following naming convention:
 - `{group_name}.tessellator.str.vtk` - Staircase meshed object
 - `{group_name}.tessellator.cmsh.vtk` - Conformal meshed object
+- `{basename}.tessellator.vtk` - Combined multi-object mesh when `output.singleFile` is true
 - `{basename}.tessellator.grid.vtk` - Grid file (if `exportGrid` is true)
 
 ### Complete Example

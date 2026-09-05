@@ -4,7 +4,10 @@
 
 #include "meshers/ConformalMesher.h"
 #include "utils/Geometry.h"
+#include "utils/GridTools.h"
 #include "utils/MeshTools.h"
+
+#include <algorithm>
 
 #if APP_LOADED
     #include "app/vtkIO.h"
@@ -13,6 +16,33 @@
 namespace meshlib::meshers {
 using namespace meshFixtures;
 using namespace utils::meshTools;
+
+namespace {
+
+bool hasMixedSurfaceAndLowerDimensionalElements(const Mesh& mesh)
+{
+    utils::GridTools gridTools(mesh.grid);
+    for (const Group& group : mesh.groups) {
+        const auto cellElements = gridTools.buildCellElemMap(
+            group.elements, mesh.coordinates);
+        for (const auto& [cell, elements] : cellElements) {
+            const bool hasSurface = std::any_of(
+                elements.begin(), elements.end(), [](const Element* element) {
+                    return element->isTriangle() || element->isQuad();
+                });
+            const bool hasLowerDimensionalElement = std::any_of(
+                elements.begin(), elements.end(), [](const Element* element) {
+                    return element->isLine() || element->isNode();
+                });
+            if (hasSurface && hasLowerDimensionalElement) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 #if APP_LOADED
     using namespace vtkIO;
@@ -41,6 +71,197 @@ protected:
     }
 #endif
 };
+
+TEST_F(ConformalMesherTest, findsCellOccupiedByDifferentGroups)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(0.5);
+    mesh.coordinates = {
+        Relative({0.25, 0.25, 0.25}),
+        Relative({0.75, 0.75, 0.75}),
+        Relative({1.25, 0.25, 0.25})
+    };
+    mesh.groups = {
+        Group("first", {Element({0}, Element::Type::Node)}),
+        Group("second", {Element({1}, Element::Type::Node)}),
+        Group("third", {Element({2}, Element::Type::Node)})
+    };
+
+    const auto result = ConformalMesher::cellsSharedByGroups(mesh);
+
+    EXPECT_EQ(result, std::set<Cell>({Cell({0, 0, 0})}));
+}
+
+TEST_F(ConformalMesherTest, includesBothCellsWhenGroupsMeetOnCellFace)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(0.5);
+    mesh.coordinates = {
+        Relative({1.0, 0.25, 0.25}),
+        Relative({1.0, 0.75, 0.75})
+    };
+    mesh.groups = {
+        Group("first", {Element({0}, Element::Type::Node)}),
+        Group("second", {Element({1}, Element::Type::Node)})
+    };
+
+    const auto result = ConformalMesher::cellsSharedByGroups(mesh);
+
+    EXPECT_EQ(result, std::set<Cell>({Cell({0, 0, 0}), Cell({1, 0, 0})}));
+}
+
+TEST_F(ConformalMesherTest, ignoresSelectedGroupsWhenFindingSharedCells)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(0.5);
+    mesh.coordinates = {
+        Relative({0.25, 0.25, 0.25}),
+        Relative({0.75, 0.75, 0.75}),
+        Relative({1.25, 0.25, 0.25}),
+        Relative({1.75, 0.75, 0.75})
+    };
+    mesh.groups = {
+        Group("first", {Element({0}, Element::Type::Node)}),
+        Group("ghost", {Element({1}, Element::Type::Node)}),
+        Group("second", {Element({2}, Element::Type::Node)}),
+        Group("third", {Element({3}, Element::Type::Node)})
+    };
+
+    const auto result = ConformalMesher::cellsSharedByGroups(mesh, {1});
+
+    EXPECT_EQ(result, std::set<Cell>({Cell({1, 0, 0})}));
+}
+
+TEST_F(ConformalMesherTest, marksCellsContainingLinesOrNodesAsNonConformal)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.0, 0.0, 0.25}),
+        Relative({1.0, 0.0, 0.25}),
+        Relative({0.0, 1.0, 0.25}),
+        Relative({0.25, 0.25, 0.5}),
+        Relative({0.75, 0.25, 0.5}),
+        Relative({0.5, 0.5, 0.75}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({3, 4}, Element::Type::Line),
+        Element({5}, Element::Type::Node),
+    })};
+
+    EXPECT_EQ(
+        ConformalMesher::cellsContainingNodeOrLineElements(mesh),
+        std::set<Cell>({Cell({0, 0, 0})}));
+    EXPECT_EQ(
+        ConformalMesher::findNonConformalCells(mesh),
+        std::set<Cell>({Cell({0, 0, 0})}));
+}
+
+TEST_F(ConformalMesherTest, marksCellsWithInconsistentlyOrientedSurfaces)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.2, 0.5, 0.5}),
+        Relative({0.8, 0.5, 0.5}),
+        Relative({0.2, 0.8, 0.5}),
+        Relative({0.8, 0.2, 0.5}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({0, 1, 3}),
+    })};
+
+    EXPECT_EQ(
+        ConformalMesher::cellsWithInvalidSurfaceOrientations(mesh),
+        std::set<Cell>({Cell({0, 0, 0})}));
+}
+
+TEST_F(ConformalMesherTest, mergesCellSizedAxisAlignedTrianglesByDefault)
+{
+    Mesh input;
+    input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    input.coordinates = {
+        Coordinate({0.0, 0.0, 0.25}),
+        Coordinate({1.0, 0.0, 0.25}),
+        Coordinate({1.0, 1.0, 0.25}),
+        Coordinate({0.0, 1.0, 0.25})
+    };
+    input.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({0, 2, 3}),
+        Element({0, 1}, Element::Type::Line),
+        Element({0}, Element::Type::Node)
+    })};
+
+    const Mesh result = ConformalMesher(input).mesh();
+
+    EXPECT_EQ(1, countMeshElementsIf(result, isQuad));
+    EXPECT_EQ(0, countMeshElementsIf(result, isLine));
+    EXPECT_EQ(0, countMeshElementsIf(result, isNode));
+}
+
+TEST_F(ConformalMesherTest, canDisableCellSizedAxisAlignedTriangleMerging)
+{
+    Mesh input;
+    input.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    input.coordinates = {
+        Coordinate({0.0, 0.0, 0.25}),
+        Coordinate({1.0, 0.0, 0.25}),
+        Coordinate({1.0, 1.0, 0.25}),
+        Coordinate({0.0, 1.0, 0.25})
+    };
+    input.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({0, 2, 3})
+    })};
+    ConformalMesherOptions options;
+    options.mergeAxisAlignedTriangles = false;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_EQ(0, countMeshElementsIf(result, isQuad));
+    EXPECT_EQ(2, countMeshElementsIf(result, isTriangle));
+}
+
+#if APP_LOADED
+TEST_F(ConformalMesherTest, solenoidSnappingLeavesNoMixedDimensionalCells)
+{
+    Mesh input = vtkIO::readInputMesh(
+        "testData/cases/solenoid/solenoid.vtu");
+    input.grid = Grid{
+        utils::GridTools::linspace(-34.141999999999996, 39.858, 75),
+        utils::GridTools::linspace(-25.756999999999998, 49.243, 76),
+        utils::GridTools::linspace(-20.0, 40.0, 61),
+    };
+
+    for (const auto& [edgePoints, forbiddenLength] :
+         std::vector<std::pair<std::size_t, double>>{
+             {0, 0.0}, {1, 0.1}, {4, 0.25}, {7, 0.3}}) {
+        SCOPED_TRACE("edgePoints=" + std::to_string(edgePoints)
+            + ", forbiddenLength=" + std::to_string(forbiddenLength));
+        ConformalMesherOptions options;
+        options.snapperOptions.edgePoints = edgePoints;
+        options.snapperOptions.forbiddenLength = forbiddenLength;
+        const Mesh result = ConformalMesher(input, options).mesh();
+
+        const auto output = std::filesystem::temp_directory_path()
+            / "tessellator_solenoid_conformal_regression.vtk";
+        exportMeshToVTU(output, result);
+        Mesh exported = vtkIO::readInputMesh(output);
+        exported.grid = input.grid;
+        std::filesystem::remove(output);
+
+        EXPECT_EQ(countMeshElementsIf(result, isNode), 0);
+        EXPECT_EQ(countMeshElementsIf(exported, isNode), 0);
+        EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(result));
+        EXPECT_FALSE(hasMixedSurfaceAndLowerDimensionalElements(exported));
+        EXPECT_FALSE(meshFixtures::hasInvalidSurfaceAdjacency(result));
+        EXPECT_FALSE(meshFixtures::hasInvalidSurfaceAdjacency(exported));
+    }
+}
+#endif
 
 TEST_F(ConformalMesherTest, cellsWithMoreThanAVertexPerEdge_1)
 {
@@ -340,6 +561,118 @@ TEST_F(ConformalMesherTest, cellsWithMoreThanAPathPerFace_8)
     auto res = ConformalMesher::cellsWithMoreThanAPathPerFace(m);
 
     EXPECT_EQ(2, res.size());
+}
+
+TEST_F(ConformalMesherTest, preservesClosedMarkedVolume)
+{
+    Mesh input = buildCubeSurfaceMesh(0.5);
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    ASSERT_FALSE(result.groups[0].elements.empty());
+    EXPECT_TRUE(isAClosedTopology(result.groups[0].elements));
+}
+
+TEST_F(ConformalMesherTest, rejectsOpenMarkedVolume)
+{
+    Mesh input = buildTetSurfaceMesh(0.5);
+    input.groups[0].elements.pop_back();
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+
+    EXPECT_THROW(
+        ConformalMesher(input, options).mesh(),
+        std::runtime_error);
+}
+
+TEST_F(ConformalMesherTest, acceptsMultipleRegionsWithoutPreservingTheirCount)
+{
+    Mesh input = buildCubeSurfaceMesh(0.5);
+    for (Coordinate& coordinate : input.coordinates) {
+        coordinate *= 0.4;
+    }
+    const CoordinateId coordinateOffset = input.coordinates.size();
+    const Coordinates firstCoordinates = input.coordinates;
+    const Elements firstCube = input.groups[0].elements;
+    for (Coordinate coordinate : firstCoordinates) {
+        coordinate[X] += 1.0;
+        input.coordinates.push_back(coordinate);
+    }
+    for (Element element : firstCube) {
+        for (CoordinateId& vertex : element.vertices) {
+            vertex += coordinateOffset;
+        }
+        input.groups[0].elements.push_back(std::move(element));
+    }
+
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(result.countElems(), 0);
+}
+
+TEST_F(ConformalMesherTest, staircasesPlanarVolumeDegeneration)
+{
+    Mesh input = buildSlabSurfaceMesh(1.0, 0.01);
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isQuad), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
+}
+
+TEST_F(ConformalMesherTest, staircasesLinearVolumeDegeneration)
+{
+    Mesh input = buildCubeSurfaceMesh(1.0);
+    for (Coordinate& coordinate : input.coordinates) {
+        for (Axis axis : {Y, Z}) {
+            if (coordinate[axis] == 1.0) {
+                coordinate[axis] = 0.01;
+            }
+        }
+    }
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isLine), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
+}
+
+TEST_F(ConformalMesherTest, staircasesPointVolumeDegeneration)
+{
+    Mesh input = buildCubeSurfaceMesh(1.0);
+    for (Coordinate& coordinate : input.coordinates) {
+        for (Axis axis : {X, Y, Z}) {
+            if (coordinate[axis] == 1.0) {
+                coordinate[axis] = 0.01;
+            }
+        }
+    }
+    ConformalMesherOptions options;
+    options.volumeGroups = {0};
+    options.snapperOptions.edgePoints = 4;
+    options.snapperOptions.forbiddenLength = 0.25;
+
+    const Mesh result = ConformalMesher(input, options).mesh();
+
+    EXPECT_GT(countMeshElementsIf(result, isNode), 0);
+    EXPECT_NO_THROW(checkNoCellsAreCrossed(result));
 }
 
 #if APP_LOADED

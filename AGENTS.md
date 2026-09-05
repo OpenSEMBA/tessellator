@@ -1,6 +1,14 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
+
+## Skills
+
+Prioritise project-level skills in `.agents/` over user-level or globally installed skills.
+
+## Commit Conventions
+
+Commit conventions are described in `@.agents/commit-format/SKILL.md`.
 
 ## Overview
 
