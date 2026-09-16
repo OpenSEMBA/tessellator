@@ -13,33 +13,31 @@ using namespace utils;
 using namespace meshTools;
 
 
-void MesherBase::log(const std::string& msg, std::size_t level) const
+void MesherBase::log(const std::string& msg, std::size_t level)
 {
-    if(opts_.allow_log) {
-        std::cout << "[Tessellator] ";
-        for(std::size_t i=0; i < level; i++) {
-          std::cout << "-- ";
-        }
-
-        std::cout << msg << std::endl;
+    std::cout << "[Tessellator] ";
+    for (std::size_t i = 0; i < level; i++) {
+        std::cout << "-- ";
     }
+
+    std::cout << msg << std::endl;
 }
 
-void MesherBase::logNumberOfQuads(std::size_t nQuads) const
+void MesherBase::logNumberOfQuads(std::size_t nQuads)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nQuads << " quads.";
     log(msg.str(), 2);
 }
 
-void MesherBase::logNumberOfTriangles(std::size_t nTris) const
+void MesherBase::logNumberOfTriangles(std::size_t nTris)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nTris << " triangles.";
     log(msg.str(), 2);
 }
 
-void MesherBase::logNumberOfLines(std::size_t nLines) const
+void MesherBase::logNumberOfLines(std::size_t nLines)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nLines << " lines.";
@@ -47,21 +45,21 @@ void MesherBase::logNumberOfLines(std::size_t nLines) const
 }
 
 
-void MesherBase::logNumberOfNodes(std::size_t nNodes) const
+void MesherBase::logNumberOfNodes(std::size_t nNodes)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nNodes << " nodes.";
     log(msg.str(), 2);
 }
 
-void MesherBase::logNumberOfHexahedra(std::size_t nHexahedra) const
+void MesherBase::logNumberOfHexahedra(std::size_t nHexahedra)
 {
     std::stringstream msg;
     msg << "Mesh contains " << nHexahedra << " hexahedra.";
     log(msg.str(), 2);
 }
 
-void MesherBase::logGridSize(const Grid& g) const
+void MesherBase::logGridSize(const Grid& g)
 {
     std::stringstream msg;
     msg << "Grid size is "

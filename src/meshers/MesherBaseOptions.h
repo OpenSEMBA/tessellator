@@ -7,7 +7,6 @@ namespace meshlib::meshers {
 
 class MesherBaseOptions {
 public:
-    bool allow_log=false;
     std::set<GroupId> volumeGroups{};
 };
 

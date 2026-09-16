@@ -16,13 +16,13 @@ public:
 protected:
     virtual void process(Mesh&) const = 0;
 
-    void log(const std::string& msg, std::size_t level = 0) const;
-    void logNumberOfQuads(std::size_t nQuads) const;
-    void logNumberOfTriangles(std::size_t nTris) const;
-    void logNumberOfLines(std::size_t nLines) const;
-    void logNumberOfNodes(std::size_t nNodes) const;
-    void logNumberOfHexahedra(std::size_t nHexahedra) const;
-    void logGridSize(const Grid& g) const;
+    static void log(const std::string& msg, std::size_t level = 0);
+    static void logNumberOfQuads(std::size_t nQuads);
+    static void logNumberOfTriangles(std::size_t nTris);
+    static void logNumberOfLines(std::size_t nLines);
+    static void logNumberOfNodes(std::size_t nNodes);
+    static void logNumberOfHexahedra(std::size_t nHexahedra);
+    static void logGridSize(const Grid& g);
 
     static Grid buildNonSlicingGrid(const Grid& primal, const Grid& enlarged);
     static Grid buildSlicingGrid(const Grid& primal, const Grid& enlarged);
