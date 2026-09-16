@@ -521,6 +521,7 @@ TEST_F(StaircaseMesherTest, meshesSelectedNonzeroVolumeGroupWithHexahedra)
         result.groups[0].elements.begin(), result.groups[0].elements.end(), isQuad));
     EXPECT_EQ(4, std::count_if(
         result.groups[1].elements.begin(), result.groups[1].elements.end(), isHexahedron));
+    EXPECT_EQ(18,result.coordinates.size());
 }
 
 #if APP_LOADED

@@ -23,6 +23,7 @@ private:
 	virtual Mesh buildSurfaceMesh(const Mesh& inputMesh, const Mesh& volumeSurface);
 	void process(Mesh&) const;
 	void process(Mesh&, bool compress) const;
+	bool collapse_nodes(Mesh& z_output_mesh,const double tolerance);
 
 };
 

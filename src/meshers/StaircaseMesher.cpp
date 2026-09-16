@@ -1,7 +1,9 @@
 #include "StaircaseMesher.h"
 
 #include <iostream>
-
+#include <unordered_map>
+#include <cstdint>
+#include <tuple>
 
 #include "core/Slicer.h"
 #include "core/Collapser.h"
@@ -22,6 +24,99 @@ using namespace meshTools;
 
 std::vector<std::string> getGroupNames(const Groups& groups);
 void copyGroupNames(Mesh& mesh, const std::vector<std::string>& names);
+
+/*
+  tessellator was providing duplicated nodes for quadrilaterals and hexahedra,so we must collapse them to act like old zmesher
+  must remove in coordinates the duplicated nodes (same x,y,z) and renumber the connectivities of the elements in groups vertices
+*/
+// Custom hash for a 3D grid cell coordinate tuple
+struct GridKey {
+  int64_t x;
+  int64_t y;
+  int64_t z;
+
+  bool operator==(const GridKey& other) const {
+    return x == other.x && y == other.y && z == other.z;
+  }
+};
+
+struct GridKeyHash {
+  std::size_t operator()(const GridKey& k) const noexcept {
+    // Spatial hashing / bit-mixing (prime multipliers for 3D coordinates)
+    std::size_t h1=std::hash<int64_t>{}(k.x);
+    std::size_t h2=std::hash<int64_t>{}(k.y);
+    std::size_t h3=std::hash<int64_t>{}(k.z);
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2)) ^ (h3 * 0x85ebca6b);
+  }
+};
+
+bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance) {
+  bool fail=false;
+
+  const size_t num_coordinates=z_output_mesh.coordinates.size();
+  if(num_coordinates <= 1) {
+    return fail;
+  }
+
+  const double inv_tol=1.0 / tolerance;
+
+  // Lambda to map continuous 3D floating-point coords to integer grid indices
+  auto make_key=[inv_tol](const Coordinate& coord) -> GridKey {
+    return GridKey{
+      static_cast<int64_t>(std::round(coord[0] * inv_tol)),
+      static_cast<int64_t>(std::round(coord[1] * inv_tol)),
+      static_cast<int64_t>(std::round(coord[2] * inv_tol))
+    };
+    };
+
+  std::vector<CoordinateId> old_to_new_coordinate_id(num_coordinates);
+
+  // Unordered map for O(1) expected average lookup
+  std::unordered_map<GridKey,CoordinateId,GridKeyHash> unique_coordinates;
+  unique_coordinates.reserve(num_coordinates);
+
+  std::vector<Coordinate> collapsed_coordinates;
+  collapsed_coordinates.reserve(num_coordinates);
+
+  for(size_t i_coordinate=0; i_coordinate < num_coordinates; ++i_coordinate) {
+    const auto& coordinate=z_output_mesh.coordinates[i_coordinate];
+    GridKey key=make_key(coordinate);
+
+    // Single lookup and insertion step using try_emplace (C++17)
+    const CoordinateId next_id=static_cast<CoordinateId>(collapsed_coordinates.size());
+    auto [it,inserted]=unique_coordinates.try_emplace(key,next_id);
+
+    if(inserted) {
+      old_to_new_coordinate_id[i_coordinate]=next_id;
+      collapsed_coordinates.push_back(coordinate);
+    } else {
+      old_to_new_coordinate_id[i_coordinate]=it->second;
+    }
+  }
+
+  // Early return if no duplicates were found and collapsed
+  if(collapsed_coordinates.size() == num_coordinates) {
+    return fail;
+  }
+
+  // Update element connectivity referencing new coordinate IDs
+  for(auto& group : z_output_mesh.groups) {
+    for(auto& element : group.elements) {
+      for(auto& vertex_id : element.vertices) {
+        const auto old_id=static_cast<size_t>(vertex_id);
+        if(old_id >= num_coordinates) {
+          fail=true;
+        } else {
+          vertex_id=old_to_new_coordinate_id[old_id];
+        }
+      }
+    }
+  }
+
+  z_output_mesh.coordinates.swap(collapsed_coordinates);
+
+  return fail;
+}
 
 StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
@@ -47,6 +142,9 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInColla
 
     mergeMesh(surfaceMesh_, volumeMesh_);
     RedundancyCleaner::cleanCoords(surfaceMesh_);
+
+    log("collapsing nodes");
+    collapse_nodes(surfaceMesh_,1e-8);
     
     log("Mesh built succesfully.", 1);
 }
