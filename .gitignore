@@ -33,3 +33,6 @@ testData/cases/*/*.vtk
 build
 tmp/
 git_info.txt
+
+# ignore building folder for gid
+linux
