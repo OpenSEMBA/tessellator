@@ -2890,24 +2890,37 @@ TEST_F(StaircaserTest, splitLineRepairPreservesCyclicSurfaceOrientation)
     }
 }
 
-TEST_F(StaircaserTest, selectiveStaircasingPreservesStructuredElementsAndGroupName)
+TEST_F(StaircaserTest, selectiveStaircasingStaircasesQuadsInTargetCells)
 {
     Mesh mesh;
     mesh.grid = GridTools::buildCartesianGrid(0.0, 1.0, 2);
     mesh.coordinates = {
-        Relative({0.1, 0.1, 0.5}),
-        Relative({0.9, 0.1, 0.5}),
-        Relative({0.9, 0.9, 0.5}),
-        Relative({0.1, 0.9, 0.5})
+        Relative({0.0, 0.0, 0.6}),
+        Relative({1.0, 0.0, 0.6}),
+        Relative({1.0, 1.0, 0.6}),
+        Relative({0.0, 1.0, 0.6})
     };
     mesh.groups = {
-        Group("structured", {Element({0, 1, 2, 3}, Element::Type::Surface)})
+        Group("plate", {Element({0, 1, 2, 3}, Element::Type::Surface)})
     };
 
-    const auto result = Staircaser{mesh}.getSelectiveMesh({Cell({0, 0, 0})});
+    const auto result = Staircaser{mesh}.getSelectiveMesh(
+        {Cell({0, 0, 0})}, Staircaser::GapsFillingType::Insert);
 
     ASSERT_EQ(result.groups.size(), 1);
-    EXPECT_EQ(result.groups.front().name, "structured");
-    ASSERT_EQ(result.groups.front().elements.size(), 1);
-    EXPECT_TRUE(result.groups.front().elements.front().isQuad());
+    EXPECT_EQ(result.groups.front().name, "plate");
+    ASSERT_FALSE(result.groups.front().elements.empty());
+    for (const auto& coordinate : result.coordinates) {
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            EXPECT_NEAR(coordinate[axis], std::round(coordinate[axis]), 1e-9);
+        }
+    }
+    // Interior fractional-z plate must leave the conformal mid-cell plane.
+    bool hasFractionalZ = false;
+    for (const auto& coordinate : result.coordinates) {
+        if (std::abs(coordinate[2] - 0.6) < 1e-9) {
+            hasFractionalZ = true;
+        }
+    }
+    EXPECT_FALSE(hasFractionalZ);
 }

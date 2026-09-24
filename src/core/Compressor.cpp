@@ -1,6 +1,7 @@
 #include "Compressor.h"
 
 #include <algorithm>
+#include <cmath>
 #include <queue>
 
 #include "types/Mesh.h"
@@ -235,8 +236,21 @@ std::vector<Element> Compressor::compressSurfaces_(
         CellDir gridSurface;
         Sign sign = 1;
         Axis direction = 0;
+        bool onGridPlane = false;
         for (Axis d = X; d <= Z; d++) {
             if (auxCells[0](d) == auxCells[2](d)) {
+                const bool verticesOnIntegerPlane = std::all_of(
+                    surfaces[s].vertices.begin(), surfaces[s].vertices.end(),
+                    [&](CoordinateId vertexId) {
+                        return utils::GridTools::approxDir(
+                            coords[vertexId][d],
+                            std::round(coords[vertexId][d]));
+                    });
+                // Fractional conformal quads (e.g. z = 0.6) must not be
+                // projected onto floor(z) by the integer-surfel compressor.
+                if (!verticesOnIntegerPlane) {
+                    break;
+                }
                 Cell normal = (auxCells[1] - auxCells[0]) ^
                               (auxCells[2] - auxCells[0]);
                 if (normal(d) >= 0) {
@@ -246,8 +260,13 @@ std::vector<Element> Compressor::compressSurfaces_(
                 }
                 direction = d;
                 gridSurface = auxCells[0](d);
+                onGridPlane = true;
                 break;
             }
+        }
+        if (!onGridPlane) {
+            result.push_back(surfaces[s]);
+            continue;
         }
         signDirSurfs[std::make_pair(gridSurface,
                                     std::make_pair(sign, direction))].push_back(s);

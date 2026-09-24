@@ -1,0 +1,66 @@
+{
+    "_version": "0.1",
+    "_format": "Tessellator Data File in JSON format",
+    "grid": {
+        "numberOfCells": [
+            110,
+            110,
+            23
+        ],
+        "boundingBox": [
+            [
+                -3000.0,
+                -3000.0,
+                -1000.0
+            ],
+            [
+                8000.0,
+                8000.0,
+                1300.0
+            ]
+        ]
+    },
+    "objects": [
+        {
+            "filename": "lower_plane.vtu",
+            "group": "lower_plane",
+            "volume": false,
+            "ghost": false,
+            "mesher": {
+                "type": "conformal",
+                "options": {
+                    "edgePoints": 5,
+                    "forbiddenLength": 0.4
+                }
+            }
+        },
+        {
+            "filename": "upper_plane.vtu",
+            "group": "upper_plane",
+            "volume": false,
+            "ghost": false,
+            "mesher": {
+                "type": "conformal",
+                "options": {
+                    "edgePoints": 5,
+                    "forbiddenLength": 0.4
+                }
+            }
+        },
+        {
+            "filename": "Point_probe.vtu",
+            "group": "Point_probe",
+            "volume": false,
+            "ghost": true
+        },
+        {
+            "filename": "nodalSource.vtu",
+            "group": "nodalSource",
+            "volume": false,
+            "ghost": false
+        }
+    ],
+    "output": {
+        "singleFile": false
+    }
+}

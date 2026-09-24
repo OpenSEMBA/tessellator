@@ -132,6 +132,52 @@ TEST_F(ConformalMesherTest, ignoresSelectedGroupsWhenFindingSharedCells)
     EXPECT_EQ(result, std::set<Cell>({Cell({1, 0, 0})}));
 }
 
+TEST_F(ConformalMesherTest, faceBoundSurfaceDoesNotShareCellsWithInteriorSurface)
+{
+    // Lower plate on the z=1 face and upper plate interior to cell (0,0,1)
+    // must not be treated as shared (capacitor-style parallel plates).
+    Mesh mesh;
+    mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 2.0, 3);
+    mesh.coordinates = {
+        Relative({0.0, 0.0, 1.0}),
+        Relative({1.0, 0.0, 1.0}),
+        Relative({1.0, 1.0, 1.0}),
+        Relative({0.0, 1.0, 1.0}),
+        Relative({0.0, 0.0, 1.6}),
+        Relative({1.0, 0.0, 1.6}),
+        Relative({1.0, 1.0, 1.6}),
+        Relative({0.0, 1.0, 1.6})
+    };
+    mesh.groups = {
+        Group("lower", {Element({0, 1, 2, 3}, Element::Type::Surface)}),
+        Group("upper", {Element({4, 5, 6, 7}, Element::Type::Surface)})
+    };
+
+    EXPECT_TRUE(ConformalMesher::cellsSharedByGroups(mesh).empty());
+}
+
+TEST_F(ConformalMesherTest, interiorSurfaceSharesCellsWithLineOnCellEdge)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.0, 0.0, 0.6}),
+        Relative({1.0, 0.0, 0.6}),
+        Relative({1.0, 1.0, 0.6}),
+        Relative({0.0, 1.0, 0.6}),
+        Relative({1.0, 1.0, 0.0}),
+        Relative({1.0, 1.0, 1.0})
+    };
+    mesh.groups = {
+        Group("plate", {Element({0, 1, 2, 3}, Element::Type::Surface)}),
+        Group("source", {Element({4, 5}, Element::Type::Line)})
+    };
+
+    const auto result = ConformalMesher::cellsSharedByGroups(mesh);
+
+    EXPECT_EQ(result, std::set<Cell>({Cell({0, 0, 0})}));
+}
+
 TEST_F(ConformalMesherTest, marksCellsContainingLinesOrNodesAsNonConformal)
 {
     Mesh mesh;
