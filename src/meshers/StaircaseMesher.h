@@ -8,14 +8,12 @@ namespace meshlib::meshers {
 
 class StaircaseMesher : public MesherBase {
 public:
-	StaircaseMesher(const Mesh& in, int decimalPlacesInCollapser = 4, StaircaseMesherOptions opts = StaircaseMesherOptions());
+	StaircaseMesher(const Mesh& in, StaircaseMesherOptions opts = StaircaseMesherOptions());
 	virtual ~StaircaseMesher() = default;
 	Mesh mesh() const;
     const StaircaseMesherOptions & getOptions() const { return opts_; }
 
 private:
-	int decimalPlacesInCollapser_;
-
 	Mesh surfaceMesh_;
 	Mesh volumeMesh_;
 	StaircaseMesherOptions opts_;

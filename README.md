@@ -148,6 +148,7 @@ This optional entry configures the meshing algorithm and its options. If not spe
 For **staircase** mesher:
 - `compress`: (boolean, default: true) Merges compatible adjacent surfaces and lines to minimize exported element counts
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
+- `decimalPlacesInCollapser`: (non-negative integer, default: `4`) Number of decimal places used when collapsing nearby vertices after slicing
 
 For **conformal** mesher:
 - `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced

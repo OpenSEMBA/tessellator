@@ -118,9 +118,8 @@ bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance)
   return fail;
 }
 
-StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, int decimalPlacesInCollapser,  StaircaseMesherOptions opts) :
+StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, StaircaseMesherOptions opts) :
     MesherBase(inputMesh),
-    decimalPlacesInCollapser_(decimalPlacesInCollapser),
     opts_(opts)
 {
     log("Preparing surfaces.");
@@ -202,7 +201,7 @@ void StaircaseMesher::process(Mesh& mesh, bool compress) const
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
-    mesh = Collapser(mesh, decimalPlacesInCollapser_, dimensions).getMesh();
+    mesh = Collapser(mesh, opts_.decimalPlacesInCollapser, dimensions).getMesh();
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     
