@@ -734,10 +734,34 @@ std::set<Cell> ConformalMesher::cellsSharedByGroups(
         if (ignoredGroups.count(groupId) != 0) {
             continue;
         }
-        const auto elementsByCell = gridTools.buildCellElemMap(
-            mesh.groups[groupId].elements, mesh.coordinates);
-        for (const auto& [cell, elements] : elementsByCell) {
-            if (!elements.empty()) {
+        for (const Element& element : mesh.groups[groupId].elements) {
+            Coordinate centroid;
+            for (CoordinateId vertex : element.vertices) {
+                centroid += mesh.coordinates[vertex]
+                    / static_cast<double>(element.vertices.size());
+            }
+
+            std::set<Cell> occupiedCells;
+            if (element.isNode() || element.isLine()) {
+                // Nodes/lines on faces, edges, or corners occupy every
+                // adjacent cell so shared-cell staircasing covers sources.
+                occupiedCells = gridTools.getTouchingCells(centroid);
+            } else if (element.isTriangle() || element.isQuad()) {
+                // Face-bound surfaces must not claim both adjacent cells;
+                // otherwise parallel plates on a grid face falsely share
+                // the whole layer with an interior conformal plate.
+                if (GridTools::isRelativeInterior(centroid)) {
+                    Cell cell = GridTools::toCell(centroid);
+                    for (std::size_t d = 0; d < 3; ++d) {
+                        if (cell(d) == gridTools.numCellsDir(d)) {
+                            cell(d)--;
+                        }
+                    }
+                    occupiedCells.insert(cell);
+                }
+            }
+
+            for (const Cell& cell : occupiedCells) {
                 groupsByCell[cell].insert(groupId);
             }
         }

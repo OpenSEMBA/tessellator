@@ -353,11 +353,15 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
         utils::meshTools::convertToRelativeCoordinates(relativeMesh);
         relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
             sharedCells, meshlib::core::Staircaser::GapsFillingType::Insert);
-        const auto nonConformalCells = meshlib::meshers::ConformalMesher::findNonConformalCells(
-            relativeMesh);
-        if (!nonConformalCells.empty()) {
+        // Only restaircase cells that still mix surfaces with nodes/lines.
+        // A full findNonConformalCells pass can cascade across a whole
+        // conformal plate when shared-cell staircasing touches a few cells.
+        const auto mixedDimensionalCells =
+            meshlib::meshers::ConformalMesher::cellsContainingNodeOrLineElements(
+                relativeMesh);
+        if (!mixedDimensionalCells.empty()) {
             relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
-                nonConformalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+                mixedDimensionalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
         }
         utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
             relativeMesh);

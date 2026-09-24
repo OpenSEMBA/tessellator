@@ -12,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -772,4 +773,78 @@ TEST_F(LauncherTest, launches_solenoid_multiObject_case)
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, capacitorPlatesRemainConformalExceptNearNodalSource)
+{
+    const auto sourceDirectory = std::filesystem::path(
+        "testData/cases/capacitor");
+    const auto outputDirectory = std::filesystem::temp_directory_path()
+        / "tessellator_capacitor_launcher";
+    std::filesystem::remove_all(outputDirectory);
+    std::filesystem::copy(
+        sourceDirectory,
+        outputDirectory,
+        std::filesystem::copy_options::recursive);
+
+    const auto input = outputDirectory / "problem.tessellator.json";
+    const std::string inputString = input.string();
+    const char* argv[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
+
+    const auto lower = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "lower_plane.tessellator.cmsh.vtk");
+    const auto upper = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "upper_plane.tessellator.cmsh.vtk");
+    const auto nodal = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "nodalSource.tessellator.str.vtk");
+
+    ASSERT_FALSE(lower.coordinates.empty());
+    ASSERT_FALSE(upper.coordinates.empty());
+    ASSERT_FALSE(nodal.coordinates.empty());
+
+    for (const auto& coordinate : lower.coordinates) {
+        EXPECT_NEAR(coordinate[2], 0.0, 1e-6);
+    }
+
+    std::size_t upperInterior = 0;
+    std::size_t upperStaircased = 0;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[2] - 60.0) < 1e-6) {
+            ++upperInterior;
+        } else if (std::abs(coordinate[2] - 100.0) < 1e-6 ||
+                   std::abs(coordinate[2] - 0.0) < 1e-6) {
+            ++upperStaircased;
+        }
+    }
+    EXPECT_GT(upperInterior, 0u);
+    EXPECT_GT(upperStaircased, 0u);
+    EXPECT_GT(upperInterior, upperStaircased);
+
+    bool hasNearNodalStaircased = false;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[0] - 2500.0) < 200.0 &&
+            std::abs(coordinate[1] - 2500.0) < 200.0 &&
+            std::abs(coordinate[2] - 60.0) > 1e-6) {
+            hasNearNodalStaircased = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasNearNodalStaircased);
+
+    EXPECT_GE(
+        meshlib::utils::meshTools::countMeshElementsIf(
+            nodal, meshlib::utils::meshTools::isLine),
+        1u);
+
+    double nodalZMin = nodal.coordinates.front()[2];
+    double nodalZMax = nodal.coordinates.front()[2];
+    for (const auto& coordinate : nodal.coordinates) {
+        nodalZMin = std::min(nodalZMin, coordinate[2]);
+        nodalZMax = std::max(nodalZMax, coordinate[2]);
+    }
+    EXPECT_NEAR(nodalZMin, 0.0, 1e-6);
+    EXPECT_NEAR(nodalZMax, 100.0, 1e-6);
+
+    std::filesystem::remove_all(outputDirectory);
 }
