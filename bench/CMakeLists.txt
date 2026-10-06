@@ -14,7 +14,6 @@ target_include_directories(tessellator_benchmarks PRIVATE
     ${PROJECT_SOURCE_DIR}/src/meshers/
     ${PROJECT_SOURCE_DIR}/src/utils/
     ${PROJECT_SOURCE_DIR}/src/types/
-    ${CMAKE_CURRENT_BINARY_DIR}/../src/app/
 )
 
 target_compile_definitions(tessellator_benchmarks PRIVATE

@@ -10,9 +10,11 @@ Benchmarks are disabled by default and require the app (the sphere STL is loaded
 through `vtkIO`):
 
 ```bash
-cmake --preset gnu -S . -B build -DTESSELLATOR_ENABLE_BENCHMARKS=ON
-cmake --build build -j --target tessellator_benchmarks
+cmake --preset gnu -DTESSELLATOR_ENABLE_BENCHMARKS=ON
+cmake --build build-rls -j --target tessellator_benchmarks
 ```
+
+(`build` is a symlink to `build-rls`, and `cmake --build build ...` also works.)
 
 ## Run
 
@@ -58,3 +60,26 @@ single core via `taskset -c 0`, 5 repeats, 1 warmup, captured 2026-10-06.
 | volume 300³ | 8.329 | 0.426 | 0.717 | 0.997 | 0.288 | – | 3.588 | 1.994 | 0.262 |
 
 Raw baseline output: `results/baseline.txt`, `results/baseline.json`.
+
+## After optimizations
+
+Same machine and methodology, captured 2026-10-06 after the performance work on
+`RedundancyCleaner`, `GridTools`, `Slicer`/`Collapser` paths, `Staircaser`,
+`Compressor`, `VolumeFiller`, node collapsing, and the addition of
+`utils/FlatHashMap.h`.
+
+| Case | Total | Speedup | slicing | collapsing | staircasing | removeOverlapped | compressSurfaces | volumeFiller | mergeAndClean | collapseNodes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| surface 100³ | 0.148 | 2.26× | 0.047 | 0.009 | 0.059 | 0.005 | 0.028 | – | 0.001 | 0.000 |
+| surface 200³ | 0.503 | 2.42× | 0.136 | 0.032 | 0.201 | 0.021 | 0.111 | – | 0.004 | 0.001 |
+| surface 400³ | 1.935 | 2.69× | 0.450 | 0.181 | 0.751 | 0.095 | 0.450 | – | 0.019 | 0.003 |
+| volume 50³ | 0.044 | 2.61× | 0.017 | 0.004 | 0.018 | 0.002 | – | 0.003 | 0.000 | 0.000 |
+| volume 100³ | 0.141 | 3.03× | 0.054 | 0.010 | 0.060 | 0.005 | – | 0.017 | 0.001 | 0.003 |
+| volume 200³ | 0.593 | 4.37× | 0.164 | 0.028 | 0.198 | 0.020 | – | 0.163 | 0.014 | 0.025 |
+| volume 300³ | 1.775 | 4.69× | 0.336 | 0.087 | 0.421 | 0.060 | – | 0.650 | 0.057 | 0.095 |
+
+Phase values are medians and may not add up exactly to the total (unmeasured
+sections and rounding). Raw output: `results/after.txt`, `results/after.json`.
+
+Remaining hotspots at the largest sizes: staircasing (surface 400³),
+compression and slicing (surface 400³), and `volumeFiller` (volume 300³).
