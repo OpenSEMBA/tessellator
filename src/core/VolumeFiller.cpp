@@ -6,10 +6,10 @@
 #include <array>
 #include <cmath>
 #include <map>
-#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace meshlib::core {
@@ -19,7 +19,19 @@ using namespace utils;
 namespace {
 
 using Ray = std::array<CellDir, 2>;
-using Rays = std::array<std::map<Ray, std::multiset<CellDir>>, 3>;
+using Rays = std::array<std::map<Ray, std::vector<CellDir>>, 3>;
+
+struct CellHash {
+    std::size_t operator()(const Cell& cell) const noexcept {
+        std::size_t h = 0;
+        for (Axis axis : {X, Y, Z}) {
+            h ^= std::hash<CellDir>{}(cell[axis]) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
+        return h;
+    }
+};
+
+using CellCoordinateMap = std::unordered_map<Cell, CoordinateId, CellHash>;
 
 Cell coordinateCell(const Coordinate& coordinate, const GridTools& tools)
 {
@@ -84,7 +96,7 @@ std::pair<Axis, Cell> quadSurfel(
 
 CoordinateId findOrAddCoordinate(
     Mesh& mesh,
-    std::map<Cell, CoordinateId>& coordinateIds,
+    CellCoordinateMap& coordinateIds,
     const Cell& cell,
     const GridTools& tools)
 {
@@ -100,7 +112,7 @@ CoordinateId findOrAddCoordinate(
 
 Element buildHexahedron(
     Mesh& mesh,
-    std::map<Cell, CoordinateId>& coordinateIds,
+    CellCoordinateMap& coordinateIds,
     const Cell& lower,
     const Cell& upper,
     const GridTools& tools)
@@ -134,7 +146,8 @@ VolumeFiller::VolumeFiller(
     mesh_.grid = staircasedSurface.grid;
     mesh_.coordinates = staircasedSurface.coordinates;
     mesh_.groups.resize(staircasedSurface.groups.size());
-    std::map<Cell, CoordinateId> coordinateIds;
+    CellCoordinateMap coordinateIds;
+    coordinateIds.reserve(staircasedSurface.coordinates.size() * 2);
     for (CoordinateId id = 0; id < staircasedSurface.coordinates.size(); ++id) {
         coordinateIds.emplace(
             coordinateCell(staircasedSurface.coordinates[id], *this), id);
@@ -158,7 +171,12 @@ VolumeFiller::VolumeFiller(
             std::tie(axis, surfel) = quadSurfel(element, staircasedSurface.coordinates, *this);
             const Axis axis1 = (axis + 1) % 3;
             const Axis axis2 = (axis + 2) % 3;
-            rays[axis][{surfel[axis1], surfel[axis2]}].insert(surfel[axis]);
+            rays[axis][{surfel[axis1], surfel[axis2]}].push_back(surfel[axis]);
+        }
+        for (Axis axis : {X, Y, Z}) {
+            for (auto& ray : rays[axis]) {
+                std::sort(ray.second.begin(), ray.second.end());
+            }
         }
 
         Axis fillAxis = X;
