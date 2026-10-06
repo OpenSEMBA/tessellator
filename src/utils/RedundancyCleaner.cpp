@@ -426,34 +426,89 @@ Elements RedundancyCleaner::findDegenerateElements_(
 
 void RedundancyCleaner::fuseCoords(Mesh& mesh) 
 {
-    std::map<Coordinate, IdSet> posIds;
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            const Element& elem = mesh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId id = elem.vertices[i];
-                Coordinate pos = mesh.coordinates[id];
-                posIds[pos].insert(id);
+    const std::size_t numCoordinates = mesh.coordinates.size();
+    if (numCoordinates == 0) {
+        return;
+    }
+
+    std::vector<char> referenced(numCoordinates, 0);
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            for (const CoordinateId id : element.vertices) {
+                if (id < numCoordinates) {
+                    referenced[id] = 1;
+                }
             }
         }
     }
 
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            Element& elem = mesh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId oldMeshedId = elem.vertices[i];
-                CoordinateId newMeshedId = *posIds[mesh.coordinates[oldMeshedId]].begin();
-                std::replace(elem.vertices.begin(), elem.vertices.end(), oldMeshedId, newMeshedId);
+    std::vector<CoordinateId> ids;
+    ids.reserve(numCoordinates);
+    for (CoordinateId id = 0; id < numCoordinates; ++id) {
+        if (referenced[id] != 0) {
+            ids.push_back(id);
+        }
+    }
+
+    const Coordinates& coordinates = mesh.coordinates;
+    std::sort(ids.begin(), ids.end(), [&coordinates](CoordinateId first, CoordinateId second) {
+        return coordinates[first] < coordinates[second];
+    });
+
+    // Coordinates that appear more than once are fused to the lowest id, as
+    // the previous std::map<Coordinate, IdSet> implementation did.
+    std::vector<CoordinateId> remap(numCoordinates);
+    for (CoordinateId id = 0; id < numCoordinates; ++id) {
+        remap[id] = id;
+    }
+
+    std::size_t groupBegin = 0;
+    while (groupBegin < ids.size()) {
+        std::size_t groupEnd = groupBegin + 1;
+        CoordinateId minId = ids[groupBegin];
+        while (groupEnd < ids.size()
+            && coordinates[ids[groupEnd]] == coordinates[ids[groupBegin]]) {
+            minId = std::min(minId, ids[groupEnd]);
+            ++groupEnd;
+        }
+        for (std::size_t i = groupBegin; i < groupEnd; ++i) {
+            remap[ids[i]] = minId;
+        }
+        groupBegin = groupEnd;
+    }
+
+    for (Group& group : mesh.groups) {
+        for (Element& element : group.elements) {
+            for (CoordinateId& vertex : element.vertices) {
+                if (vertex < numCoordinates) {
+                    vertex = remap[vertex];
+                }
             }
         }
     }
 }
 
 void RedundancyCleaner::removeDegenerateElements(Mesh& mesh){
-    removeElementsWithCondition(mesh, [&](const Element& e) {
-        return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
-    });
+    for (Group& group : mesh.groups) {
+        Elements compacted;
+        compacted.reserve(group.elements.size());
+        for (Element& element : group.elements) {
+            const auto& vertices = element.vertices;
+            bool isDegenerate = false;
+            for (std::size_t i = 0; !isDegenerate && i < vertices.size(); ++i) {
+                for (std::size_t j = i + 1; j < vertices.size(); ++j) {
+                    if (vertices[i] == vertices[j]) {
+                        isDegenerate = true;
+                        break;
+                    }
+                }
+            }
+            if (!isDegenerate) {
+                compacted.push_back(std::move(element));
+            }
+        }
+        group.elements = std::move(compacted);
+    }
 }
 
 void RedundancyCleaner::cleanCoords(Mesh& output) 
