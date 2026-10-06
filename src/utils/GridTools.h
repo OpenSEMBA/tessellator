@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "Types.h"
 #include "types/CellIndex.h"
 
@@ -76,6 +78,12 @@ public:
     static bool isRelativeAtCellBound(const Relative&, const Cell&, const std::pair<Axis, Side>&);
 
     std::set<Cell> getTouchingCells(const Relative&) const;
+
+    // Writes the cells touching the given relative coordinate (at most 8) into
+    // cells and returns how many were written. Avoids the allocation performed
+    // by getTouchingCells in hot paths.
+    std::size_t collectTouchingCells(const Relative& v, std::array<Cell, 8>& cells) const;
+
     static std::size_t countIntersectingPlanes(const Relative&);
     bool sameCellProperties(const Relative&, const Relative&) const;
     

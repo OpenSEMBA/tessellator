@@ -406,17 +406,26 @@ std::vector<std::pair<Plane, LinV>> GridTools::getEdgeIntersectionsWithPlanes(
 }
 
 
-std::set<Cell> GridTools::getTouchingCells(const Relative& v) const 
+std::size_t GridTools::collectTouchingCells(const Relative& v, std::array<Cell, 8>& res) const
 {
-    std::set<Cell> res;
+    std::size_t numberOfCells = 0;
+    const auto append = [&res, &numberOfCells](const Cell& cell) {
+        for (std::size_t i = 0; i < numberOfCells; ++i) {
+            if (res[i] == cell) {
+                return;
+            }
+        }
+        res[numberOfCells++] = cell;
+    };
+
     Cell local = toCell(v);
     for (std::size_t d = 0; d < 3; d++) {
         if (local(d) == numCellsDir(d)) {
             local(d)--;
         }
     }
-    res.insert(local);
-    
+    append(local);
+
     bool neighInLB[3] = { false, false, false };
     bool neighInUB[3] = { false, false, false };
     for (std::size_t d = 0; d < 3; d++) {
@@ -428,13 +437,13 @@ std::set<Cell> GridTools::getTouchingCells(const Relative& v) const
             if (inLowerBound && !firstCell) {
                 Cell aux = local;
                 aux(d)--;
-                res.insert(aux);
+                append(aux);
                 neighInLB[d] = true;
             }
             else if (inUpperBound && !lastCell) {
                 Cell aux = local;
                 aux(d)++;
-                res.insert(aux);
+                append(aux);
                 neighInUB[d] = true;
             }
         }
@@ -447,25 +456,25 @@ std::set<Cell> GridTools::getTouchingCells(const Relative& v) const
                 Cell aux = local;
                 aux(x)--;
                 aux(y)--;
-                res.insert(aux);
+                append(aux);
             }
             else if (neighInLB[x] && neighInUB[y]) {
                 Cell aux = local;
                 aux(x)--;
                 aux(y)++;
-                res.insert(aux);
+                append(aux);
             }
             else if (neighInUB[x] && neighInLB[y]) {
                 Cell aux = local;
                 aux(x)++;
                 aux(y)--;
-                res.insert(aux);
+                append(aux);
             }
             else if (neighInUB[x] && neighInUB[y]) {
                 Cell aux = local;
                 aux(x)++;
                 aux(y)++;
-                res.insert(aux);
+                append(aux);
             }
         }
     }
@@ -484,12 +493,18 @@ std::set<Cell> GridTools::getTouchingCells(const Relative& v) const
         if ((neighInLB[x] || neighInUB[x]) && 
             (neighInLB[y] || neighInUB[y]) &&
             (neighInLB[z] || neighInUB[z])) {
-            res.insert(aux);
+            append(aux);
         }
     }
     
-    return res;
+    return numberOfCells;
+}
 
+std::set<Cell> GridTools::getTouchingCells(const Relative& v) const 
+{
+    std::array<Cell, 8> touching;
+    const std::size_t numberOfCells = collectTouchingCells(v, touching);
+    return std::set<Cell>(touching.begin(), touching.begin() + numberOfCells);
 }
 
 std::size_t GridTools::countIntersectingPlanes(const Relative& v) {
@@ -611,21 +626,56 @@ std::vector<double> GridTools::linspace(double ini, double end, std::size_t num)
 
 bool GridTools::elementCrossesGrid(const Element& e, const Coordinates& cs) const
 {
-    if (e.vertices.size() == 0) {
+    const std::size_t numberOfVertices = e.vertices.size();
+    if (numberOfVertices == 0) {
         return false;
     }
 
-    std::map<Cell, std::size_t> timesCellsAreTouched;
-    for (auto const& vId : e.vertices) {
-        for (auto const& cell : getTouchingCells(cs[vId])) {
-            timesCellsAreTouched[cell]++;
+    if (numberOfVertices > 8) {
+        // Generic fallback for elements with more vertices than a hexahedron.
+        std::map<Cell, std::size_t> timesCellsAreTouched;
+        for (const auto& vId : e.vertices) {
+            for (const auto& cell : getTouchingCells(cs[vId])) {
+                timesCellsAreTouched[cell]++;
+            }
+        }
+        return std::all_of(
+            timesCellsAreTouched.begin(), timesCellsAreTouched.end(),
+            [&](auto const& kv) { return kv.second != numberOfVertices; });
+    }
+
+    // A cell is shared by the whole element when it touches every vertex.
+    // At most 8 vertices times 8 touching cells per vertex are involved.
+    std::array<Cell, 64> touchedCells;
+    std::array<std::size_t, 64> touchCounts;
+    std::size_t numberOfTouchedCells = 0;
+
+    std::array<Cell, 8> vertexCells;
+    for (const CoordinateId vId : e.vertices) {
+        const std::size_t numberOfVertexCells = collectTouchingCells(cs[vId], vertexCells);
+        for (std::size_t i = 0; i < numberOfVertexCells; ++i) {
+            const Cell& cell = vertexCells[i];
+            std::size_t index = 0;
+            while (index < numberOfTouchedCells && touchedCells[index] != cell) {
+                ++index;
+            }
+            if (index == numberOfTouchedCells) {
+                touchedCells[numberOfTouchedCells] = cell;
+                touchCounts[numberOfTouchedCells] = 1;
+                ++numberOfTouchedCells;
+            }
+            else {
+                ++touchCounts[index];
+            }
         }
     }
-    bool crosses = std::all_of(timesCellsAreTouched.begin(), timesCellsAreTouched.end(), 
-        [&](auto const& kv) { 
-            return kv.second != e.vertices.size(); 
-        });
-    return crosses;
+
+    for (std::size_t i = 0; i < numberOfTouchedCells; ++i) {
+        if (touchCounts[i] == numberOfVertices) {
+            return false;
+        }
+    }
+    return true;
 }
 
 
