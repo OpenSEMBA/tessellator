@@ -458,36 +458,41 @@ void RedundancyCleaner::removeDegenerateElements(Mesh& mesh){
 
 void RedundancyCleaner::cleanCoords(Mesh& output) 
 {
-    const std::size_t& numStrCoords = output.coordinates.size();
+    const std::size_t numCoordinates = output.coordinates.size();
 
-    IdSet coordsUsed;
-    
+    std::vector<char> coordsUsed(numCoordinates, 0);
+
     for (auto const& g: output.groups) {
         for (auto const& e: g.elements) {
-                coordsUsed.insert(e.vertices.begin(), e.vertices.end());
+            for (const CoordinateId c : e.vertices) {
+                if (c < numCoordinates) {
+                    coordsUsed[c] = 1;
+                }
+            }
         }
     }
 
-    std::map<CoordinateId, CoordinateId> remap;
-    std::vector<Coordinate> aux = output.coordinates;
-    output.coordinates.clear();
-    for (CoordinateId c = 0; c < aux.size(); c++) {
-        if (coordsUsed.count(c) != 0) {
-            remap[c] = output.coordinates.size();
-            output.coordinates.push_back(aux[c]);
+    std::vector<CoordinateId> remap(numCoordinates, 0);
+    Coordinates cleanedCoordinates;
+    cleanedCoordinates.reserve(numCoordinates);
+    for (CoordinateId c = 0; c < numCoordinates; c++) {
+        if (coordsUsed[c] != 0) {
+            remap[c] = cleanedCoordinates.size();
+            cleanedCoordinates.push_back(std::move(output.coordinates[c]));
         }
-        
     }
+    output.coordinates = std::move(cleanedCoordinates);
+
     for (GroupId g = 0; g < output.groups.size(); g++) {
         for (ElementId e = 0; e < output.groups[g].elements.size(); e++) {
             Element& elem = output.groups[g].elements[e];
             for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                elem.vertices[i] = remap[elem.vertices[i]];
+                const CoordinateId c = elem.vertices[i];
+                // Unused and out-of-range coordinates historically mapped to 0.
+                elem.vertices[i] = c < numCoordinates ? remap[c] : 0;
             }
-            
         }
     }
-    
 }
 
 void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 
