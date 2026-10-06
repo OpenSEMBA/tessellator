@@ -16,6 +16,7 @@
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
+#include "utils/FlatHashMap.h"
 
 namespace meshlib::meshers {
 
@@ -88,9 +89,8 @@ bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance)
 
   std::vector<CoordinateId> old_to_new_coordinate_id(num_coordinates);
 
-  // Unordered map for O(1) expected average lookup
-  std::unordered_map<GridKey,CoordinateId,GridKeyHash> unique_coordinates;
-  unique_coordinates.reserve(num_coordinates);
+  // Flat hash map for fast, allocation-free lookups
+  utils::FlatHashMap<GridKey,CoordinateId,GridKeyHash> unique_coordinates(num_coordinates);
 
   std::vector<Coordinate> collapsed_coordinates;
   collapsed_coordinates.reserve(num_coordinates);
@@ -99,15 +99,14 @@ bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance)
     const auto& coordinate=z_output_mesh.coordinates[i_coordinate];
     GridKey key=make_key(coordinate);
 
-    // Single lookup and insertion step using try_emplace (C++17)
     const CoordinateId next_id=static_cast<CoordinateId>(collapsed_coordinates.size());
-    auto [it,inserted]=unique_coordinates.try_emplace(key,next_id);
+    auto [it,inserted]=unique_coordinates.emplace(key,next_id);
 
     if(inserted) {
       old_to_new_coordinate_id[i_coordinate]=next_id;
       collapsed_coordinates.push_back(coordinate);
     } else {
-      old_to_new_coordinate_id[i_coordinate]=it->second;
+      old_to_new_coordinate_id[i_coordinate]=*it;
     }
   }
 

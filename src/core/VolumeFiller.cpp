@@ -9,8 +9,9 @@
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
+
+#include "utils/FlatHashMap.h"
 
 namespace meshlib::core {
 
@@ -31,7 +32,7 @@ struct CellHash {
     }
 };
 
-using CellCoordinateMap = std::unordered_map<Cell, CoordinateId, CellHash>;
+using CellCoordinateMap = FlatHashMap<Cell, CoordinateId, CellHash>;
 
 Cell coordinateCell(const Coordinate& coordinate, const GridTools& tools)
 {
@@ -100,9 +101,8 @@ CoordinateId findOrAddCoordinate(
     const Cell& cell,
     const GridTools& tools)
 {
-    const auto found = coordinateIds.find(cell);
-    if (found != coordinateIds.end()) {
-        return found->second;
+    if (const CoordinateId* found = coordinateIds.find(cell)) {
+        return *found;
     }
     const CoordinateId id = mesh.coordinates.size();
     mesh.coordinates.push_back(tools.getPos(GridTools::toRelative(cell)));
@@ -187,6 +187,26 @@ VolumeFiller::VolumeFiller(
         }
         const Axis axis1 = (fillAxis + 1) % 3;
         const Axis axis2 = (fillAxis + 2) % 3;
+
+        std::size_t expectedHexahedra = 0;
+        for (const auto& ray : rays[fillAxis]) {
+            const auto& crossings = ray.second;
+            if (crossings.size() % 2 != 0) {
+                continue;
+            }
+            for (std::size_t crossing = 0; crossing < crossings.size(); crossing += 2) {
+                const CellDir begin = crossings[crossing];
+                const CellDir end = crossings[crossing + 1];
+                if (begin == end) {
+                    continue;
+                }
+                expectedHexahedra += splitHexahedra
+                    ? static_cast<std::size_t>(end - begin)
+                    : 1;
+            }
+        }
+        outputGroup.elements.reserve(outputGroup.elements.size() + expectedHexahedra);
+
         for (const auto& ray : rays[fillAxis]) {
             const auto& crossings = ray.second;
             if (crossings.size() % 2 != 0) {
