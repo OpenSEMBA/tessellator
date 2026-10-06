@@ -22,7 +22,7 @@ private:
     // Group surfaces by (grid_plane, sign, axis) and compress each group
     static std::vector<Element> compressSurfaces_(
         std::vector<Relative>& coords,
-        const std::vector<Element>& surfs);
+        std::vector<Element>& surfs);
 
     // Compress surfaces with same normal direction and sign
     static std::vector<Element> compressSurfacesWithSameNormal_(
