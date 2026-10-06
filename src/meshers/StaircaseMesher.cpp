@@ -1,5 +1,6 @@
 #include "StaircaseMesher.h"
 
+#include <chrono>
 #include <iostream>
 #include <unordered_map>
 #include <cstdint>
@@ -21,6 +22,22 @@ namespace meshlib::meshers {
 using namespace utils;
 using namespace core;
 using namespace meshTools;
+
+namespace {
+
+using PhaseClock = std::chrono::steady_clock;
+
+double elapsedSeconds(PhaseClock::time_point start)
+{
+    return std::chrono::duration<double>(PhaseClock::now() - start).count();
+}
+
+}
+
+void StaircaseMesher::addTiming(const std::string& phase, double seconds) const
+{
+    timings_.push_back({phase, seconds});
+}
 
 std::vector<std::string> getGroupNames(const Groups& groups);
 void copyGroupNames(Mesh& mesh, const std::vector<std::string>& names);
@@ -122,29 +139,45 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, StaircaseMesherOptions o
     MesherBase(inputMesh),
     opts_(opts)
 {
+    auto phaseStart = PhaseClock::now();
+
     log("Preparing surfaces.");
     surfaceMesh_ = MesherBase::buildSurfaceMesh(inputMesh, opts_.volumeGroups);
+    addTiming("buildSurfaceMesh", elapsedSeconds(phaseStart));
+
     log("Processing surface mesh.");
-    process(surfaceMesh_);
+    process(surfaceMesh_, opts_.compress, "surface");
 
     log("Preparing volumes");
+    phaseStart = PhaseClock::now();
     volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
+    addTiming("buildVolumeMesh", elapsedSeconds(phaseStart));
+
     if (!volumeMesh_.emptyOfElements()) {
+        phaseStart = PhaseClock::now();
         volumeMesh_ = VolumeShellExtractor(volumeMesh_).getMesh();
+        addTiming("volumeShellExtractor", elapsedSeconds(phaseStart));
 
         log("Processing volume shell.");
-        process(volumeMesh_, false);
+        process(volumeMesh_, false, "volumeShell");
+
         log("Filling volume shell with hexahedra.");
+        phaseStart = PhaseClock::now();
         volumeMesh_ = VolumeFiller(volumeMesh_, opts_.splitHexahedra).getMesh();
+        addTiming("volumeFiller", elapsedSeconds(phaseStart));
         logNumberOfHexahedra(countMeshElementsIf(volumeMesh_, isHexahedron));
     }
 
+    phaseStart = PhaseClock::now();
     mergeMesh(surfaceMesh_, volumeMesh_);
     RedundancyCleaner::cleanCoords(surfaceMesh_);
+    addTiming("mergeAndClean", elapsedSeconds(phaseStart));
 
     log("collapsing nodes");
+    phaseStart = PhaseClock::now();
     collapse_nodes(surfaceMesh_,1e-8);
-    
+    addTiming("collapseNodes", elapsedSeconds(phaseStart));
+
     log("Mesh built succesfully.", 1);
 }
 
@@ -180,11 +213,17 @@ static Mesh toAbsolute(const Mesh& m)
 
 void StaircaseMesher::process(Mesh& mesh) const
 {
-    process(mesh, opts_.compress);
+    process(mesh, opts_.compress, "mesh");
 }
 
 void StaircaseMesher::process(Mesh& mesh, bool compress) const
 {
+    process(mesh, compress, "mesh");
+}
+
+void StaircaseMesher::process(Mesh& mesh, bool compress, const std::string& label) const
+{
+    const std::string prefix = label.empty() ? std::string() : label + ".";
     const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     if (mesh.countElems() == 0) {
@@ -193,53 +232,65 @@ void StaircaseMesher::process(Mesh& mesh, bool compress) const
     }
 
     auto dimensions = getHighestDimensionByGroup(mesh);
+    auto phaseStart = PhaseClock::now();
 
     log("Slicing.", 1);
     mesh.grid = slicingGrid;
     mesh = Slicer{ mesh, dimensions }.getMesh();
+    addTiming(prefix + "slicing", elapsedSeconds(phaseStart));
     
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
     log("Collapsing.", 1);
+    phaseStart = PhaseClock::now();
     mesh = Collapser(mesh, opts_.decimalPlacesInCollapser, dimensions).getMesh();
+    addTiming(prefix + "collapsing", elapsedSeconds(phaseStart));
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     
     log("Staircasing.", 1);
+    phaseStart = PhaseClock::now();
     mesh = Staircaser(mesh).getMesh();
+    addTiming(prefix + "staircasing", elapsedSeconds(phaseStart));
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     log("Removing repeated and overlapping elements.", 1);   
+    phaseStart = PhaseClock::now();
     RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+    addTiming(prefix + "removeOverlapped", elapsedSeconds(phaseStart));
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     if (compress) {
         log("Compressing surfaces.", 1);
+        phaseStart = PhaseClock::now();
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
         std::size_t merged = Compressor::compressSurfacesInMesh(mesh);
         std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
+        addTiming(prefix + "compressSurfaces", elapsedSeconds(phaseStart));
         log("Compressed " + std::to_string(beforeQuads) + 
             " -> " + std::to_string(afterQuads) + 
             " quads (merged " + std::to_string(merged) + " surfaces)", 1);
         
         log("Compressing lines.", 1);
+        phaseStart = PhaseClock::now();
         std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
         merged = Compressor::compressLinesInMesh(mesh, dimensions);
         std::size_t afterLines = countMeshElementsIf(mesh, isLine);
+        addTiming(prefix + "compressLines", elapsedSeconds(phaseStart));
         log("Compressed " + std::to_string(beforeLines) + 
             " -> " + std::to_string(afterLines) + 
             " lines (merged " + std::to_string(merged) + " segments)", 1);
     }
     
     log("Recovering original grid size.", 1);
+    phaseStart = PhaseClock::now();
     reduceGrid(mesh, originalGrid_);
-
-    log("Converting relative to absolute coordinates.", 1);
     utils::meshTools::convertToAbsoluteCoordinates(mesh);
+    addTiming(prefix + "reduceGridAndToAbsolute", elapsedSeconds(phaseStart));
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

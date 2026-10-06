@@ -1,0 +1,165 @@
+{
+  "cases": [
+    {
+      "name": "surface",
+      "cells": 100,
+      "volume": false,
+      "elements": 5055,
+      "coordinates": 6264,
+      "min_seconds": 0.333077,
+      "median_seconds": 0.334902,
+      "mean_seconds": 0.335132,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000010},
+        {"phase": "surface.slicing", "median_seconds": 0.068619},
+        {"phase": "surface.collapsing", "median_seconds": 0.066685},
+        {"phase": "surface.staircasing", "median_seconds": 0.120199},
+        {"phase": "surface.removeOverlapped", "median_seconds": 0.028691},
+        {"phase": "surface.compressSurfaces", "median_seconds": 0.044281},
+        {"phase": "surface.compressLines", "median_seconds": 0.000012},
+        {"phase": "surface.reduceGridAndToAbsolute", "median_seconds": 0.002504},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000082},
+        {"phase": "mergeAndClean", "median_seconds": 0.002181},
+        {"phase": "collapseNodes", "median_seconds": 0.000282}
+      ]
+    },
+    {
+      "name": "surface",
+      "cells": 200,
+      "volume": false,
+      "elements": 20063,
+      "coordinates": 24728,
+      "min_seconds": 1.218437,
+      "median_seconds": 1.219486,
+      "mean_seconds": 1.219253,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000010},
+        {"phase": "surface.slicing", "median_seconds": 0.208074},
+        {"phase": "surface.collapsing", "median_seconds": 0.231293},
+        {"phase": "surface.staircasing", "median_seconds": 0.460690},
+        {"phase": "surface.removeOverlapped", "median_seconds": 0.119943},
+        {"phase": "surface.compressSurfaces", "median_seconds": 0.174689},
+        {"phase": "surface.compressLines", "median_seconds": 0.000047},
+        {"phase": "surface.reduceGridAndToAbsolute", "median_seconds": 0.010987},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000001},
+        {"phase": "mergeAndClean", "median_seconds": 0.009296},
+        {"phase": "collapseNodes", "median_seconds": 0.001262}
+      ]
+    },
+    {
+      "name": "surface",
+      "cells": 400,
+      "volume": false,
+      "elements": 79903,
+      "coordinates": 98373,
+      "min_seconds": 5.193745,
+      "median_seconds": 5.214736,
+      "mean_seconds": 5.210903,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000010},
+        {"phase": "surface.slicing", "median_seconds": 0.719567},
+        {"phase": "surface.collapsing", "median_seconds": 1.354679},
+        {"phase": "surface.staircasing", "median_seconds": 1.797753},
+        {"phase": "surface.removeOverlapped", "median_seconds": 0.541415},
+        {"phase": "surface.compressSurfaces", "median_seconds": 0.690351},
+        {"phase": "surface.compressLines", "median_seconds": 0.000213},
+        {"phase": "surface.reduceGridAndToAbsolute", "median_seconds": 0.047929},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000002},
+        {"phase": "mergeAndClean", "median_seconds": 0.040580},
+        {"phase": "collapseNodes", "median_seconds": 0.006110}
+      ]
+    },
+    {
+      "name": "volume",
+      "cells": 50,
+      "volume": true,
+      "elements": 7967,
+      "coordinates": 9486,
+      "min_seconds": 0.109528,
+      "median_seconds": 0.109965,
+      "mean_seconds": 0.109951,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000011},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000010},
+        {"phase": "volumeShellExtractor", "median_seconds": 0.000842},
+        {"phase": "volumeShell.slicing", "median_seconds": 0.024089},
+        {"phase": "volumeShell.collapsing", "median_seconds": 0.022462},
+        {"phase": "volumeShell.staircasing", "median_seconds": 0.037489},
+        {"phase": "volumeShell.removeOverlapped", "median_seconds": 0.008038},
+        {"phase": "volumeShell.reduceGridAndToAbsolute", "median_seconds": 0.001258},
+        {"phase": "volumeFiller", "median_seconds": 0.010436},
+        {"phase": "mergeAndClean", "median_seconds": 0.004373},
+        {"phase": "collapseNodes", "median_seconds": 0.000423}
+      ]
+    },
+    {
+      "name": "volume",
+      "cells": 100,
+      "volume": true,
+      "elements": 63772,
+      "coordinates": 69739,
+      "min_seconds": 0.423699,
+      "median_seconds": 0.427016,
+      "mean_seconds": 0.427154,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000013},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000011},
+        {"phase": "volumeShellExtractor", "median_seconds": 0.000842},
+        {"phase": "volumeShell.slicing", "median_seconds": 0.068218},
+        {"phase": "volumeShell.collapsing", "median_seconds": 0.066345},
+        {"phase": "volumeShell.staircasing", "median_seconds": 0.118452},
+        {"phase": "volumeShell.removeOverlapped", "median_seconds": 0.028252},
+        {"phase": "volumeShell.reduceGridAndToAbsolute", "median_seconds": 0.005114},
+        {"phase": "volumeFiller", "median_seconds": 0.092680},
+        {"phase": "mergeAndClean", "median_seconds": 0.042921},
+        {"phase": "collapseNodes", "median_seconds": 0.003397}
+      ]
+    },
+    {
+      "name": "volume",
+      "cells": 200,
+      "volume": true,
+      "elements": 509875,
+      "coordinates": 533393,
+      "min_seconds": 2.580179,
+      "median_seconds": 2.591688,
+      "mean_seconds": 2.597891,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000014},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000009},
+        {"phase": "volumeShellExtractor", "median_seconds": 0.000854},
+        {"phase": "volumeShell.slicing", "median_seconds": 0.208799},
+        {"phase": "volumeShell.collapsing", "median_seconds": 0.232746},
+        {"phase": "volumeShell.staircasing", "median_seconds": 0.453607},
+        {"phase": "volumeShell.removeOverlapped", "median_seconds": 0.118171},
+        {"phase": "volumeShell.reduceGridAndToAbsolute", "median_seconds": 0.021369},
+        {"phase": "volumeFiller", "median_seconds": 1.007833},
+        {"phase": "mergeAndClean", "median_seconds": 0.503619},
+        {"phase": "collapseNodes", "median_seconds": 0.040761}
+      ]
+    },
+    {
+      "name": "volume",
+      "cells": 300,
+      "volume": true,
+      "elements": 1720819,
+      "coordinates": 1773822,
+      "min_seconds": 8.268661,
+      "median_seconds": 8.329375,
+      "mean_seconds": 8.327126,
+      "phases": [
+        {"phase": "buildSurfaceMesh", "median_seconds": 0.000014},
+        {"phase": "buildVolumeMesh", "median_seconds": 0.000010},
+        {"phase": "volumeShellExtractor", "median_seconds": 0.000863},
+        {"phase": "volumeShell.slicing", "median_seconds": 0.426213},
+        {"phase": "volumeShell.collapsing", "median_seconds": 0.716769},
+        {"phase": "volumeShell.staircasing", "median_seconds": 0.996845},
+        {"phase": "volumeShell.removeOverlapped", "median_seconds": 0.288036},
+        {"phase": "volumeShell.reduceGridAndToAbsolute", "median_seconds": 0.051551},
+        {"phase": "volumeFiller", "median_seconds": 3.588283},
+        {"phase": "mergeAndClean", "median_seconds": 1.994183},
+        {"phase": "collapseNodes", "median_seconds": 0.262356}
+      ]
+    }
+  ]
+}
