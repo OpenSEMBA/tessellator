@@ -93,6 +93,35 @@ struct CoordinateIdsHash {
     }
 };
 
+// Allocation-free key for a triangle or quad vertex list (rotated so that the
+// smallest id comes first). Only size() and the first size entries are used.
+struct SurfaceKey {
+    std::array<CoordinateId, 4> ids;
+    std::size_t size = 0;
+
+    bool operator==(const SurfaceKey& rhs) const {
+        return size == rhs.size && ids == rhs.ids;
+    }
+};
+
+struct SurfaceKeyHash {
+    std::size_t operator()(const SurfaceKey& key) const noexcept {
+        std::size_t h = key.size;
+        for (std::size_t i = 0; i < key.size; ++i) {
+            h ^= std::hash<CoordinateId>{}(key.ids[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
+        return h;
+    }
+};
+
+struct CoordinatePairHash {
+    std::size_t operator()(const std::pair<CoordinateId, CoordinateId>& pair) const noexcept {
+        std::size_t h1 = std::hash<CoordinateId>{}(pair.first);
+        std::size_t h2 = std::hash<CoordinateId>{}(pair.second);
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    }
+};
+
 bool isPointOnSegment(
     const Coordinate& point,
     const Coordinate& first,
@@ -326,8 +355,8 @@ void getOverlappedDimensionZeroElementsAndIdenticalLines(
 void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate> & meshCoordinates, std::vector<char>& overlappedElements)
 {
     overlappedElements.assign(group.elements.size(), 0);
-    std::unordered_set<CoordinateIds, CoordinateIdsHash> usedCoordinatesFromSurface;
-    std::unordered_set<CoordinateIds, CoordinateIdsHash> usedCoordinatePairsFromSurface;
+    std::unordered_set<SurfaceKey, SurfaceKeyHash> usedCoordinatesFromSurface;
+    std::unordered_set<std::pair<CoordinateId, CoordinateId>, CoordinatePairHash> usedCoordinatePairsFromSurface;
     std::vector<char> usedCoordinates(meshCoordinates.size(), 0);
     std::vector<ElementId> linesToCheck;
     std::vector<ElementId> nodesToCheck;
@@ -347,8 +376,12 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
             }
         }
         if (element.isQuad() || element.isTriangle()) {
-            if (usedCoordinatesFromSurface.count(vIds) == 0) {
-                usedCoordinatesFromSurface.insert(vIds);
+            SurfaceKey key;
+            key.size = vIds.size();
+            for (std::size_t v = 0; v < vIds.size(); ++v) {
+                key.ids[v] = vIds[v];
+            }
+            if (usedCoordinatesFromSurface.insert(key).second) {
                 for (std::size_t v = 0; v < vIds.size(); ++v) {
                     auto firstCoordinateId = vIds[v];
                     auto secondCoordinateId = vIds[(v + 1) % vIds.size()];
@@ -375,13 +408,18 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
 
     for (auto e : linesToCheck) {
         auto& line = group.elements[e];
+        const CoordinateId lineFirst = std::min(line.vertices[0], line.vertices[1]);
+        const CoordinateId lineSecond = std::max(line.vertices[0], line.vertices[1]);
+
+        if (usedCoordinatePairsFromSurface.count({ lineFirst, lineSecond })) {
+            overlappedElements[e] = 1;
+            continue;
+        }
+
         CoordinateIds vIds{ line.vertices };
         std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
 
-        if (usedCoordinatePairsFromSurface.count(vIds)) {
-            overlappedElements[e] = 1;
-        }
-        else if (usedCoordinatePairsFromLine.count(vIds) == 0) {
+        if (usedCoordinatePairsFromLine.count(vIds) == 0) {
             usedCoordinatePairsFromLine.emplace(vIds, e);
         }
         else {
