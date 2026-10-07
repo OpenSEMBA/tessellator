@@ -2,7 +2,10 @@
 
 #include "utils/RedundancyCleaner.h"
 
+#include <limits>
 #include <iostream>
+#include <set>
+#include <utility>
 
 namespace meshlib {
 namespace core {
@@ -607,16 +610,10 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
     auxiliarMesh.groups = { Group() };
     Group& processedEdges = auxiliarMesh.groups[0];
     auxiliarMesh.groups[0].elements.reserve(9);
-    int pureDiagonalIndex = -1;
 
     for (std::size_t index = 0; index < edges.elements.size(); ++index) {
         auto& edge = edges.elements[index];
-        if (isPureDiagonal(edge, originalRelatives)) {
-            pureDiagonalIndex = int(index);
-        }
-        else {
-            this->processLineAndAddToGroup(edge, originalRelatives, auxiliarMesh.coordinates, processedEdges);
-        }
+        this->processLineAndAddToGroup(edge, originalRelatives, auxiliarMesh.coordinates, processedEdges);
     }
 
     RedundancyCleaner::fuseCoords(auxiliarMesh);
@@ -629,11 +626,7 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
     calculateRelativeIdSetByCellSurface(auxiliarMesh.coordinates, idSetByCellSurface);
 
     filterSurfacesFromRelativeIds(
-        triangle.vertices,
-        pureDiagonalIndex,
-        originalRelatives,
         idSetByCellSurface,
-        auxiliarMesh.coordinates,
         relativeIdsByCellSurface);
 
     if(auxiliarMesh.coordinates.size() == 6 && relativeIdsByCellSurface.size() == 0){
@@ -645,11 +638,7 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
         calculateRelativeIdSetByCellSurface(auxiliarMesh.coordinates, idSetByCellSurface);
 
         filterSurfacesFromRelativeIds(
-            triangle.vertices,
-            pureDiagonalIndex,
-            originalRelatives,
             idSetByCellSurface,
-            auxiliarMesh.coordinates,
             relativeIdsByCellSurface);
         }
 
@@ -698,7 +687,7 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
         cellSurfacePlanes.resize(2);
         cellSurfaceIdsList.resize(2);
 
-        if (surfaceRelativeIt->second[0] == 0 || pureDiagonalIndex == 0) {
+        if (surfaceRelativeIt->second[0] == 0) {
             surfacePresenceList[0] = true;
             cellSurfacePlanes[0] = surfaceRelativeIt->first;
             cellSurfaceIdsList[0] = &surfaceRelativeIt->second;
@@ -764,91 +753,15 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
     }
 }
 
-bool Staircaser::isRelativeInCellsVector(const Relative& relative, const std::vector<Cell> & cells) const {
-    Cell convertedCell = toCell(relative);
-
-    for (auto& listCell : cells) {
-        if (listCell == convertedCell) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 void Staircaser::filterSurfacesFromRelativeIds(
-    const RelativeIds& triangleVertices,
-    int pureDiagonalIndex,
-    const Relatives& originalRelatives,
     const std::map<Surfel, IdSet>& idSetByCellSurface,
-    Relatives& staircasedRelatives,
     std::map<Surfel, RelativeIds> & relativeIdsByCellSurface
 ) {
-    std::vector<Cell> staircasedOriginalVertexCells;
-    staircasedOriginalVertexCells.reserve(3);
-    for (RelativeId v : triangleVertices) {
-        staircasedOriginalVertexCells.push_back(calculateStaircasedCell(originalRelatives[v]));
-    }
-
-    auto cellSurfaceIt = idSetByCellSurface.begin();
-    while (cellSurfaceIt != idSetByCellSurface.end()) {
-        auto& plane = cellSurfaceIt->first;
-        auto& idSet = cellSurfaceIt->second;
-        auto numberOfSurfacePoints = idSet.size();
-
-
-        std::vector<Cell> projectedCells;
-        bool isCorrectSurface = false;
-
-        if (pureDiagonalIndex >= 0 && numberOfSurfacePoints == 3) {
-            for (auto& cell : staircasedOriginalVertexCells) {
-                projectedCells.push_back(cell);
-                projectedCells.back()[plane.second] = plane.first[plane.second];
-            }
-
-            isCorrectSurface = true;
-            for (auto vertexIdIterator = idSet.begin(); isCorrectSurface && vertexIdIterator != idSet.end(); ++vertexIdIterator) {
-                auto& surfaceRelative = staircasedRelatives[*vertexIdIterator];
-                isCorrectSurface = isRelativeInCellsVector(surfaceRelative, projectedCells);
-            }
+    for (const auto& entry : idSetByCellSurface) {
+        if (entry.second.size() == 4) {
+            relativeIdsByCellSurface[entry.first].assign(
+                entry.second.begin(), entry.second.end());
         }
-
-        if (numberOfSurfacePoints == 4 || (pureDiagonalIndex >= 0 && isCorrectSurface)) {
-            relativeIdsByCellSurface[plane] = RelativeIds({});
-            relativeIdsByCellSurface[plane].insert(relativeIdsByCellSurface[plane].begin(), idSet.begin(), idSet.end());
-        }
-
-        if (pureDiagonalIndex >= 0 && isCorrectSurface) {
-            auto& surfaceIds = relativeIdsByCellSurface[plane];
-            Cell missingCell = projectedCells[pureDiagonalIndex];
-            for (auto relativeId : surfaceIds) {
-                Cell surfaceCell = toCell(staircasedRelatives[relativeId]);
-                auto differentAxes = calculateDifferentAxesBetweenCells(projectedCells[pureDiagonalIndex], surfaceCell);
-                if (differentAxes.size() == 1) {
-                    Axis axisToChange = X;
-
-                    while (axisToChange == plane.second || axisToChange == differentAxes[0]) {
-                        ++axisToChange;
-                    }
-
-                    missingCell[axisToChange] = projectedCells[(pureDiagonalIndex + 1) % 3][axisToChange];
-                    break;
-                }
-            }
-            for (auto relativeIt = surfaceIds.begin(); relativeIt != surfaceIds.end(); ++relativeIt) {
-                Relative surfaceRelative = staircasedRelatives[*relativeIt];
-
-                if (projectedCells[pureDiagonalIndex] == toCell(surfaceRelative)) {
-                    auto positionToInsert = relativeIt + 1;
-                    RelativeId missingRelativeId = staircasedRelatives.size();
-                    staircasedRelatives.push_back(toRelative(missingCell));
-                    surfaceIds.insert(positionToInsert, missingRelativeId);
-                    break;
-                }
-            }
-        }
-
-        ++cellSurfaceIt;
     }
 }
 
@@ -1151,43 +1064,6 @@ void Staircaser::calculateRelativeIdSetByCellSurface(const Relatives& relatives,
     }
 }
 
-bool Staircaser::isPureDiagonal(const Element& edge, const Relatives & relatives) {
-    if (!edge.isLine()) {
-        return false;
-    }
-
-    const auto& startPoint = relatives[edge.vertices[0]];
-    const auto& endPoint = relatives[edge.vertices[1]];
-    auto startCell = calculateStaircasedCell(startPoint);
-    auto endCell = calculateStaircasedCell(endPoint);
-    std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);
-
-    if (difference != 3) {
-        return false;
-    }
-
-    Relative startStaircased = toRelative(startCell);
-    Relative endStaircased = toRelative(endCell);
-
-    Relative centerVector = startStaircased + (endStaircased - startStaircased) / 2.0;
-    Relative distanceVector = endPoint - startPoint;
-    Relative scaleVector;
-    
-    for (Axis axis = X; axis <= Z; ++axis) {
-        if(approxDir(centerVector[axis], startPoint[axis])){
-            scaleVector[axis] = 0.0;
-        }
-        else{
-            scaleVector[axis] = distanceVector[axis] / (centerVector[axis] - startPoint[axis]);
-        }
-    }
-
-    if (!approxDir(scaleVector[X], scaleVector[Y]) || !approxDir(scaleVector[Y], scaleVector[Z])) {
-        return false;
-    }
-
-    return true;
-}
 
 bool Staircaser::isEdgePartOfCellSurface(const Element& edge, const RelativeIds& surfaceRelativeIds) const {
     if (!edge.isLine()) {
