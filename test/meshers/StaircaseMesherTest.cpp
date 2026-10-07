@@ -556,6 +556,25 @@ TEST_F(StaircaseMesherTest, fillsSphereAsSingleClosedUnitHexahedralVolume)
     EXPECT_TRUE(isSingleClosedHexahedralVolume(result));
 }
 
+TEST_F(StaircaseMesherTest, fillsSphereWithStaircaseGapsAsClosedVolume)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+
+    // 104 cells per axis over [-100, 100]: at this resolution the staircased
+    // sphere surface leaves isolated gaps on some grid rays.
+    for (auto axis : {X, Y, Z}) {
+        mesh.grid[axis] = utils::GridTools::linspace(-100.0, 100.0, 105);
+    }
+
+    StaircaseMesherOptions options;
+    options.volumeGroups.insert(0);
+
+    const Mesh result = StaircaseMesher{mesh, options}.mesh();
+
+    EXPECT_EQ(2096, countMeshElementsIf(result, isHexahedron));
+    EXPECT_EQ(result.countElems(), countMeshElementsIf(result, isHexahedron));
+}
+
 TEST_F(StaircaseMesherTest, fillsAlhambraAsSingleClosedUnitHexahedralVolume)
 {
     auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
