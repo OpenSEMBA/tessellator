@@ -200,7 +200,7 @@ TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
     }));
 }
 
-TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
+TEST_F(LauncherTest, conformalMesherDefaults)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -218,7 +218,6 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
     EXPECT_TRUE(conformal.getOptions().compress);
-    EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
     EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
@@ -247,29 +246,6 @@ TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
 
     EXPECT_FALSE(conformal.getOptions().compress);
     EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
-}
-
-TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
-{
-    meshlib::Mesh meshMock;
-    meshMock.grid = {
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1}
-    };
-    const nlohmann::json config = {
-        {"mesher", {
-            {"type", "conformal"},
-            {"options", {{"staircaseSharedCells", false}}}
-        }}
-    };
-
-    ObjectDefinition object;
-    auto mesher = buildMesher(meshMock, config, object);
-    const auto& conformal =
-        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
-
-    EXPECT_FALSE(conformal.getOptions().staircaseSharedCells);
 }
 
 TEST_F(LauncherTest, parsesConformalSnapOptions)
@@ -890,4 +866,101 @@ TEST_F(LauncherTest, capacitorPlatesRemainConformalExceptNearNodalSource)
     EXPECT_NEAR(nodalZMax, 100.0, 1e-6);
 
     std::filesystem::remove_all(outputDirectory);
+}
+
+namespace {
+
+std::string readFileContents(const std::filesystem::path& path)
+{
+    std::ifstream stream(path);
+    return std::string{
+        std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+}
+
+void runLauncherOn(const std::filesystem::path& input)
+{
+    const std::string inputString = input.string();
+    const char* av[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, av), EXIT_SUCCESS);
+}
+
+} // namespace
+
+TEST_F(LauncherTest, crossObjectStaircasingIsAlwaysEnabled)
+{
+    // Conformal objects always staircase shared cells: the removed
+    // "staircaseSharedCells" option must not change the result.
+    const auto temp = std::filesystem::temp_directory_path();
+    const std::string meshPath = std::filesystem::absolute(
+        "testData/cases/multiObject/sphere.stl").string();
+
+    const auto makeConfig = [&](const std::string& groupB) {
+        return nlohmann::json{
+            {"grid", {
+                {"numberOfCells", {10, 10, 10}},
+                {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+            }},
+            {"mesher", {{"type", "conformal"}}},
+            {"output", {{"singleFile", true}}},
+            {"objects", {
+                {{"filename", meshPath}, {"group", "sphere_a"}},
+                {{"filename", meshPath}, {"group", groupB}}
+            }}
+        };
+    };
+
+    const auto plainJson = temp / "tessellator_cross_plain.json";
+    const auto legacyJson = temp / "tessellator_cross_legacy.json";
+    const auto ghostJson = temp / "tessellator_cross_ghost.json";
+    const auto plainOutput = temp / "tessellator_cross_plain.tessellator.vtk";
+    const auto legacyOutput = temp / "tessellator_cross_legacy.tessellator.vtk";
+    const auto ghostOutput = temp / "tessellator_cross_ghost.tessellator.vtk";
+    const auto plainGrid = temp / "tessellator_cross_plain.tessellator.grid.vtk";
+    const auto legacyGrid = temp / "tessellator_cross_legacy.tessellator.grid.vtk";
+    const auto ghostGrid = temp / "tessellator_cross_ghost.tessellator.grid.vtk";
+
+    for (const auto& path : {
+             plainOutput, legacyOutput, ghostOutput, plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
+
+    {
+        std::ofstream stream(plainJson);
+        stream << makeConfig("sphere_b");
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["mesher"]["options"]["staircaseSharedCells"] = false;
+        std::ofstream stream(legacyJson);
+        stream << config;
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["objects"][1]["ghost"] = true;
+        std::ofstream stream(ghostJson);
+        stream << config;
+    }
+
+    runLauncherOn(plainJson);
+    runLauncherOn(legacyJson);
+    runLauncherOn(ghostJson);
+
+    ASSERT_TRUE(std::filesystem::exists(plainOutput));
+    ASSERT_TRUE(std::filesystem::exists(legacyOutput));
+    ASSERT_TRUE(std::filesystem::exists(ghostOutput));
+
+    const std::string plain = readFileContents(plainOutput);
+    const std::string legacy = readFileContents(legacyOutput);
+    const std::string ghost = readFileContents(ghostOutput);
+
+    // The legacy option is ignored.
+    EXPECT_EQ(plain, legacy);
+    // Cross-object staircasing really runs: a ghost object breaks the coupling.
+    EXPECT_NE(plain, ghost);
+
+    for (const auto& path : {
+             plainJson, legacyJson, ghostJson, plainOutput, legacyOutput, ghostOutput,
+             plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
 }
