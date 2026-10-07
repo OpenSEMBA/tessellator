@@ -8,7 +8,10 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <limits>
+#include <tuple>
 #include <unordered_set> 
 
 namespace meshlib {
@@ -507,6 +510,249 @@ void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toR
         }
 
         elems = newElems;       
+    }
+}
+
+// The staircased surface can miss isolated unit faces on some grid rays,
+// which leaves the surface open and makes VolumeFiller reject it because a
+// ray has an odd number of crossings. This routine finds those rays (after
+// discarding duplicated crossing pairs, which represent zero thickness
+// pinches) and adds the missing unit face, inferring its grid plane from the
+// crossings of the neighbouring rays.
+void RedundancyCleaner::fillMissingUnitCellFaces(Mesh& mesh)
+{
+    using FaceKey = std::tuple<int, int, int, int>; // axis, plane, lower cell in the other two axes
+    using EdgeKey = std::pair<Cell, Cell>;
+    using RayKey = std::pair<int, int>;
+
+    const auto cellOf = [&mesh](CoordinateId id, Cell& cell) {
+        for (Axis axis : {X, Y, Z}) {
+            const auto rounded = std::llround(mesh.coordinates[id][axis]);
+            if (std::abs(mesh.coordinates[id][axis] - rounded) > 1e-9) {
+                return false;
+            }
+            cell[axis] = static_cast<CellDir>(rounded);
+        }
+        return true;
+    };
+    const auto edgeKey = [](const Cell& first, const Cell& second) {
+        return first < second ? std::make_pair(first, second)
+                              : std::make_pair(second, first);
+    };
+
+    std::map<Cell, CoordinateId> coordinateIds;
+    for (CoordinateId id = 0; id < mesh.coordinates.size(); ++id) {
+        Cell cell;
+        if (cellOf(id, cell)) {
+            coordinateIds.emplace(cell, id);
+        }
+    }
+
+    for (GroupId groupId = 0; groupId < mesh.groups.size(); ++groupId) {
+        Group& group = mesh.groups[groupId];
+
+        std::map<FaceKey, int> faceCount;
+        std::map<EdgeKey, std::pair<Cell, Cell>> orientedEdges;
+
+        for (const Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+
+            std::array<Cell, 4> corners;
+            bool allInteger = true;
+            for (std::size_t i = 0; i < corners.size(); ++i) {
+                if (!cellOf(element.vertices[i], corners[i])) {
+                    allInteger = false;
+                }
+            }
+            if (!allInteger) {
+                continue;
+            }
+
+            std::vector<Axis> fixedAxes;
+            for (Axis axis : {X, Y, Z}) {
+                if (corners[0][axis] == corners[1][axis]
+                    && corners[1][axis] == corners[2][axis]
+                    && corners[2][axis] == corners[3][axis]) {
+                    fixedAxes.push_back(axis);
+                }
+            }
+            if (fixedAxes.size() != 1) {
+                continue;
+            }
+
+            const Axis axis = fixedAxes.front();
+            const Axis firstAxis = (axis + 1) % 3;
+            const Axis secondAxis = (axis + 2) % 3;
+            CellDir lower1 = corners[0][firstAxis];
+            CellDir lower2 = corners[0][secondAxis];
+            CellDir upper1 = lower1;
+            CellDir upper2 = lower2;
+            for (const Cell& corner : corners) {
+                lower1 = std::min(lower1, corner[firstAxis]);
+                upper1 = std::max(upper1, corner[firstAxis]);
+                lower2 = std::min(lower2, corner[secondAxis]);
+                upper2 = std::max(upper2, corner[secondAxis]);
+            }
+            if (upper1 - lower1 != 1 || upper2 - lower2 != 1) {
+                continue;
+            }
+
+            ++faceCount[FaceKey{static_cast<int>(axis), corners[0][axis], lower1, lower2}];
+            for (std::size_t i = 0; i < corners.size(); ++i) {
+                const Cell& first = corners[i];
+                const Cell& second = corners[(i + 1) % corners.size()];
+                if (first == second) {
+                    continue;
+                }
+                orientedEdges.emplace(edgeKey(first, second),
+                    std::make_pair(first, second));
+            }
+        }
+
+        std::array<std::map<RayKey, std::map<int, int>>, 3> rays;
+        for (const auto& entry : faceCount) {
+            const int axis = std::get<0>(entry.first);
+            const int plane = std::get<1>(entry.first);
+            const int lower1 = std::get<2>(entry.first);
+            const int lower2 = std::get<3>(entry.first);
+            rays[axis][{lower1, lower2}][plane] += entry.second;
+        }
+
+        std::vector<FaceKey> missingFaces;
+        for (Axis axis : {X, Y, Z}) {
+            const std::array<RayKey, 4> offsets{{{ -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }}};
+            for (const auto& ray : rays[axis]) {
+                std::set<int> crossings;
+                for (const auto& crossing : ray.second) {
+                    if (crossing.second % 2 != 0) {
+                        crossings.insert(crossing.first);
+                    }
+                }
+                if (crossings.size() % 2 == 0) {
+                    continue;
+                }
+
+                std::map<int, int> candidateScore;
+                for (const RayKey& offset : offsets) {
+                    const auto neighbor = rays[axis].find(
+                        {ray.first.first + offset.first, ray.first.second + offset.second});
+                    if (neighbor == rays[axis].end()) {
+                        continue;
+                    }
+                    for (const auto& crossing : neighbor->second) {
+                        if (crossing.second % 2 == 0) {
+                            continue;
+                        }
+                        candidateScore[crossing.first - 1] += 1;
+                        candidateScore[crossing.first] += 2;
+                        candidateScore[crossing.first + 1] += 1;
+                    }
+                }
+
+                bool found = false;
+                int bestScore = -1;
+                int inferredPlane = 0;
+                for (const auto& candidate : candidateScore) {
+                    bool nearExisting = false;
+                    for (int crossing : crossings) {
+                        if (std::abs(crossing - candidate.first) <= 1) {
+                            nearExisting = true;
+                            break;
+                        }
+                    }
+                    if (nearExisting) {
+                        continue;
+                    }
+                    if (candidate.second > bestScore
+                        || (candidate.second == bestScore && candidate.first < inferredPlane)) {
+                        bestScore = candidate.second;
+                        inferredPlane = candidate.first;
+                        found = true;
+                    }
+                }
+
+                if (found) {
+                    missingFaces.push_back(FaceKey{
+                        static_cast<int>(axis), inferredPlane,
+                        ray.first.first, ray.first.second});
+                }
+            }
+        }
+
+        for (const FaceKey& face : missingFaces) {
+            const Axis axis = static_cast<Axis>(std::get<0>(face));
+            const CellDir plane = std::get<1>(face);
+            const CellDir lower1 = std::get<2>(face);
+            const CellDir lower2 = std::get<3>(face);
+            const Axis firstAxis = (axis + 1) % 3;
+            const Axis secondAxis = (axis + 2) % 3;
+
+            std::array<Cell, 4> corners;
+            for (Cell& corner : corners) {
+                corner[axis] = plane;
+            }
+            corners[0][firstAxis] = lower1;
+            corners[0][secondAxis] = lower2;
+            corners[1][firstAxis] = lower1 + 1;
+            corners[1][secondAxis] = lower2;
+            corners[2][firstAxis] = lower1 + 1;
+            corners[2][secondAxis] = lower2 + 1;
+            corners[3][firstAxis] = lower1;
+            corners[3][secondAxis] = lower2 + 1;
+
+            int bestMatches = std::numeric_limits<int>::min();
+            std::array<Cell, 4> oriented = corners;
+            for (int reverse = 0; reverse < 2; ++reverse) {
+                for (int rotation = 0; rotation < 4; ++rotation) {
+                    std::array<Cell, 4> candidate;
+                    for (std::size_t i = 0; i < candidate.size(); ++i) {
+                        const std::size_t index = (i + rotation) % candidate.size();
+                        candidate[i] = reverse
+                            ? corners[(corners.size() - index) % corners.size()]
+                            : corners[index];
+                    }
+                    int matches = 0;
+                    for (std::size_t i = 0; i < candidate.size(); ++i) {
+                        const Cell& first = candidate[i];
+                        const Cell& second = candidate[(i + 1) % candidate.size()];
+                        const auto found = orientedEdges.find(edgeKey(first, second));
+                        if (found == orientedEdges.end()) {
+                            continue;
+                        }
+                        if (found->second.first == second && found->second.second == first) {
+                            ++matches;
+                        } else if (found->second.first == first && found->second.second == second) {
+                            --matches;
+                        }
+                    }
+                    if (matches > bestMatches) {
+                        bestMatches = matches;
+                        oriented = candidate;
+                    }
+                }
+            }
+
+            Element quad;
+            quad.type = Element::Type::Surface;
+            for (const Cell& corner : oriented) {
+                const auto found = coordinateIds.find(corner);
+                if (found != coordinateIds.end()) {
+                    quad.vertices.push_back(found->second);
+                    continue;
+                }
+                Coordinate coordinate;
+                for (Axis a : {X, Y, Z}) {
+                    coordinate[a] = corner[a];
+                }
+                const CoordinateId id = mesh.coordinates.size();
+                mesh.coordinates.push_back(coordinate);
+                coordinateIds.emplace(corner, id);
+                quad.vertices.push_back(id);
+            }
+            group.elements.push_back(quad);
+        }
     }
 }
 

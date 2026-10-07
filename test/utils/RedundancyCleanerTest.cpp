@@ -1,8 +1,10 @@
 #include <algorithm>
 #include "gtest/gtest.h"
+#include <array>
 #include <cmath>
 
 #include "RedundancyCleaner.h"
+#include "GridTools.h"
 #include "MeshFixtures.h"
 
 namespace meshlib::utils {
@@ -790,6 +792,81 @@ TEST_F(RedundancyCleanerTest, removeElementsWithCondition)
 
 	}
 
+}
+
+
+namespace {
+
+CoordinateId unitShellCoordinateId(Mesh& mesh, const Cell& cell)
+{
+    const Coordinate coordinate = GridTools(mesh.grid).getPos(cell);
+    const auto found = std::find(
+        mesh.coordinates.begin(), mesh.coordinates.end(), coordinate);
+    if (found != mesh.coordinates.end()) {
+        return found - mesh.coordinates.begin();
+    }
+    mesh.coordinates.push_back(coordinate);
+    return mesh.coordinates.size() - 1;
+}
+
+void addUnitQuad(Mesh& mesh, const std::array<Cell, 4>& cells)
+{
+    Element quad;
+    quad.type = Element::Type::Surface;
+    for (const Cell& cell : cells) {
+        quad.vertices.push_back(unitShellCoordinateId(mesh, cell));
+    }
+    mesh.groups[0].elements.push_back(quad);
+}
+
+Mesh buildTwoByTwoByTwoUnitShell()
+{
+    Mesh mesh;
+    mesh.grid = GridTools::buildCartesianGrid(0.0, 2.0, 3);
+    mesh.groups.resize(1);
+
+    for (CellDir first = 0; first < 2; ++first) {
+        for (CellDir second = 0; second < 2; ++second) {
+            for (CellDir x : {CellDir(0), CellDir(2)}) {
+                addUnitQuad(mesh, {
+                    Cell({x, first, second}), Cell({x, first + 1, second}),
+                    Cell({x, first + 1, second + 1}), Cell({x, first, second + 1})});
+            }
+            for (CellDir y : {CellDir(0), CellDir(2)}) {
+                addUnitQuad(mesh, {
+                    Cell({first, y, second}), Cell({first + 1, y, second}),
+                    Cell({first + 1, y, second + 1}), Cell({first, y, second + 1})});
+            }
+            for (CellDir z : {CellDir(0), CellDir(2)}) {
+                addUnitQuad(mesh, {
+                    Cell({first, second, z}), Cell({first + 1, second, z}),
+                    Cell({first + 1, second + 1, z}), Cell({first, second + 1, z})});
+            }
+        }
+    }
+    return mesh;
+}
+
+}
+
+TEST_F(RedundancyCleanerTest, fillMissingUnitCellFacesRestoresRemovedFace)
+{
+    Mesh shell = buildTwoByTwoByTwoUnitShell();
+    ASSERT_EQ(24, shell.groups[0].elements.size());
+    shell.groups[0].elements.erase(shell.groups[0].elements.begin());
+
+    RedundancyCleaner::fillMissingUnitCellFaces(shell);
+
+    EXPECT_EQ(24, shell.groups[0].elements.size());
+}
+
+TEST_F(RedundancyCleanerTest, fillMissingUnitCellFacesKeepsClosedShellUnchanged)
+{
+    Mesh shell = buildTwoByTwoByTwoUnitShell();
+
+    RedundancyCleaner::fillMissingUnitCellFaces(shell);
+
+    EXPECT_EQ(24, shell.groups[0].elements.size());
 }
 
 }

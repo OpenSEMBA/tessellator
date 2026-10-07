@@ -20,6 +20,7 @@ public:
     static void removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh&);
     static void removeGeometricallyOverlappedDimensionOneAndLowerElements(Mesh&);
     static void removeOverlappedElementsByDimension(Mesh&, const std::vector<Element::Type>&);
+    static void fillMissingUnitCellFaces(Mesh&);
     static void removeElements(Mesh&, const std::vector<IdSet>&);
 private:
     static Elements findDegenerateElements_(const Group&, const Coordinates&);
