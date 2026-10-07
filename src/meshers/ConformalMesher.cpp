@@ -786,7 +786,7 @@ std::set<Cell> mergeCellSets(const std::set<Cell>& a, const std::set<Cell>& b)
 
 std::set<Cell> ConformalMesher::findNonConformalCells(const Mesh& mesh)
 {
-    // Find cells not respecting **The Three Rules**.
+    // Find cells not respecting **The Four Rules**.
     std::set<Cell> res;
     
     // Rule #1: Cell edges must contain at most one vertex in each edge.
