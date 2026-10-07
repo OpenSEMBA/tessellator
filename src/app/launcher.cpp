@@ -167,6 +167,7 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
     }
 
     meshlib::meshers::StaircaseMesherOptions res;
+    res.allow_log = true;
     if (isVolume){
         res.volumeGroups.insert(0);
     }
