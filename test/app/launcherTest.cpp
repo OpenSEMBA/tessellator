@@ -12,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -199,7 +200,7 @@ TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
     }));
 }
 
-TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
+TEST_F(LauncherTest, conformalMesherDefaults)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -217,7 +218,6 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
     EXPECT_TRUE(conformal.getOptions().compress);
-    EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
     EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
@@ -246,29 +246,6 @@ TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
 
     EXPECT_FALSE(conformal.getOptions().compress);
     EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
-}
-
-TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
-{
-    meshlib::Mesh meshMock;
-    meshMock.grid = {
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1}
-    };
-    const nlohmann::json config = {
-        {"mesher", {
-            {"type", "conformal"},
-            {"options", {{"staircaseSharedCells", false}}}
-        }}
-    };
-
-    ObjectDefinition object;
-    auto mesher = buildMesher(meshMock, config, object);
-    const auto& conformal =
-        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
-
-    EXPECT_FALSE(conformal.getOptions().staircaseSharedCells);
 }
 
 TEST_F(LauncherTest, parsesConformalSnapOptions)
@@ -815,4 +792,175 @@ TEST_F(LauncherTest, launches_solenoid_multiObject_case)
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, capacitorPlatesRemainConformalExceptNearNodalSource)
+{
+    const auto sourceDirectory = std::filesystem::path(
+        "testData/cases/capacitor");
+    const auto outputDirectory = std::filesystem::temp_directory_path()
+        / "tessellator_capacitor_launcher";
+    std::filesystem::remove_all(outputDirectory);
+    std::filesystem::copy(
+        sourceDirectory,
+        outputDirectory,
+        std::filesystem::copy_options::recursive);
+
+    const auto input = outputDirectory / "problem.tessellator.json";
+    const std::string inputString = input.string();
+    const char* argv[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
+
+    const auto lower = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "lower_plane.tessellator.cmsh.vtk");
+    const auto upper = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "upper_plane.tessellator.cmsh.vtk");
+    const auto nodal = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "nodalSource.tessellator.str.vtk");
+
+    ASSERT_FALSE(lower.coordinates.empty());
+    ASSERT_FALSE(upper.coordinates.empty());
+    ASSERT_FALSE(nodal.coordinates.empty());
+
+    for (const auto& coordinate : lower.coordinates) {
+        EXPECT_NEAR(coordinate[2], 0.0, 1e-6);
+    }
+
+    std::size_t upperInterior = 0;
+    std::size_t upperStaircased = 0;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[2] - 60.0) < 1e-6) {
+            ++upperInterior;
+        } else if (std::abs(coordinate[2] - 100.0) < 1e-6 ||
+                   std::abs(coordinate[2] - 0.0) < 1e-6) {
+            ++upperStaircased;
+        }
+    }
+    EXPECT_GT(upperInterior, 0u);
+    EXPECT_GT(upperStaircased, 0u);
+    EXPECT_GT(upperInterior, upperStaircased);
+
+    bool hasNearNodalStaircased = false;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[0] - 2500.0) < 200.0 &&
+            std::abs(coordinate[1] - 2500.0) < 200.0 &&
+            std::abs(coordinate[2] - 60.0) > 1e-6) {
+            hasNearNodalStaircased = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasNearNodalStaircased);
+
+    EXPECT_GE(
+        meshlib::utils::meshTools::countMeshElementsIf(
+            nodal, meshlib::utils::meshTools::isLine),
+        1u);
+
+    double nodalZMin = nodal.coordinates.front()[2];
+    double nodalZMax = nodal.coordinates.front()[2];
+    for (const auto& coordinate : nodal.coordinates) {
+        nodalZMin = std::min(nodalZMin, coordinate[2]);
+        nodalZMax = std::max(nodalZMax, coordinate[2]);
+    }
+    EXPECT_NEAR(nodalZMin, 0.0, 1e-6);
+    EXPECT_NEAR(nodalZMax, 100.0, 1e-6);
+
+    std::filesystem::remove_all(outputDirectory);
+}
+
+namespace {
+
+std::string readFileContents(const std::filesystem::path& path)
+{
+    std::ifstream stream(path);
+    return std::string{
+        std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+}
+
+void runLauncherOn(const std::filesystem::path& input)
+{
+    const std::string inputString = input.string();
+    const char* av[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, av), EXIT_SUCCESS);
+}
+
+} // namespace
+
+TEST_F(LauncherTest, crossObjectStaircasingIsAlwaysEnabled)
+{
+    // Conformal objects always staircase shared cells: the removed
+    // "staircaseSharedCells" option must not change the result.
+    const auto temp = std::filesystem::temp_directory_path();
+    const std::string meshPath = std::filesystem::absolute(
+        "testData/cases/multiObject/sphere.stl").string();
+
+    const auto makeConfig = [&](const std::string& groupB) {
+        return nlohmann::json{
+            {"grid", {
+                {"numberOfCells", {10, 10, 10}},
+                {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+            }},
+            {"mesher", {{"type", "conformal"}}},
+            {"output", {{"singleFile", true}}},
+            {"objects", {
+                {{"filename", meshPath}, {"group", "sphere_a"}},
+                {{"filename", meshPath}, {"group", groupB}}
+            }}
+        };
+    };
+
+    const auto plainJson = temp / "tessellator_cross_plain.json";
+    const auto legacyJson = temp / "tessellator_cross_legacy.json";
+    const auto ghostJson = temp / "tessellator_cross_ghost.json";
+    const auto plainOutput = temp / "tessellator_cross_plain.tessellator.vtk";
+    const auto legacyOutput = temp / "tessellator_cross_legacy.tessellator.vtk";
+    const auto ghostOutput = temp / "tessellator_cross_ghost.tessellator.vtk";
+    const auto plainGrid = temp / "tessellator_cross_plain.tessellator.grid.vtk";
+    const auto legacyGrid = temp / "tessellator_cross_legacy.tessellator.grid.vtk";
+    const auto ghostGrid = temp / "tessellator_cross_ghost.tessellator.grid.vtk";
+
+    for (const auto& path : {
+             plainOutput, legacyOutput, ghostOutput, plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
+
+    {
+        std::ofstream stream(plainJson);
+        stream << makeConfig("sphere_b");
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["mesher"]["options"]["staircaseSharedCells"] = false;
+        std::ofstream stream(legacyJson);
+        stream << config;
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["objects"][1]["ghost"] = true;
+        std::ofstream stream(ghostJson);
+        stream << config;
+    }
+
+    runLauncherOn(plainJson);
+    runLauncherOn(legacyJson);
+    runLauncherOn(ghostJson);
+
+    ASSERT_TRUE(std::filesystem::exists(plainOutput));
+    ASSERT_TRUE(std::filesystem::exists(legacyOutput));
+    ASSERT_TRUE(std::filesystem::exists(ghostOutput));
+
+    const std::string plain = readFileContents(plainOutput);
+    const std::string legacy = readFileContents(legacyOutput);
+    const std::string ghost = readFileContents(ghostOutput);
+
+    // The legacy option is ignored.
+    EXPECT_EQ(plain, legacy);
+    // Cross-object staircasing really runs: a ghost object breaks the coupling.
+    EXPECT_NE(plain, ghost);
+
+    for (const auto& path : {
+             plainJson, legacyJson, ghostJson, plainOutput, legacyOutput, ghostOutput,
+             plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
 }

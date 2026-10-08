@@ -158,8 +158,29 @@ For **conformal** mesher:
 - `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
   clear next to both endpoints when placing or snapping to edge points. It must be between `0.0` and `0.5`, inclusive.
 - `compress`: (boolean, default: true) Applies final surface and line compression after conformal validation and any selective staircasing
-- `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 - `mergeAxisAlignedTriangles`: (boolean, default: true) Merges two triangles that form a cell-sized quad parallel to a grid plane
+
+### Cross-object behavior (conformal meshes)
+
+In multi-object runs, after each object is meshed independently, Tessellator
+selectively staircases the cells shared by more than one object so the combined
+output can be used with conformal FDTD. The pass runs only when there are at
+least two non-ghost objects and at least one non-ghost conformal object. It
+detects cells occupied by more than one non-ghost group and restructures them in
+every non-ghost conformal object.
+
+| Object setting | Counts for shared-cell detection | May trigger staircasing of other objects | Gets staircased itself |
+| --- | --- | --- | --- |
+| Conformal (non-ghost) | yes | yes | yes |
+| `"ghost": true` | no | no | no |
+
+`ghost` is for objects that should not couple to the rest of the model, such as
+boundary-condition sheets or probes: they are still meshed and exported, but are
+invisible to both detection and restructuring.
+
+The pass is orchestrated by the launcher. Using `ConformalMesher` as a library
+performs per-object structuring of non-conformal cells, but no cross-object
+coupling.
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file

@@ -2,6 +2,8 @@
 
 #include "utils/RedundancyCleaner.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 namespace meshlib {
@@ -173,6 +175,46 @@ Mesh Staircaser::getSelectiveMesh(const std::set<Cell>& cellsToStructure, GapsFi
                 }
                 else if (e->isTriangle()) {
                     this->processTriangleAndAddToGroup(*e, inputMesh_.coordinates, meshGroup);
+                }
+                else if (e->isQuad()) {
+                    // Cell-sized conformal quads may sit on fractional solver
+                    // planes; triangulate so selective staircasing can structure
+                    // them. Already grid-aligned quads (all integer coords) are
+                    // preserved as structured faces.
+                    const bool alreadyStructured = std::all_of(
+                        e->vertices.begin(), e->vertices.end(),
+                        [&](CoordinateId id) {
+                            const Relative& rel = inputMesh_.coordinates[id];
+                            for (std::size_t axis = 0; axis < 3; ++axis) {
+                                if (!approxDir(rel[axis], std::round(rel[axis]))) {
+                                    return false;
+                                }
+                            }
+                            return true;
+                        });
+                    if (alreadyStructured) {
+                        auto [newElement, ignoredBoundaryCoordinates] =
+                            obtainNewIndexForElement(*e, {}, coordinateMap);
+                        meshGroup.elements.push_back(std::move(newElement));
+                    } else {
+                        const auto& vertices = e->vertices;
+                        const auto firstDiagonal = std::minmax(vertices[0], vertices[2]);
+                        const auto secondDiagonal = std::minmax(vertices[1], vertices[3]);
+                        Elements triangles;
+                        if (firstDiagonal < secondDiagonal) {
+                            triangles = {
+                                Element({vertices[0], vertices[1], vertices[2]}, Element::Type::Surface),
+                                Element({vertices[0], vertices[2], vertices[3]}, Element::Type::Surface)};
+                        } else {
+                            triangles = {
+                                Element({vertices[1], vertices[2], vertices[3]}, Element::Type::Surface),
+                                Element({vertices[1], vertices[3], vertices[0]}, Element::Type::Surface)};
+                        }
+                        for (const Element& triangle : triangles) {
+                            this->processTriangleAndAddToGroup(
+                                triangle, inputMesh_.coordinates, meshGroup);
+                        }
+                    }
                 }
                 else {
                     auto [newElement, ignoredBoundaryCoordinates] =
