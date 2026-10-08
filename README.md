@@ -72,6 +72,9 @@ The main binary is `tessellator`, which uses a tessellator json format, which wi
     tessellator -i MESH_NAME.tessellator.json
 ```
 
+While meshing, the launcher logs the group being meshed, the time spent on each
+staircase-mesher stage, and a final timing summary per object.
+
 ## JSON Format
 The main entries are as follows:
 
