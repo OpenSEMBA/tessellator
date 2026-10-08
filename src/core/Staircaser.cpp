@@ -594,28 +594,21 @@ void Staircaser::splitLinesWithNeighborTriangle(const size_t groupIndex, std::se
 }
 
 void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Relatives& originalRelatives, Group& group){
-    Group edges;
-
-    edges.elements = {
-        Element({triangle.vertices[0], triangle.vertices[1]}, Element::Type::Line),
-        Element({triangle.vertices[1], triangle.vertices[2]}, Element::Type::Line),
-        Element({triangle.vertices[2], triangle.vertices[0]}, Element::Type::Line),
-    };
-
     Mesh auxiliarMesh;
-    auxiliarMesh.grid = this->mesh_.grid;
     auxiliarMesh.groups = { Group() };
     Group& processedEdges = auxiliarMesh.groups[0];
     auxiliarMesh.groups[0].elements.reserve(9);
     int pureDiagonalIndex = -1;
 
-    for (std::size_t index = 0; index < edges.elements.size(); ++index) {
-        auto& edge = edges.elements[index];
-        if (isPureDiagonal(edge, originalRelatives)) {
+    for (std::size_t index = 0; index < 3; ++index) {
+        const CoordinateId startVertex = triangle.vertices[index];
+        const CoordinateId endVertex = triangle.vertices[(index + 1) % 3];
+        if (isPureDiagonal(startVertex, endVertex, originalRelatives)) {
             pureDiagonalIndex = int(index);
         }
         else {
-            this->processLineAndAddToGroup(edge, originalRelatives, auxiliarMesh.coordinates, processedEdges);
+            this->processLineAndAddToGroup(
+                startVertex, endVertex, originalRelatives, auxiliarMesh.coordinates, processedEdges);
         }
     }
 
@@ -912,8 +905,13 @@ void Staircaser::addNewRelativeToGroupUsingBarycentre(const RelativeIds &triangl
 }
 
 void Staircaser::processLineAndAddToGroup(const Element& line, const Relatives& originalRelatives, Relatives& resultRelatives, Group& group) {
-    auto startRelative = originalRelatives[line.vertices[0]];
-    auto endRelative = originalRelatives[line.vertices[1]];
+    processLineAndAddToGroup(
+        line.vertices[0], line.vertices[1], originalRelatives, resultRelatives, group);
+}
+
+void Staircaser::processLineAndAddToGroup(CoordinateId startVertex, CoordinateId endVertex, const Relatives& originalRelatives, Relatives& resultRelatives, Group& group) {
+    auto startRelative = originalRelatives[startVertex];
+    auto endRelative = originalRelatives[endVertex];
 
     RelativeId startIndex = resultRelatives.size();
 
@@ -1151,13 +1149,9 @@ void Staircaser::calculateRelativeIdSetByCellSurface(const Relatives& relatives,
     }
 }
 
-bool Staircaser::isPureDiagonal(const Element& edge, const Relatives & relatives) {
-    if (!edge.isLine()) {
-        return false;
-    }
-
-    const auto& startPoint = relatives[edge.vertices[0]];
-    const auto& endPoint = relatives[edge.vertices[1]];
+bool Staircaser::isPureDiagonal(CoordinateId startVertex, CoordinateId endVertex, const Relatives & relatives) {
+    const auto& startPoint = relatives[startVertex];
+    const auto& endPoint = relatives[endVertex];
     auto startCell = calculateStaircasedCell(startPoint);
     auto endCell = calculateStaircasedCell(endPoint);
     std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);

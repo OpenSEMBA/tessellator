@@ -167,16 +167,28 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
     }
 
     meshlib::meshers::StaircaseMesherOptions res;
+    res.allow_log = true;
     if (isVolume){
         res.volumeGroups.insert(0);
     }
-    if (mesherConfig.contains("options") && 
-        mesherConfig["options"].contains("compress")) {
-        res.compress = mesherConfig["options"]["compress"];
-    }
-    if (mesherConfig.contains("options") &&
-        mesherConfig["options"].contains("splitHexahedra")) {
-        res.splitHexahedra = mesherConfig["options"]["splitHexahedra"];
+    if (mesherConfig.contains("options")) {
+        const auto& options = mesherConfig["options"];
+        if (options.contains("compress")) {
+            res.compress = options["compress"];
+        }
+        if (options.contains("splitHexahedra")) {
+            res.splitHexahedra = options["splitHexahedra"];
+        }
+        if (options.contains("decimalPlacesInCollapser")) {
+            const auto& decimalPlaces = options["decimalPlacesInCollapser"];
+            if (!decimalPlaces.is_number_integer() && !decimalPlaces.is_number_unsigned()) {
+                throw std::runtime_error("decimalPlacesInCollapser must be a non-negative integer");
+            }
+            if (decimalPlaces.is_number_integer() && decimalPlaces.get<std::int64_t>() < 0) {
+                throw std::runtime_error("decimalPlacesInCollapser must be a non-negative integer");
+            }
+            res.decimalPlacesInCollapser = decimalPlaces.get<int>();
+        }
     }
 
     return res;
@@ -250,7 +262,6 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
     if (mesherType == meshlib::app::staircase_mesher) {
         return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{
             in,
-            4,
             readStaircaseMesherOptions(fileData, objDef.isVolume, objDef.mesherOverride)
         });
     } else if (mesherType == meshlib::app::conformal_mesher) {

@@ -59,10 +59,68 @@ void RedundancyCleaner::removeRepeatedElements(Mesh& m)
     removeElements(m, toRemove);
 }
 
-void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, std::set<ElementId>& overlappedElements);
-void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate>& meshCoordinates, std::set<ElementId>& overlappedElements);
+void getOverlappedDimensionZeroElementsAndIdenticalLines(const Group& group, const Coordinates& meshCoordinates, std::vector<char>& overlappedElements);
+void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate>& meshCoordinates, std::vector<char>& overlappedElements);
 
 namespace {
+
+void removeElementsByFlags(Mesh& mesh, const std::vector<std::vector<char>>& toRemove)
+{
+    for (GroupId g = 0; g < mesh.groups.size(); ++g) {
+        Elements& elems = mesh.groups[g].elements;
+        const std::vector<char>& remove = toRemove[g];
+        std::size_t writeIndex = 0;
+        for (std::size_t i = 0; i < elems.size(); ++i) {
+            if (i < remove.size() && remove[i] != 0) {
+                continue;
+            }
+            if (writeIndex != i) {
+                elems[writeIndex] = std::move(elems[i]);
+            }
+            ++writeIndex;
+        }
+        elems.resize(writeIndex);
+    }
+}
+
+struct CoordinateIdsHash {
+    std::size_t operator()(const CoordinateIds& ids) const noexcept {
+        std::size_t h = ids.size();
+        for (const CoordinateId id : ids) {
+            h ^= std::hash<CoordinateId>{}(id) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
+        return h;
+    }
+};
+
+// Allocation-free key for a triangle or quad vertex list (rotated so that the
+// smallest id comes first). Only size() and the first size entries are used.
+struct SurfaceKey {
+    std::array<CoordinateId, 4> ids;
+    std::size_t size = 0;
+
+    bool operator==(const SurfaceKey& rhs) const {
+        return size == rhs.size && ids == rhs.ids;
+    }
+};
+
+struct SurfaceKeyHash {
+    std::size_t operator()(const SurfaceKey& key) const noexcept {
+        std::size_t h = key.size;
+        for (std::size_t i = 0; i < key.size; ++i) {
+            h ^= std::hash<CoordinateId>{}(key.ids[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
+        return h;
+    }
+};
+
+struct CoordinatePairHash {
+    std::size_t operator()(const std::pair<CoordinateId, CoordinateId>& pair) const noexcept {
+        std::size_t h1 = std::hash<CoordinateId>{}(pair.first);
+        std::size_t h2 = std::hash<CoordinateId>{}(pair.second);
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    }
+};
 
 bool isPointOnSegment(
     const Coordinate& point,
@@ -166,14 +224,14 @@ bool isLineInSurface(
 
 void RedundancyCleaner::removeOverlappedDimensionZeroElementsAndIdenticalLines(Mesh & mesh)
 {
-    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+    std::vector<std::vector<char>> toRemove(mesh.groups.size());
 
     for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
         auto & group = mesh.groups[g];
-        getOverlappedDimensionZeroElementsAndIdenticalLines(group, toRemove[g]);
+        getOverlappedDimensionZeroElementsAndIdenticalLines(group, mesh.coordinates, toRemove[g]);
     }
 
-    removeElements(mesh, toRemove);
+    removeElementsByFlags(mesh, toRemove);
 }
 
 void RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
@@ -247,28 +305,33 @@ void RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElement
 
 void RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(Mesh& mesh)
 {
-    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+    std::vector<std::vector<char>> toRemove(mesh.groups.size());
 
     for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
         auto& group = mesh.groups[g];
         getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(group, mesh.coordinates, toRemove[g]);
     }
 
-    removeElements(mesh, toRemove);
+    removeElementsByFlags(mesh, toRemove);
 }
 
 void getOverlappedDimensionZeroElementsAndIdenticalLines(
     const Group& group,
-    std::set<ElementId>& overlappedElements)
+    const Coordinates& meshCoordinates,
+    std::vector<char>& overlappedElements)
 {
-    std::set<CoordinateId> usedCoordinates;
+    overlappedElements.assign(group.elements.size(), 0);
+    std::vector<char> usedCoordinates(meshCoordinates.size(), 0);
     std::vector<ElementId> nodesToCheck;
 
     for (std::size_t e = 0; e < group.elements.size(); ++e) {
         auto& element = group.elements[e];
         if (element.isLine()) {
-            usedCoordinates.insert(element.vertices[0]);
-            usedCoordinates.insert(element.vertices[1]);
+            for (const CoordinateId v : element.vertices) {
+                if (v < usedCoordinates.size()) {
+                    usedCoordinates[v] = 1;
+                }
+            }
         }
         else if (element.isNode()) {
             nodesToCheck.push_back(e);
@@ -277,35 +340,48 @@ void getOverlappedDimensionZeroElementsAndIdenticalLines(
 
     for (auto e : nodesToCheck) {
         auto& node = group.elements[e];
-        if (usedCoordinates.count(node.vertices[0]) == 0) {
-            usedCoordinates.insert(node.vertices[0]);
+        const CoordinateId v = node.vertices[0];
+        if (v >= usedCoordinates.size() || usedCoordinates[v] == 0) {
+            if (v < usedCoordinates.size()) {
+                usedCoordinates[v] = 1;
+            }
         }
         else {
-            overlappedElements.insert(e);
+            overlappedElements[e] = 1;
         }
     }
 }
 
-void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate> & meshCoordinates, std::set<ElementId>& overlappedElements)
+void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group& group, const std::vector<Coordinate> & meshCoordinates, std::vector<char>& overlappedElements)
 {
-    std::set<CoordinateIds> usedCoordinatesFromSurface;
-    std::set<CoordinateIds> usedCoordinatePairsFromSurface;
-    std::set<CoordinateId> usedCoordinates;
+    overlappedElements.assign(group.elements.size(), 0);
+    std::unordered_set<SurfaceKey, SurfaceKeyHash> usedCoordinatesFromSurface;
+    std::unordered_set<std::pair<CoordinateId, CoordinateId>, CoordinatePairHash> usedCoordinatePairsFromSurface;
+    std::vector<char> usedCoordinates(meshCoordinates.size(), 0);
     std::vector<ElementId> linesToCheck;
     std::vector<ElementId> nodesToCheck;
+
+    usedCoordinatesFromSurface.reserve(group.elements.size());
+    usedCoordinatePairsFromSurface.reserve(group.elements.size() * 2);
 
     for (std::size_t e = 0; e < group.elements.size(); ++e) {
         auto& element = group.elements[e];
         CoordinateIds vIds{ element.vertices };
         if (vIds.size() >= 2) {
             std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
-            for (std::size_t v = 0; v < vIds.size(); ++v) {
-                usedCoordinates.insert(vIds[v]);
+            for (const CoordinateId v : vIds) {
+                if (v < usedCoordinates.size()) {
+                    usedCoordinates[v] = 1;
+                }
             }
         }
         if (element.isQuad() || element.isTriangle()) {
-            if (usedCoordinatesFromSurface.count(vIds) == 0) {
-                usedCoordinatesFromSurface.insert(vIds);
+            SurfaceKey key;
+            key.size = vIds.size();
+            for (std::size_t v = 0; v < vIds.size(); ++v) {
+                key.ids[v] = vIds[v];
+            }
+            if (usedCoordinatesFromSurface.insert(key).second) {
                 for (std::size_t v = 0; v < vIds.size(); ++v) {
                     auto firstCoordinateId = vIds[v];
                     auto secondCoordinateId = vIds[(v + 1) % vIds.size()];
@@ -317,7 +393,7 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
                 }
             }
             else {
-                overlappedElements.insert(e);
+                overlappedElements[e] = 1;
             }
         }
         else if (element.isLine()) {
@@ -332,13 +408,18 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
 
     for (auto e : linesToCheck) {
         auto& line = group.elements[e];
+        const CoordinateId lineFirst = std::min(line.vertices[0], line.vertices[1]);
+        const CoordinateId lineSecond = std::max(line.vertices[0], line.vertices[1]);
+
+        if (usedCoordinatePairsFromSurface.count({ lineFirst, lineSecond })) {
+            overlappedElements[e] = 1;
+            continue;
+        }
+
         CoordinateIds vIds{ line.vertices };
         std::rotate(vIds.begin(), std::min_element(vIds.begin(), vIds.end()), vIds.end());
 
-        if (usedCoordinatePairsFromSurface.count(vIds)) {
-            overlappedElements.insert(e);
-        }
-        else if (usedCoordinatePairsFromLine.count(vIds) == 0) {
+        if (usedCoordinatePairsFromLine.count(vIds) == 0) {
             usedCoordinatePairsFromLine.emplace(vIds, e);
         }
         else {
@@ -351,22 +432,25 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
             }
 
             if (direction > originalDirection) {
-                overlappedElements.insert(usedCoordinatePairsFromLine[vIds]);
+                overlappedElements[usedCoordinatePairsFromLine[vIds]] = 1;
                 usedCoordinatePairsFromLine[vIds] = e;
             }
             else {
-                overlappedElements.insert(e);
+                overlappedElements[e] = 1;
             }
         }
     }
 
     for (auto e : nodesToCheck) {
         auto& node = group.elements[e];
-        if (usedCoordinates.count(node.vertices[0]) == 0) {
-            usedCoordinates.insert(node.vertices[0]);
+        const CoordinateId v = node.vertices[0];
+        if (v >= usedCoordinates.size() || usedCoordinates[v] == 0) {
+            if (v < usedCoordinates.size()) {
+                usedCoordinates[v] = 1;
+            }
         }
         else {
-            overlappedElements.insert(e);
+            overlappedElements[e] = 1;
         }
     }
 }
@@ -374,7 +458,7 @@ void getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(const Group&
 
 void RedundancyCleaner::removeOverlappedElementsByDimension(Mesh& mesh, const std::vector<Element::Type>& highestDimensions)
 {
-    std::vector<std::set<ElementId>> toRemove(mesh.groups.size());
+    std::vector<std::vector<char>> toRemove(mesh.groups.size());
 
     for (std::size_t g = 0; g < mesh.groups.size(); ++g) {
         auto & group = mesh.groups[g];
@@ -384,13 +468,13 @@ void RedundancyCleaner::removeOverlappedElementsByDimension(Mesh& mesh, const st
                 getOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(group, mesh.coordinates, toRemove[g]);
                 break;
             case Element::Type::Line:
-                getOverlappedDimensionZeroElementsAndIdenticalLines(group, toRemove[g]);
+                getOverlappedDimensionZeroElementsAndIdenticalLines(group, mesh.coordinates, toRemove[g]);
             default:
                 break;
         }
     }
 
-    removeElements(mesh, toRemove);
+    removeElementsByFlags(mesh, toRemove);
 }
 
 void RedundancyCleaner::removeElementsWithCondition(Mesh& m, std::function<bool(const Element&)> cnd)
@@ -426,68 +510,128 @@ Elements RedundancyCleaner::findDegenerateElements_(
 
 void RedundancyCleaner::fuseCoords(Mesh& mesh) 
 {
-    std::map<Coordinate, IdSet> posIds;
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            const Element& elem = mesh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId id = elem.vertices[i];
-                Coordinate pos = mesh.coordinates[id];
-                posIds[pos].insert(id);
+    const std::size_t numCoordinates = mesh.coordinates.size();
+    if (numCoordinates == 0) {
+        return;
+    }
+
+    std::vector<char> referenced(numCoordinates, 0);
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            for (const CoordinateId id : element.vertices) {
+                if (id < numCoordinates) {
+                    referenced[id] = 1;
+                }
             }
         }
     }
 
-    for (GroupId g = 0; g < mesh.groups.size(); g++) {
-        for (ElementId e = 0; e < mesh.groups[g].elements.size(); e++) {
-            Element& elem = mesh.groups[g].elements[e];
-            for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                CoordinateId oldMeshedId = elem.vertices[i];
-                CoordinateId newMeshedId = *posIds[mesh.coordinates[oldMeshedId]].begin();
-                std::replace(elem.vertices.begin(), elem.vertices.end(), oldMeshedId, newMeshedId);
+    std::vector<CoordinateId> ids;
+    ids.reserve(numCoordinates);
+    for (CoordinateId id = 0; id < numCoordinates; ++id) {
+        if (referenced[id] != 0) {
+            ids.push_back(id);
+        }
+    }
+
+    const Coordinates& coordinates = mesh.coordinates;
+    std::sort(ids.begin(), ids.end(), [&coordinates](CoordinateId first, CoordinateId second) {
+        return coordinates[first] < coordinates[second];
+    });
+
+    // Coordinates that appear more than once are fused to the lowest id, as
+    // the previous std::map<Coordinate, IdSet> implementation did.
+    std::vector<CoordinateId> remap(numCoordinates);
+    for (CoordinateId id = 0; id < numCoordinates; ++id) {
+        remap[id] = id;
+    }
+
+    std::size_t groupBegin = 0;
+    while (groupBegin < ids.size()) {
+        std::size_t groupEnd = groupBegin + 1;
+        CoordinateId minId = ids[groupBegin];
+        while (groupEnd < ids.size()
+            && coordinates[ids[groupEnd]] == coordinates[ids[groupBegin]]) {
+            minId = std::min(minId, ids[groupEnd]);
+            ++groupEnd;
+        }
+        for (std::size_t i = groupBegin; i < groupEnd; ++i) {
+            remap[ids[i]] = minId;
+        }
+        groupBegin = groupEnd;
+    }
+
+    for (Group& group : mesh.groups) {
+        for (Element& element : group.elements) {
+            for (CoordinateId& vertex : element.vertices) {
+                if (vertex < numCoordinates) {
+                    vertex = remap[vertex];
+                }
             }
         }
     }
 }
 
 void RedundancyCleaner::removeDegenerateElements(Mesh& mesh){
-    removeElementsWithCondition(mesh, [&](const Element& e) {
-        return IdSet(e.vertices.begin(), e.vertices.end()).size() != e.vertices.size();
-    });
+    for (Group& group : mesh.groups) {
+        Elements compacted;
+        compacted.reserve(group.elements.size());
+        for (Element& element : group.elements) {
+            const auto& vertices = element.vertices;
+            bool isDegenerate = false;
+            for (std::size_t i = 0; !isDegenerate && i < vertices.size(); ++i) {
+                for (std::size_t j = i + 1; j < vertices.size(); ++j) {
+                    if (vertices[i] == vertices[j]) {
+                        isDegenerate = true;
+                        break;
+                    }
+                }
+            }
+            if (!isDegenerate) {
+                compacted.push_back(std::move(element));
+            }
+        }
+        group.elements = std::move(compacted);
+    }
 }
 
 void RedundancyCleaner::cleanCoords(Mesh& output) 
 {
-    const std::size_t& numStrCoords = output.coordinates.size();
+    const std::size_t numCoordinates = output.coordinates.size();
 
-    IdSet coordsUsed;
-    
+    std::vector<char> coordsUsed(numCoordinates, 0);
+
     for (auto const& g: output.groups) {
         for (auto const& e: g.elements) {
-                coordsUsed.insert(e.vertices.begin(), e.vertices.end());
+            for (const CoordinateId c : e.vertices) {
+                if (c < numCoordinates) {
+                    coordsUsed[c] = 1;
+                }
+            }
         }
     }
 
-    std::map<CoordinateId, CoordinateId> remap;
-    std::vector<Coordinate> aux = output.coordinates;
-    output.coordinates.clear();
-    for (CoordinateId c = 0; c < aux.size(); c++) {
-        if (coordsUsed.count(c) != 0) {
-            remap[c] = output.coordinates.size();
-            output.coordinates.push_back(aux[c]);
+    std::vector<CoordinateId> remap(numCoordinates, 0);
+    Coordinates cleanedCoordinates;
+    cleanedCoordinates.reserve(numCoordinates);
+    for (CoordinateId c = 0; c < numCoordinates; c++) {
+        if (coordsUsed[c] != 0) {
+            remap[c] = cleanedCoordinates.size();
+            cleanedCoordinates.push_back(std::move(output.coordinates[c]));
         }
-        
     }
+    output.coordinates = std::move(cleanedCoordinates);
+
     for (GroupId g = 0; g < output.groups.size(); g++) {
         for (ElementId e = 0; e < output.groups[g].elements.size(); e++) {
             Element& elem = output.groups[g].elements[e];
             for (std::size_t i = 0; i < elem.vertices.size(); i++) {
-                elem.vertices[i] = remap[elem.vertices[i]];
+                const CoordinateId c = elem.vertices[i];
+                // Unused and out-of-range coordinates historically mapped to 0.
+                elem.vertices[i] = c < numCoordinates ? remap[c] : 0;
             }
-            
         }
     }
-    
 }
 
 void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toRemove) 

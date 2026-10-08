@@ -24,9 +24,9 @@ std::size_t Compressor::compressSurfacesInMesh(Mesh& mesh) {
     for (Group& group : mesh.groups) {
         std::vector<Element> surfaces;
         
-        for (const Element& elem : group.elements) {
+        for (Element& elem : group.elements) {
             if (elem.type == Element::Type::Surface) {
-                surfaces.push_back(elem);
+                surfaces.push_back(std::move(elem));
             }
         }
 
@@ -40,6 +40,7 @@ std::size_t Compressor::compressSurfacesInMesh(Mesh& mesh) {
 
         // Build new elements vector with compressed surfaces
         std::vector<Element> newElements;
+        newElements.reserve(group.elements.size());
         ElementId surfaceIdx = 0;
         for (ElementId e = 0; e < group.elements.size(); e++) {
             if (group.elements[e].type == Element::Type::Surface) {
@@ -218,14 +219,14 @@ std::vector<Element> Compressor::compressDirSignLines_(
 
 std::vector<Element> Compressor::compressSurfaces_(
         std::vector<Relative>& coords,
-        const std::vector<Element>& surfaces) {
+        std::vector<Element>& surfaces) {
             
     std::vector<Element> result;
     std::map<std::pair<CellDir, SignedAxis>, std::vector<ElementId>> signDirSurfs;
 
     for (std::size_t s = 0; s < surfaces.size(); s++) {
         if (surfaces[s].vertices.size() != 4) {
-            result.push_back(surfaces[s]);
+            result.push_back(std::move(surfaces[s]));
             continue;
         }
         std::array<Cell, 3> auxCells;
@@ -256,8 +257,9 @@ std::vector<Element> Compressor::compressSurfaces_(
                   std::vector<ElementId>>::const_iterator
          it = signDirSurfs.begin(); it != signDirSurfs.end(); ++it) {
         std::vector<Element> auxElems;
+        auxElems.reserve(it->second.size());
         for (std::size_t i = 0; i < it->second.size(); i++) {
-            auxElems.push_back(surfaces[it->second[i]]);
+            auxElems.push_back(std::move(surfaces[it->second[i]]));
         }
         std::vector<Element> compressedSurfaces =
             compressSurfacesWithSameNormal_(coords, it->first.second, auxElems);
@@ -271,8 +273,16 @@ std::vector<Element> Compressor::compressSurfacesWithSameNormal_(
         const SignedAxis& signedDir,
         const std::vector<Element>& surfaces) {
     std::vector<Element> result;
-    std::map<LinIds, std::set<ElementId>> edgeSurfaces;
-    std::map<ElementId, std::set<LinIds>> surfaceEdges;
+    if (surfaces.empty()) {
+        return result;
+    }
+
+    struct EdgeRecord {
+        LinIds edge;
+        ElementId surface;
+    };
+    std::vector<EdgeRecord> records;
+    records.reserve(surfaces.size() * 4);
     for (ElementId s = 0; s < surfaces.size(); s++) {
         for (std::size_t i = 0; i < 4; i++) {
             std::size_t j = (i + 1) % 4;
@@ -280,43 +290,74 @@ std::vector<Element> Compressor::compressSurfacesWithSameNormal_(
             edge[0] = surfaces[s].vertices[i];
             edge[1] = surfaces[s].vertices[j];
             std::sort(edge.begin(), edge.end());
-            edgeSurfaces[edge].insert(s);
-            surfaceEdges[s].insert(edge);
+            records.push_back({edge, s});
         }
     }
-    std::set<ElementId> visitedSurfaceIds;
-    for (std::map<ElementId, std::set<LinIds>>::const_iterator
-         itExt = surfaceEdges.begin(); itExt != surfaceEdges.end(); ++itExt) {
-        if (visitedSurfaceIds.count(itExt->first) == 0) {
-            std::set<ElementId> connectedSurfaceIds;
-            std::queue<ElementId> surfacesToVisit;
-            surfacesToVisit.push(itExt->first);
-            visitedSurfaceIds.insert(itExt->first);
-            while (!surfacesToVisit.empty()) {
-                ElementId e = surfacesToVisit.front();
-                surfacesToVisit.pop();
-                connectedSurfaceIds.insert(e);
-                for (std::set<LinIds>::const_iterator
-                     itLine  = surfaceEdges[e].begin();
-                     itLine != surfaceEdges[e].end(); ++itLine) {
-                    for (std::set<ElementId>::const_iterator
-                         itSurf  = edgeSurfaces[*itLine].begin();
-                         itSurf != edgeSurfaces[*itLine].end(); ++itSurf) {
-                        if (visitedSurfaceIds.count(*itSurf) == 0) {
-                            surfacesToVisit.push(*itSurf);
-                            visitedSurfaceIds.insert(*itSurf);
-                        }
-                    }
-                }
-            }
-            std::vector<Element> connectedSurfaces;
-            for (std::set<ElementId>::const_iterator
-                 it = connectedSurfaceIds.begin(); it != connectedSurfaceIds.end(); ++it) {
-                connectedSurfaces.push_back(surfaces[*it]);
-            }
-            std::vector<Element> compressedSurfaces = compressConnectedSurfaces_(coords, signedDir, connectedSurfaces);
-            result.insert(result.end(), compressedSurfaces.begin(), compressedSurfaces.end());
+    std::sort(records.begin(), records.end(),
+              [](const EdgeRecord& first, const EdgeRecord& second) {
+        if (first.edge != second.edge) {
+            return first.edge < second.edge;
         }
+        return first.surface < second.surface;
+    });
+
+    std::vector<ElementId> parent(surfaces.size());
+    for (ElementId s = 0; s < surfaces.size(); ++s) {
+        parent[s] = s;
+    }
+    auto findRoot = [&parent](ElementId surface) {
+        ElementId root = surface;
+        while (parent[root] != root) {
+            root = parent[root];
+        }
+        while (parent[surface] != root) {
+            const ElementId next = parent[surface];
+            parent[surface] = root;
+            surface = next;
+        }
+        return root;
+    };
+    auto unite = [&parent, &findRoot](ElementId first, ElementId second) {
+        const ElementId firstRoot = findRoot(first);
+        const ElementId secondRoot = findRoot(second);
+        if (firstRoot != secondRoot) {
+            parent[std::max(firstRoot, secondRoot)] = std::min(firstRoot, secondRoot);
+        }
+    };
+    for (std::size_t i = 0; i < records.size();) {
+        std::size_t j = i + 1;
+        while (j < records.size() && records[j].edge == records[i].edge) {
+            ++j;
+        }
+        for (std::size_t k = i + 1; k < j; ++k) {
+            unite(records[i].surface, records[k].surface);
+        }
+        i = j;
+    }
+
+    // Group surfaces by component. Since surfaces are visited in ascending id
+    // and roots are kept as the smallest id, components are processed in the
+    // same order as the previous breadth-first search.
+    std::vector<ElementId> componentIndex(surfaces.size(), surfaces.size());
+    std::vector<std::vector<ElementId>> components;
+    for (ElementId s = 0; s < surfaces.size(); ++s) {
+        const ElementId root = findRoot(s);
+        if (componentIndex[root] == surfaces.size()) {
+            componentIndex[root] = components.size();
+            components.emplace_back();
+        }
+        components[componentIndex[root]].push_back(s);
+    }
+
+    for (const std::vector<ElementId>& component : components) {
+        std::vector<Element> connectedSurfaces;
+        connectedSurfaces.reserve(component.size());
+        for (const ElementId s : component) {
+            connectedSurfaces.push_back(surfaces[s]);
+        }
+        std::vector<Element> compressedSurfaces =
+            compressConnectedSurfaces_(coords, signedDir, connectedSurfaces);
+        result.insert(result.end(), compressedSurfaces.begin(), compressedSurfaces.end());
     }
     return result;
 }

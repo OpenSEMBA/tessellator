@@ -123,6 +123,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
+    EXPECT_EQ(options.decimalPlacesInCollapser, 4);
 }
 
 TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
@@ -146,6 +147,48 @@ TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
         dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
 
     EXPECT_TRUE(staircase.getOptions().splitHexahedra);
+}
+
+TEST_F(LauncherTest, buildsStaircasedMesherWithDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"decimalPlacesInCollapser", 2}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+
+    EXPECT_EQ(staircase.getOptions().decimalPlacesInCollapser, 2);
+}
+
+TEST_F(LauncherTest, rejectsInvalidStaircaseDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    ObjectDefinition object;
+
+    for (const nlohmann::json& decimalPlaces : {
+            nlohmann::json(true), nlohmann::json(1.0), nlohmann::json(-1)}) {
+        const nlohmann::json config = {
+            {"mesher", {{"type", "staircase"}, {"options", {{"decimalPlacesInCollapser", decimalPlaces}}}}}
+        };
+        EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+    }
 }
 
 TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
