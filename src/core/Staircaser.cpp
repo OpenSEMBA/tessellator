@@ -605,13 +605,8 @@ void Staircaser::processTriangleAndAddToGroup(const Element& triangle, const Rel
     for (std::size_t index = 0; index < 3; ++index) {
         const CoordinateId startVertex = triangle.vertices[index];
         const CoordinateId endVertex = triangle.vertices[(index + 1) % 3];
-        if (isPureDiagonal(startVertex, endVertex, originalRelatives)) {
-            pureDiagonalIndex = int(index);
-        }
-        else {
-            this->processLineAndAddToGroup(
-                startVertex, endVertex, originalRelatives, auxiliarMesh.coordinates, processedEdges);
-        }
+        this->processLineAndAddToGroup(
+            startVertex, endVertex, originalRelatives, auxiliarMesh.coordinates, processedEdges);
     }
 
     RedundancyCleaner::fuseCoords(auxiliarMesh);
@@ -1065,40 +1060,6 @@ void Staircaser::calculateRelativeIdSetByCellSurface(const Relatives& relatives,
             relativesByCellSurface[{maxCell, axis}].insert(v);
         }
     }
-}
-
-bool Staircaser::isPureDiagonal(CoordinateId startVertex, CoordinateId endVertex, const Relatives & relatives) {
-    const auto& startPoint = relatives[startVertex];
-    const auto& endPoint = relatives[endVertex];
-    auto startCell = calculateStaircasedCell(startPoint);
-    auto endCell = calculateStaircasedCell(endPoint);
-    std::size_t difference = calculateDifferenceBetweenCells(startCell, endCell);
-
-    if (difference != 3) {
-        return false;
-    }
-
-    Relative startStaircased = toRelative(startCell);
-    Relative endStaircased = toRelative(endCell);
-
-    Relative centerVector = startStaircased + (endStaircased - startStaircased) / 2.0;
-    Relative distanceVector = endPoint - startPoint;
-    Relative scaleVector;
-    
-    for (Axis axis = X; axis <= Z; ++axis) {
-        if(approxDir(centerVector[axis], startPoint[axis])){
-            scaleVector[axis] = 0.0;
-        }
-        else{
-            scaleVector[axis] = distanceVector[axis] / (centerVector[axis] - startPoint[axis]);
-        }
-    }
-
-    if (!approxDir(scaleVector[X], scaleVector[Y]) || !approxDir(scaleVector[Y], scaleVector[Z])) {
-        return false;
-    }
-
-    return true;
 }
 
 bool Staircaser::isEdgePartOfCellSurface(const Element& edge, const RelativeIds& surfaceRelativeIds) const {
