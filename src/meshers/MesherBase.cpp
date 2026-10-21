@@ -15,7 +15,7 @@ using namespace meshTools;
 
 void MesherBase::log(const std::string& msg, std::size_t level) const
 {
-    if(opts_.allow_log) {
+    if(getOptions().allow_log) {
         std::cout << "[Tessellator] ";
         for(std::size_t i=0; i < level; i++) {
           std::cout << "-- ";

@@ -15,9 +15,7 @@ std::string buildInformation()
         << "Git commit: " << buildInfo::gitCommit << '\n'
         << "Compiler: " << buildInfo::compiler << '\n'
         << "Build type: " << buildInfo::buildType << '\n'
-        << "Compilation flags: " << buildInfo::compilationFlags << '\n'
-        << "Compilation flags (Debug): " << buildInfo::compilationFlagsDebug << '\n'
-        << "Compilation flags (Release): " << buildInfo::compilationFlagsRelease;
+        << "Compilation flags: " << buildInfo::compilationFlags;
     return output.str();
 }
 

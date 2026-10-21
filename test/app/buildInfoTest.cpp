@@ -14,6 +14,6 @@ TEST(BuildInfoTest, containsBuildMetadata)
     EXPECT_NE(information.find("Compiler: "), std::string::npos);
     EXPECT_NE(information.find("Build type: "), std::string::npos);
     EXPECT_NE(information.find("Compilation flags: "), std::string::npos);
-    EXPECT_NE(information.find("Compilation flags (Debug): "), std::string::npos);
-    EXPECT_NE(information.find("Compilation flags (Release): "), std::string::npos);
+    EXPECT_EQ(information.find("Compilation flags (Debug)"), std::string::npos);
+    EXPECT_EQ(information.find("Compilation flags (Release)"), std::string::npos);
 }

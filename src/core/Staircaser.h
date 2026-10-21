@@ -47,6 +47,13 @@ private:
         Relatives& resultRelatives,
         Group& group
     );
+    void processLineAndAddToGroup(
+        CoordinateId startVertex,
+        CoordinateId endVertex,
+        const Relatives& originalRelatives,
+        Relatives& resultRelatives,
+        Group& group
+    );
     void processNodeAndAddToGroup(
         const Element& node,
         const Relatives& originalRelative,
@@ -54,6 +61,9 @@ private:
         Group& group
     );
     bool isEdgePartOfCellSurface(const Element& edge, const RelativeIds &surfaceRelativeIds) const;
+    bool isPureDiagonal(CoordinateId startVertex, CoordinateId endVertex, const Relatives& relatives);
+    bool isRelativeInCellsVector(const Relative& relative, const std::vector<Cell>& projectedCells) const;
+    bool isRelativeInCell(const Relative& relative, const Cell& cell) const;
     void filterSurfacesFromRelativeIds(
         const std::map<Surfel, IdSet>& idSetByCellSurface,
         std::map<Surfel, RelativeIds>& relativeIdsByCellSurface

@@ -354,6 +354,32 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
+TEST_F(StaircaseMesherTest, reportsGroupAndPhaseTimings)
+{
+    Mesh inputMesh = buildTriNonUniformGridMesh();
+    inputMesh.groups[0].name = "testGroup";
+
+    StaircaseMesherOptions options;
+    options.allow_log = true;
+
+    testing::internal::CaptureStdout();
+    StaircaseMesher mesher(inputMesh, options);
+    const std::string log = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(log.find("Meshing group: testGroup"), std::string::npos);
+    EXPECT_NE(log.find("Timings."), std::string::npos);
+    EXPECT_NE(log.find("surface.slicing:"), std::string::npos);
+    EXPECT_NE(log.find("Total:"), std::string::npos);
+
+    const auto& timings = mesher.getTimings();
+    ASSERT_EQ(11u, timings.size());
+    EXPECT_EQ("buildSurfaceMesh", timings.front().phase);
+    EXPECT_EQ("collapseNodes", timings.back().phase);
+    for (const auto& timing : timings) {
+        EXPECT_GE(timing.seconds, 0.0);
+    }
+}
+
 TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
 {
     Mesh out;
