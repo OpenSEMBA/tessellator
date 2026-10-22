@@ -324,6 +324,22 @@ void validateCombinedGroupNames(const std::vector<ObjectDefinition>& objects)
     }
 }
 
+void validateObjectFiles(
+    const std::filesystem::path& folderPath,
+    const std::vector<ObjectDefinition>& objects)
+{
+    for (const auto& object : objects) {
+        const auto path = folderPath / object.filename;
+        if (!std::filesystem::exists(path)) {
+            throw std::runtime_error("Object file not found: " + path.string());
+        }
+        if (!std::filesystem::is_regular_file(path)) {
+            throw std::runtime_error(
+                "Object path is not a regular file: " + path.string());
+        }
+    }
+}
+
 void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 {
     const bool hasEnabledConformalObject = std::any_of(
@@ -394,95 +410,117 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 
 int launcher(int argc, const char* argv[])
 {
-    po::options_description desc("Allowed options");
-    desc.add_options()
-        ("help,h", "produce help message")
-        ("input,i", po::value<std::string>(), "input file");
+    try {
+        po::options_description desc("Allowed options");
+        desc.add_options()
+            ("help,h", "produce help message")
+            ("input,i", po::value<std::string>(), "input file");
 
-    po::variables_map vm;
-    po::store(po::command_line_parser(argc, argv).
-            options(desc).run(), vm);
-    po::notify(vm);
+        po::variables_map vm;
+        po::store(po::command_line_parser(argc, argv).
+                options(desc).run(), vm);
+        po::notify(vm);
 
-    if (vm.count("help") || !vm.count("input")) {
-        std::cout << desc << std::endl;
-        return EXIT_SUCCESS;
-    }
-
-    std::string inputFileName = vm["input"].as<std::string>();
-    std::cout << "-- Input file is: " << inputFileName << std::endl;
-
-    nlohmann::json inputFileData;
-    {
-        std::ifstream i(inputFileName);
-        i >> inputFileData;
-    }
-
-    std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFileData);
-    std::filesystem::path outputFolder = getFolder(inputFileName);
-    auto basename = getBasename(inputFileName);
-    const bool singleFileOutput = readSingleFileOutputOption(inputFileData);
-    if (singleFileOutput) {
-        validateCombinedGroupNames(objects);
-    }
-
-    std::vector<MeshedObject> meshedObjects;
-    meshedObjects.reserve(objects.size());
-
-    for (const auto& objDef : objects) {
-        std::cout << "\n-- Processing object: " << objDef.filename << " (group: " << objDef.group << ")" << std::endl;
-
-        Mesh mesh = readMesh(inputFileData, outputFolder, objDef);
-
-        auto mesher = buildMesher(mesh, inputFileData, objDef);
-        Mesh resultMesh = mesher->mesh();
-        if (resultMesh.groups.size() == 1) {
-            resultMesh.groups.front().name = objDef.group;
+        if (vm.count("help") || !vm.count("input")) {
+            std::cout << desc << std::endl;
+            return EXIT_SUCCESS;
         }
 
-        const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
-        bool staircaseSharedCells = false;
-        bool compress = false;
-        if (mesherType == conformal_mesher) {
-            const auto conformalOptions = readConformalMesherOptions(
-                inputFileData, objDef.isVolume, objDef.mesherOverride);
-            staircaseSharedCells = conformalOptions.staircaseSharedCells;
-            compress = conformalOptions.compress;
+        std::string inputFileName = vm["input"].as<std::string>();
+        std::cout << "-- Input file is: " << inputFileName << std::endl;
+
+        const std::filesystem::path inputPath(inputFileName);
+        if (!std::filesystem::exists(inputPath)) {
+            throw std::runtime_error(
+                "Input file not found: " + inputPath.string());
         }
-        meshedObjects.push_back({
-            objDef,
-            mesherType,
-            readExtension(inputFileData, objDef.mesherOverride),
-            staircaseSharedCells,
-            compress,
-            std::move(resultMesh)
-        });
-    }
 
-    staircaseSharedConformalCells(meshedObjects);
+        nlohmann::json inputFileData;
+        {
+            std::ifstream i(inputPath);
+            if (!i) {
+                throw std::runtime_error(
+                    "Input file could not be opened: " + inputPath.string());
+            }
+            try {
+                i >> inputFileData;
+            } catch (const nlohmann::json::exception& e) {
+                throw std::runtime_error(
+                    "Could not parse input file '" + inputPath.string() +
+                    "': " + e.what());
+            }
+        }
 
-    if (singleFileOutput && !meshedObjects.empty()) {
-        const auto outputFileName = basename + ".tessellator.vtk";
-        exportMeshToVTU(
-            outputFolder / outputFileName, mergeObjectMeshes(meshedObjects));
-        std::cout << "-- Exported: " << outputFileName << std::endl;
-    } else {
-        for (const auto& object : meshedObjects) {
-            const std::string outputFileName = object.definition.group +
-                ".tessellator." + object.extension + ".vtk";
-            exportMeshToVTU(outputFolder / outputFileName, object.mesh);
+        std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFileData);
+        std::filesystem::path outputFolder = getFolder(inputFileName);
+        auto basename = getBasename(inputFileName);
+        const bool singleFileOutput = readSingleFileOutputOption(inputFileData);
+        if (singleFileOutput) {
+            validateCombinedGroupNames(objects);
+        }
+        validateObjectFiles(outputFolder, objects);
+
+        std::vector<MeshedObject> meshedObjects;
+        meshedObjects.reserve(objects.size());
+
+        for (const auto& objDef : objects) {
+            std::cout << "\n-- Processing object: " << objDef.filename << " (group: " << objDef.group << ")" << std::endl;
+
+            Mesh mesh = readMesh(inputFileData, outputFolder, objDef);
+
+            auto mesher = buildMesher(mesh, inputFileData, objDef);
+            Mesh resultMesh = mesher->mesh();
+            if (resultMesh.groups.size() == 1) {
+                resultMesh.groups.front().name = objDef.group;
+            }
+
+            const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
+            bool staircaseSharedCells = false;
+            bool compress = false;
+            if (mesherType == conformal_mesher) {
+                const auto conformalOptions = readConformalMesherOptions(
+                    inputFileData, objDef.isVolume, objDef.mesherOverride);
+                staircaseSharedCells = conformalOptions.staircaseSharedCells;
+                compress = conformalOptions.compress;
+            }
+            meshedObjects.push_back({
+                objDef,
+                mesherType,
+                readExtension(inputFileData, objDef.mesherOverride),
+                staircaseSharedCells,
+                compress,
+                std::move(resultMesh)
+            });
+        }
+
+        staircaseSharedConformalCells(meshedObjects);
+
+        if (singleFileOutput && !meshedObjects.empty()) {
+            const auto outputFileName = basename + ".tessellator.vtk";
+            exportMeshToVTU(
+                outputFolder / outputFileName, mergeObjectMeshes(meshedObjects));
             std::cout << "-- Exported: " << outputFileName << std::endl;
+        } else {
+            for (const auto& object : meshedObjects) {
+                const std::string outputFileName = object.definition.group +
+                    ".tessellator." + object.extension + ".vtk";
+                exportMeshToVTU(outputFolder / outputFileName, object.mesh);
+                std::cout << "-- Exported: " << outputFileName << std::endl;
+            }
         }
-    }
 
-    if (!meshedObjects.empty() && readExportGridOption(inputFileData, std::nullopt)) {
-        exportGridToVTU(
-            outputFolder / (basename + ".tessellator.grid.vtk"),
-            meshedObjects.front().mesh.grid);
-        std::cout << "-- Exported grid: " << basename << ".tessellator.grid.vtk" << std::endl;
-    }
+        if (!meshedObjects.empty() && readExportGridOption(inputFileData, std::nullopt)) {
+            exportGridToVTU(
+                outputFolder / (basename + ".tessellator.grid.vtk"),
+                meshedObjects.front().mesh.grid);
+            std::cout << "-- Exported grid: " << basename << ".tessellator.grid.vtk" << std::endl;
+        }
 
-    return EXIT_SUCCESS;
+        return EXIT_SUCCESS;
+    } catch (const std::exception& e) {
+        std::cerr << std::endl << "-- Error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 }
 
 }
