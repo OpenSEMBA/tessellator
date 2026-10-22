@@ -297,9 +297,6 @@ void StaircaseMesher::process(Mesh& mesh, bool compress, const std::string& labe
     RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
     addTiming(prefix + "removeOverlapped", "Removing repeated and overlapping elements.", elapsedSeconds(phaseStart));
 
-    log("Closing staircase surface gaps.", 1);
-    RedundancyCleaner::fillMissingUnitCellFaces(mesh);
-
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
