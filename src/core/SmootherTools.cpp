@@ -631,8 +631,40 @@ Coordinates SmootherTools::collapsePointsOnContour(
             }
 
             if (!validContourIds.empty()) {
-                for (auto const& interiorId : cG.getInterior()) {
-                    res[interiorId] = coords[*validContourIds.begin()];
+                const IdSet interior = cG.getInterior();
+                bool collapseToMinExterior = false;
+                if (interior.size() > 1 && validContourIds.size() == 2) {
+                    const CoordinateId minExt = *validContourIds.begin();
+                    const CoordinateId maxExt = *validContourIds.rbegin();
+                    // Preserve the established behavior for a contour run that
+                    // extends toward both anchors: collapse the run as a unit.
+                    for (const auto interiorId : interior) {
+                        if ((coords[interiorId] - coords[maxExt]).norm()
+                            < (coords[interiorId] - coords[minExt]).norm()) {
+                            collapseToMinExterior = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (collapseToMinExterior) {
+                    const CoordinateId anchor = *validContourIds.begin();
+                    for (const auto interiorId : interior) {
+                        res[interiorId] = coords[anchor];
+                    }
+                }
+                else {
+                    for (const auto interiorId : interior) {
+                        if (res[interiorId] != coords[interiorId]) {
+                            continue;
+                        }
+                        const IdSet targets =
+                            cG.getClosestVerticesInSet(interiorId, validContourIds);
+                        if (targets.empty()) {
+                            continue;
+                        }
+                        res[interiorId] = coords[*targets.begin()];
+                    }
                 }
             }
             
