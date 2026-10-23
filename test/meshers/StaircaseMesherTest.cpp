@@ -2,9 +2,11 @@
 #include "MeshFixtures.h"
 
 #include <array>
+#include <algorithm>
 #include <map>
 #include <queue>
 #include <set>
+#include <string>
 
 #include "meshers/StaircaseMesher.h"
 #include "StaircaseMesherOptions.h"
@@ -36,6 +38,23 @@ using FaceKey = std::array<CoordinateId, 4>;
 EdgeKey edgeKey(CoordinateId first, CoordinateId second)
 {
     return first < second ? EdgeKey{first, second} : EdgeKey{second, first};
+}
+
+std::size_t countBoundaryEdges(const Elements& faces)
+{
+    std::map<EdgeKey, std::size_t> edgeFaces;
+    for (const Element& face : faces) {
+        if (!face.isQuad()) {
+            continue;
+        }
+        for (std::size_t vertex = 0; vertex < face.vertices.size(); ++vertex) {
+            ++edgeFaces[edgeKey(
+                face.vertices[vertex],
+                face.vertices[(vertex + 1) % face.vertices.size()])];
+        }
+    }
+    return std::count_if(edgeFaces.begin(), edgeFaces.end(),
+        [](const auto& entry) { return entry.second == 1; });
 }
 
 bool isSingleClosedSurface(const Elements& faces)
@@ -580,6 +599,49 @@ TEST_F(StaircaseMesherTest, fillsSphereAsSingleClosedUnitHexahedralVolume)
     EXPECT_EQ(7967, countMeshElementsIf(result, isHexahedron));
     EXPECT_EQ(result.countElems(), countMeshElementsIf(result, isHexahedron));
     EXPECT_TRUE(isSingleClosedHexahedralVolume(result));
+}
+
+TEST_F(StaircaseMesherTest, fillsSphereWithStaircaseGapsAsClosedVolume)
+{
+    struct Resolution {
+        int cells;
+        std::size_t hexahedra;
+    };
+    const std::array<Resolution, 3> resolutions{{
+        {104, 2096}, {350, 23718}, {400, 30980}}};
+
+    for (const Resolution& resolution : resolutions) {
+        SCOPED_TRACE("cells per axis = " + std::to_string(resolution.cells));
+
+        auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+        for (auto axis : {X, Y, Z}) {
+            mesh.grid[axis] = utils::GridTools::linspace(
+                -100.0, 100.0, resolution.cells + 1);
+        }
+
+        StaircaseMesherOptions options;
+        options.volumeGroups.insert(0);
+
+        const Mesh result = StaircaseMesher{mesh, options}.mesh();
+
+        EXPECT_EQ(resolution.hexahedra, countMeshElementsIf(result, isHexahedron));
+        EXPECT_EQ(result.countElems(), countMeshElementsIf(result, isHexahedron));
+    }
+}
+
+TEST_F(StaircaseMesherTest, staircasedSphereSurfaceHasNoBoundaryAtFourHundredCells)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto axis : {X, Y, Z}) {
+        mesh.grid[axis] = utils::GridTools::linspace(-100.0, 100.0, 401);
+    }
+
+    StaircaseMesherOptions options;
+    options.compress = false;
+
+    const Mesh result = StaircaseMesher{mesh, options}.mesh();
+
+    EXPECT_EQ(0, countBoundaryEdges(result.groups[0].elements));
 }
 
 TEST_F(StaircaseMesherTest, fillsAlhambraAsSingleClosedUnitHexahedralVolume)

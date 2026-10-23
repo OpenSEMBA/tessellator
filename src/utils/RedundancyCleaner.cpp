@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <unordered_set> 
 
@@ -653,6 +654,7 @@ void RedundancyCleaner::removeElements(Mesh& mesh, const std::vector<IdSet>& toR
         elems = newElems;       
     }
 }
+
 
 }
 }

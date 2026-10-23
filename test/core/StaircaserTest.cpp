@@ -1606,139 +1606,14 @@ TEST_F(StaircaserTest, transformTriangleIntoTwoSurfaces)
 
 TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
 {
-    // T0   *-------------1                  *-----------{1->0}          T2      2-------------*               {2->3}-----------*
-    //     /|            ⫽║                 /|             /║                   /║\           /|                /║             /|
-    //    / |          ╱/⎹|                / |            / ║                  /⎹| \         / |               / ║            / |
-    //  z/  |        ╱ / ||              z/  |           /  ║                z/ ||  \       /  |             z/  ║           /  |
-    //  *---┼------⌿--* ||       ->     *---┼----------*   ║                *--┼┼---------*   |      ->     *---╫----------*   |
-    //  |   |y   ╱    | ⎹ |              ⎸   |     ->   |   ║                | | |y   \    |   |             |   ║ y   ->   |   |
-    //  |   *--╱------┼-┼-*              ⎸{0.33->4}=====╪{1.5|0.66->1}       | ⎸ *-----\---┼---*            {1.5|2.33->2}===╪{2.66->4}
-    //  |  / ╱        |⎹ /               ⎸⩘ ⫽///////////|//⫽                ⎹ ⎸ /       \  ⎸  /             ⎹ ⩘⫽///////////|//⫽
-    //  | /╱          |⎸/                ⎸/⫽////////////|/⫽ /               ⎹| /         \ | /              ⎹/⫽////////////⎹/⫽/ 
-    //  |⫽            ║/                 ⎸⫽/////////////|⫽ ⩗                ║/            \⎸/               |⫽/////////////|⫽ ⩗ 
-    //  0=============2 x             {0->3}============2 x                  1=============0 x               1==============0 x
-    //                                         <-                                                                  <-
-    // 
-    // T1   *-------------1                  *-----------{1->2}         T2      0-------------*                    0--------------*
-    //     /|            ⫽║                 /|             /║                  /║\           /|                   / ║            /|
-    //    / |          ╱/⎹|                / |            / ║                 /⎹| \         / |                  /  ║           / |
-    //  z/  |        ╱ / ||              z/  |           /  ║               z/ ||  \       /  |               z /   ║          /  |
-    //  *---┼------⌿--* ||       ->     *---┼----------*   ║               *--┼┼---------*   |       ->       *----╫---------*   |
-    //  |   |y   ╱    | ⎹ |              ⎸   |     <-   |   ║               | | |y   \    |   |                |    ║ y   <-  |   |
-    //  |   *--╱------┼-┼-*              ⎸{1.66->4}=====╪{0.5|1.33->1}      | ⎸ *-----\---┼---*               {0.5|2.66->1}==={2.33->4}
-    //  |  / ╱        |⎹ /               ⎸ /⫽\\\\\\\\\\\|\\⫽               ⎹ ⎸ /       \  ⎸  /                ⎹  /⫽\\\\\\\\\\\|\\\⫽
-    //  | /╱          |⎸/                ⎸⩗⫽\\\\\\\\\\\\|\⫽ ⩘              |⎸/         \ |  /                 |⩗⫽\\\\\\\\\\\\\⎸\⫽⩘
-    //  |⫽            ║/                 ⎸⫽\\\\\\\\\\\\\|⫽ /               ║/            \⎸/                  |⫽\\\\\\\\\\\\\\|⫽ /
-    //  1=============0 x             {2->3}============0 x                 1=============2 x                {1->2}=========={2->3} x
-    //                                          ->                                                                  ->
-    // 
-    // T4    *--------------*                 *-----------{1->4}           T6      1-------------*               {1->0}====={0.66|1.5->1}
-    //      /|             /|                /|           ⩘ ⫽║                    /\⟍          /⎹                 /|             ⫽║
-    //     / |            / |               / |          / ⫽/║                   / |\  ⟍      /  ⎸               / |          ⩘ ⫽/║
-    //  z /  |           /  |             z/  |           ⫽//║  |              z/  | \    ⟍  /   ⎸             z/  |         / ⫽//║ ⎸
-    //   1===|----------*   |     ->    {1->2}╪===={0.5|1.33->1}v              *---┼--\-----*⟍  ⎹       ->    *----┼------{0.33->4}║ v
-    //   | ⟍ |‾‾⎻⎻⎼⎼__  |   |             |   |    ->    ║///║                 |   ⎸   \    ⎹  ⟍ ⎸            ⎹    ⎸          ║////║
-    //   |   *⟍-------⎺⎺|===2             |   *----------║/{2->3}              |   *----\--⎻┼---2              ⎸   *----------║////2
-    //   |  /    ⟍      |  ⫽              ⎸  /         ᐱ ║//⫽                 |  /       \  ⎸  ⫽              |  /         ᐱ ║///⫽
-    //   | /        ⟍   | ⫽               ⎸ /          ⎹ ║/⫽ /                ⎹ /         \ | ⫽               ⎹ /          ⎹  ║//⫽ /
-    //   |/           ⟍ |⫽                ⎸/             ║⫽ ⩗                 |/           \⎸⫽                |/              ║⫽  ⩗
-    //   *--------------0 x               *--------------0 x                   *-------------0 x               *-------------{0->3} x
-    //                          
-    // 
-    // T4    *--------------*               *----------{1.33->4}          T6       2-------------*              {2->3}====={2.33|1.5->2}
-    //      /|             /|              /|              ⫽║                     /\⟍          /⎹                /|        / ⫽/║
-    //     / |            / |             / |           / ⫽\║                    /| \  ⟍      /  ⎸              / |       ⩗ ⫽//║
-    //  z /  |           /  |           z/  |          ⩗ ⫽\\║ ᐱ               z/  ⎸ \     ⟍ /   |            z/  ⎹         ⫽///║ ᐱ 
-    //   2===|----------*   |     ->    2===╪===={2.5|1.66->3}⎹               *---┼---\-----*⟍   |       ->   *---┼----{2.66->4}║ ⎸
-    //   | ⟍ |‾‾⎻⎻⎼⎼__  |   |           |   |    ->     ║\\\║                ⎹    |    \    |  ⟍ ⎸           ⎹    ⎸        ║////║
-    //   |   *⟍-------⎺⎺|===1           |   *-----------║\\\1                ⎹    *-----\---┼----1            ⎸   *--------║////1
-    //   |  /    ⟍      |  ⫽            ⎸  /          | ║\\⫽                 |  /        \  ⎸   ⫽            |  /        ⎹ ║///⫽
-    //   | /        ⟍   | ⫽             ⎸ /           V ║\⫽ ⩘                | /          \⎹  ⫽              | /         V ║/⫽ ⩘
-    //   |/           ⟍ |⫽              ⎸/              ║⫽ /                 |/            \⎸⫽               |/            ║⫽ /
-    //   *--------------0 x             *-------------0 x                     *-------------0 x               *-------------0 x
-    // 
-    //                                            ->                                                            ->
-    // T8    *------------*             {1.33->4}===={1.66|2.5->3}      T10      *------------*          {1.5|2.33->2}======{2.66->4}
-    //      /|           /|                /║╱╱╱╱╱╱╱╱╱╱╱╱╱⫻║                   /|           /|                 ⫽ ║╱╱╱╱╱╱╱╱╱╱╱╱⫽║
-    //     / |          / |               /ᐱ║╱╱╱╱╱╱╱╱╱╱╱╱⫻╱║                  / ⎸          / |                ⫽ᐱ║╱╱╱╱╱╱╱╱╱╱╱⫽╱║
-    //  z /  |         /  |             z/ |║╱╱╱╱╱╱╱╱╱╱╱⫻╱╱║  ⎸              /  |         /   ⎸             z⫽  ⎸║/////////╱⫽╱╱║ |
-    //   0---┼-------=2   |       ->    *---║⌿⌿⌿⌿⌿⌿2╱╱╱║ v              2==__--------*   |     ->   {2->3}--║⌿⌿⌿⌿⌿*╱╱╱╱║ v
-    //   |   | __⎼⎼‾‾ | ⟍ |             ⎸   ║╱╱╱╱╱╱╱╱╱╱⎹╱╱╱╱║                | ⟍ ⎸‾‾‾⎼⎼___|   |             ⎸    ║╱╱╱╱╱╱╱╱╱⎸╱╱╱╱║
-    //   |   1≡=======╪===0             |   1==========╪====0                |   1========|‾‾≡0             |    1=========╪====0
-    //   |  /         |  /              |  /      <-   |   /                 |  /         |  /              |   /      <-  |   /
-    //   | /          | /               | /            |  /                  | /          | /               |  /           |  /
-    //   |/           |/                |/             | /                   |/           |/                | /            | /
-    //   *------------* x               *--------------* x                   *------------* x               *--------------* x
-    //                                                                                                           
-    //                                            <-                                                                    <-
-    // T9    *------------*             {1.66->4}===={0.5|1.33->1}      T11      *------------*          {1.5|0.33->1}======{0.33->4}
-    //      /|           /|                /║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽║                   /|           /⎸                ⫽║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍/║
-    //     / |          / |               /|║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍║                  / |          / ⎸               ⫽|║⟍⟍⟍⟍⟍⟍⟍⟍⟍/⟍║
-    // z  /  |         /  |             z/ v║⟍⟍⟍⟍⟍⟍⟍⟍⟍⫽⟍⟍║ ᐱ               /  ⎸         / |             z⫽  v║⟍⟍⟍⟍⟍⟍⟍⟍/⟍⟍║ ᐱ
-    //   0---┼-------=1   |       ->    *---║⍀⍀⍀⍀{1->2}⟍\║ |              1==__--------*  |      ->   {1->0}-║⍀⍀⍀⍀⍀⍀*⟍⟍║ |
-    //   |   | __⎼⎼‾‾ | ⟍ ⎸             ⎸   ║⟍⟍⟍⟍⟍⟍⟍⟍⎸⟍⟍⟍║                | ⟍ ⎸‾‾‾⎼⎼___⎸   ⎸             ⎹   ║⟍⟍⟍⟍⟍⟍⟍⟍|⟍⟍║
-    //   |   2≡=======╪===0             |{2->3}========╪====0                ⎹   2========|‾‾≡0              |   2==========╪={0->3}
-    //   |  /         |  /              |  /      ->   |   /                 ⎹  /         |  /               |  /      ->   |  /
-    //   | /          | /               | /            |  /                  ⎹ /          | /                | /            | /
-    //   |/           |/                |/             | /                   ⎹/           |/                 |/             |/
-    //   *------------* x               *--------------* x                    *-----------* x                *--------------* x
-    //                                                                   
-    // 
-    // T12   *-------------*                 *-------------*           T14       *--------------1                 *-----------{1->2}     
-    //      /|           / |                /|            /|                    /|            ⫻ ⎸                /|             /║
-    //     / |          /  |               / |           / |                   / |         ⟋ ╱/ |               / ⎹            / ║
-    //  z /  |         /   |             z/  |          /  |               z  /  |      ⟋  ╱ /  |             z/  ⎹           /  ║
-    //   *---┼-------=2    |      ->    *----┼---------2   |                 *---┼---⌿--⌿-*    ⎸     ->     *----┼----------*   ║
-    //   |   | __⎼⎼‾‾⟋|    ⎸            |    ⎸    ->   ║   |                ⎹    ⎸⟋    ╱   ⎹    ⎸            ⎹    ⎹    ->    ⎸   ║
-    //   |   1=----⌿-┼----*            ⎹    1=========║{1.33->4}            |   0---╱------┼----*            |    0========={0.5|1.33->1}
-    //   |  ⫽    ⟋    ⎸  /              ⎸ ⩘⫽//////////║//⫽                  |  ⫽ ╱        ⎹   /              ⎸⩘ ⫽//////////|//⫽
-    //   | ⫽  ⟋       ⎸ /               ⎸/⫽///////////║/⫽ /                 | ⫽╱          ⎹  /               ⎸/⫽///////////⎹/⫽ /
-    //   |⫽⟋         ⎹ /                ⎸⫽////////////║⫽ ⩗                  |⫻            |/                |⫽////////////⎹⫽ ⩗
-    //   0------------* x               0========{2.5|1.66->3} x             2--------------* x            {2->3}========{1.66->4} x
-    //                                          <-                                                          
-    // 
-    // 
-    // 
-    // T13   *-------------*                 *--------------*           T15       *--------------2                *------------2     
-    //      /|           / |                /|             /|                    /|            ⫻⎹               /⎹           /║
-    //     / |          /  |               / |            / |                   / |         ⟋ ╱/ ⎸             / ⎹          / ║
-    //  z /  |         /   |             z/  |           /  |               z  /  |      ⟋  ╱ /  ⎸           z/  ⎹         /  ║
-    //   *---┼-------=3    |      ->    *----┼--------{1->2}|                 *---┼---⌿--⌿-*   |      ->   *----┼--------*   ║
-    //   |   | __⎼⎼‾‾⟋|    ⎸            |    |    <-    ║   ⎸                 |   ⎸⟋    ╱   ⎹   |           ⎹    ⎹    <-  ⎹   ║
-    //   |   2=----⌿-┼----*            ⎹  {2->3}=======║{1.66->4}            ⎹   0---╱------┼---*           |    0========╪{2.5|1.66->3}
-    //   |  ⫽    ⟋    ⎸  /              ⎸ /⫽\\\\\\\\\\\║\\⫽ ⩘                |  ⫽ ╱        ⎹  /            ⎹  /⫽\\\\\\\\\|\\⫽ ⩘
-    //   | ⫽  ⟋       ⎸ /               ⎸⩗⫽\\\\\\\\\\\\║\⫽ /                 | ⫽╱          ⎹ /             ⎹ ⩗⫽\\\\\\\\\\|\⫽ /
-    //   |⫽⟋         ⎹ /                ⎸⫽\\\\\\\\\\\\\║⫽                    |⫻            ⎹/              ⎹ ⫽\\\\\\\\\\\|⫽ 
-    //   0------------* x               0========{0.5|1.33->1} x              1--------------* x             1========{1.33->4} x
-    //                                          ->                                                                 ->
-    // 
-    //                                             <-                                                                  
-    // T16  *-------------*          {2.5|1.66->3}====={1.33->4}         T18     *-------------*                   *------------*    
-    //     /|            /|                /⫽\\\\\\\\\\\\⫽⎹                     /|            /|                 /⎹            /|   
-    //    / |           / |               ⩗⫽\\\\\\\\\\\\⫽⩘|                   / ⎹            /⎹                 / |           / ⎸   
-    //  z/  |          /  |              z⫽\\\\\\\\\\\\⫽ /⎹                 z/   ⎸          /  |              z/   ⎸ ->      /  |   
-    //  0============≡1   |       ->     0============1    ⎸                 1===╪---------*   ⎹      ->       1===╧==={1.33->4}⎹   
-    //  | ⟍ |y__⎼⎼‾‾  ⎸   ⎸              |   ║    ->  |    ⎸                 ║  y|‾‾‾⎼⎼⎼___|   ⎹             ᐱ ║╱╱╱╱╱╱╱╱╱╱╱╱║   |
-    //  |   2=--------┼---*              |   2--------┼----*                 ║   *---------╪=≡≡2             | ║╱╱╱╱╱╱╱╱╱╱╱╱╟---2    
-    //  |  /          |  /               |  /         |   /                  ║  /        _⎼┼‾ /                ║╱╱╱╱╱╱╱╱╱╱╱╱║| ⫽     
-    //  | /           | /                | /          |  /                   ║ /    __⎼‾‾  | /                 ║╱╱╱╱╱╱╱╱╱╱╱╱║v⫽      
-    //  |/            |/                 |/           | /                    ║/ _⎼⎼‾       |/                  ║╱╱╱╱╱╱╱╱╱╱╱╱║⫽       
-    //  *-------------* x                *------------* x                    0=‾-----------* x                 0======{2.5|1.66->3} x      
-    //                                                                                                               <-
-    //                                                                    
-    //                                             <-
-    // T17  *-------------*          {0.5|1.33->1}====={1.66->4}          T19     *--------------*                  *-------------*
-    //     /|            /|                ⩘⫽\\\\\\\\\\\\⫽⎸                     / ⎸            /|                 / ⎸           /⎹
-    //    / |           / |               /⫽\\\\\\\\\\\\⫽/⎸                    /  |           / |                /  ⎸          / ⎹
-    //  z/  |          /  |              z⫽\\\\\\\\\\\\⫽⩗ ⎸                  z/   ⎸          /  ⎸              z/   ⎸ <-      /  ⎹
-    //  0============≡2   |       ->     0=========={2->3}|                   2===╪---------*   |      ->     {2->3}╧==={1.66->4} |
-    //  | ⟍ |y__⎼⎼‾‾  ⎸   ⎸              |   ║    ->  |   |                   ║  y⎸‾‾‾⎼⎼⎼___|   |               ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║   |
-    //  |   1=--------┼---*              |{1->2}------┼---*                   ║   *---------╪=≡≡1             | ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍╟-{1->2}
-    //  |  /          |  /               |  /         |  /                    ║  /        _⎼┼‾ /              v ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║ᐱ ⫽
-    //  | /           | /                | /          | /                     ║ /    __⎼‾‾  | /                 ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║|⫽
-    //  |/            |/                 |/           |/                      ║/ _⎼⎼‾       |/                  ║⟍⟍⟍⟍⟍⟍⟍⟍⟍⟍║⫽
-    //  *-------------* x                *------------* x                     0=‾-----------* x                 0======{0.5|1.33->1} x
-    //                                         <-                                                                      ->
+    // Twenty groups, each holding one triangle. The ten distinct triangles
+    // are built from the eight corners of a cell block at relative
+    // coordinates 0.1/0.9, and each is duplicated with opposite orientation.
+    // Those offsets place the triangle edges close to the cell diagonals,
+    // exercising the diagonal staircasing paths.
+    //
+    // The expected coordinates and elements below are a snapshot of the
+    // current staircasing result for each orientation.
 
     float lowerCoordinateValue = -5.0;
     float upperCoordinateValue = 5.0;
@@ -1781,96 +1656,124 @@ TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
     mesh.groups[19].elements = { Element({0, 5, 4}, Element::Type::Surface) };
 
     Relatives expectedRelatives = {
-        Relative({ 1.0, 1.0, 1.0 }),    // 0
-        Relative({ 1.0, 1.0, 0.0 }),    // 1
-        Relative({ 1.0, 0.0, 0.0 }),    // 2
-        Relative({ 0.0, 0.0, 0.0 }),    // 3
-        Relative({ 0.0, 1.0, 0.0 }),    // 4
-        Relative({ 0.0, 1.0, 1.0 }),    // 5
-        Relative({ 1.0, 0.0, 1.0 }),    // 6
-        Relative({ 0.0, 0.0, 1.0 }),    // 7
+        Relative({ 0, 0, 0 }),
+        Relative({ 1, 0, 0 }),
+        Relative({ 1, 1, 0 }),
+        Relative({ 1, 1, 1 }),
+        Relative({ 0, 1, 0 }),
+        Relative({ 0, 1, 1 }),
+        Relative({ 1, 0, 1 }),
+        Relative({ 0, 0, 1 })
     };
 
     std::vector<Elements> expectedElements = {
         {
-            Element({1, 2, 3, 4}, Element::Type::Surface),
             Element({0, 1}, Element::Type::Line),
-        },
-        {
-            Element({2, 1, 4, 3}, Element::Type::Surface),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
             Element({1, 0}, Element::Type::Line),
         },
         {
-            Element({2, 3, 4, 1}, Element::Type::Surface),
-            Element({4, 5}, Element::Type::Line),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
+            Element({1, 0}, Element::Type::Line),
+            Element({0, 1}, Element::Type::Line),
         },
         {
-            Element({4, 3, 2, 1}, Element::Type::Surface),
-            Element({5, 4}, Element::Type::Line),
+            Element({1, 0, 4, 2}, Element::Type::Surface),
+            Element({4, 5, 3, 2}, Element::Type::Surface),
         },
         {
-            Element({2, 6, 0, 1}, Element::Type::Surface),
+            Element({5, 4, 2, 3}, Element::Type::Surface),
+            Element({4, 0, 1, 2}, Element::Type::Surface),
+        },
+        {
+            Element({1, 6, 3, 2}, Element::Type::Surface),
             Element({6, 7}, Element::Type::Line),
-        },
-        {
-            Element({2, 1, 0, 6}, Element::Type::Surface),
             Element({7, 6}, Element::Type::Line),
         },
         {
-            Element({0, 1, 2, 6}, Element::Type::Surface),
-            Element({5, 0}, Element::Type::Line),
+            Element({1, 2, 3, 6}, Element::Type::Surface),
+            Element({6, 7}, Element::Type::Line),
+            Element({7, 6}, Element::Type::Line),
         },
         {
-            Element({2, 1, 0, 6}, Element::Type::Surface),
-            Element({0, 5}, Element::Type::Line),
-        },
-        {
-            Element({1, 4, 5, 0}, Element::Type::Surface),
-            Element({6, 0}, Element::Type::Line),
-        },
-        {
-            Element({1, 0, 5, 4}, Element::Type::Surface),
-            Element({0, 6}, Element::Type::Line),
-        },
-        {
-            Element({1, 4, 5, 0}, Element::Type::Surface),
-            Element({5, 7}, Element::Type::Line),
-        },
-        {
-            Element({5, 4, 1, 0}, Element::Type::Surface),
-            Element({7, 5}, Element::Type::Line),
-        },
-        {
-            Element({3, 4, 1, 2}, Element::Type::Surface),
-            Element({6, 2}, Element::Type::Line),
-        },
-        {
-            Element({3, 2, 1, 4}, Element::Type::Surface),
-            Element({2, 6}, Element::Type::Line),
-        },
-        {
-            Element({4, 1, 2, 3}, Element::Type::Surface),
-            Element({1, 0}, Element::Type::Line),
-        },
-        {
-            Element({4, 3, 2, 1}, Element::Type::Surface),
-            Element({0, 1}, Element::Type::Line),
-        },
-        {
-            Element({7, 6, 0, 5}, Element::Type::Surface),
-            Element({4, 5}, Element::Type::Line),
-        },
-        {
-            Element({7, 5, 0, 6}, Element::Type::Surface),
-            Element({5, 4}, Element::Type::Line),
-        },
-        {
-            Element({3, 7, 6, 2}, Element::Type::Surface),
             Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 5}, Element::Type::Line),
+            Element({5, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+            Element({2, 1}, Element::Type::Line),
         },
         {
-            Element({3, 2, 6, 7}, Element::Type::Surface),
+            Element({1, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 5}, Element::Type::Line),
+            Element({5, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
             Element({2, 1}, Element::Type::Line),
+        },
+        {
+            Element({2, 4}, Element::Type::Line),
+            Element({4, 2}, Element::Type::Line),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 6}, Element::Type::Line),
+            Element({6, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+        },
+        {
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 6}, Element::Type::Line),
+            Element({6, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+            Element({2, 4}, Element::Type::Line),
+            Element({4, 2}, Element::Type::Line),
+        },
+        {
+            Element({2, 4, 5, 3}, Element::Type::Surface),
+            Element({5, 7, 6, 3}, Element::Type::Surface),
+        },
+        {
+            Element({2, 3, 5, 4}, Element::Type::Surface),
+            Element({3, 6, 7, 5}, Element::Type::Surface),
+        },
+        {
+            Element({0, 4, 2, 1}, Element::Type::Surface),
+            Element({2, 3, 6, 1}, Element::Type::Surface),
+        },
+        {
+            Element({0, 1, 2, 4}, Element::Type::Surface),
+            Element({1, 6, 3, 2}, Element::Type::Surface),
+        },
+        {
+            Element({4, 2, 1, 0}, Element::Type::Surface),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+        },
+        {
+            Element({4, 0, 1, 2}, Element::Type::Surface),
+            Element({2, 3}, Element::Type::Line),
+            Element({3, 2}, Element::Type::Line),
+        },
+        {
+            Element({7, 6, 3, 5}, Element::Type::Surface),
+            Element({3, 2, 4, 5}, Element::Type::Surface),
+        },
+        {
+            Element({7, 5, 3, 6}, Element::Type::Surface),
+            Element({5, 4, 2, 3}, Element::Type::Surface),
+        },
+        {
+            Element({0, 7, 6, 1}, Element::Type::Surface),
+            Element({6, 3, 2, 1}, Element::Type::Surface),
+        },
+        {
+            Element({0, 1, 6, 7}, Element::Type::Surface),
+            Element({1, 2, 3, 6}, Element::Type::Surface),
         },
     };
 
@@ -1879,71 +1782,24 @@ TEST_F(StaircaserTest, transformTriangleWithEquidistantEdges)
     ASSERT_EQ(resultMesh.coordinates.size(), expectedRelatives.size());
     ASSERT_EQ(resultMesh.groups.size(), expectedElements.size());
 
-    EXPECT_EQ(resultMesh.groups[0].elements.size(), 2);
-    EXPECT_EQ(resultMesh.groups[1].elements.size(), 2);
-    EXPECT_EQ(resultMesh.groups[2].elements.size(), 2);
-
     for (std::size_t i = 0; i < expectedRelatives.size(); ++i) {
         for (std::size_t axis = 0; axis < 3; ++axis) {
             EXPECT_EQ(resultMesh.coordinates[i][axis], expectedRelatives[i][axis]);
         }
     }
 
-
-    EXPECT_TRUE(resultMesh.groups[0].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[0].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[1].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[1].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[2].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[2].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[3].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[3].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[4].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[4].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[5].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[5].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[6].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[6].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[7].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[7].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[8].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[8].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[9].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[9].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[10].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[10].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[11].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[11].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[12].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[12].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[13].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[13].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[14].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[14].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[15].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[15].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[16].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[16].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[17].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[17].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[18].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[18].elements[1].isLine());
-    EXPECT_TRUE(resultMesh.groups[19].elements[0].isQuad());
-    EXPECT_TRUE(resultMesh.groups[19].elements[1].isLine());
-
-
     for (std::size_t g = 0; g < expectedElements.size(); ++g) {
-        auto& resultGroup = resultMesh.groups[g];
-        auto& expectedGroup = expectedElements[g];
+        const auto& resultGroup = resultMesh.groups[g];
+        const auto& expectedGroup = expectedElements[g];
 
+        ASSERT_EQ(resultGroup.elements.size(), expectedGroup.size());
 
         for (std::size_t e = 0; e < expectedGroup.size(); ++e) {
-            auto& resultElement = resultGroup.elements[e];
-            auto& expectedElement = expectedGroup[e];
+            const auto& resultElement = resultGroup.elements[e];
+            const auto& expectedElement = expectedGroup[e];
 
-            for (std::size_t v = 0; v < expectedElement.vertices.size(); ++v) {
-                EXPECT_EQ(resultElement.vertices[v], expectedElement.vertices[v]);
-            }
+            EXPECT_EQ(resultElement.type, expectedElement.type);
+            EXPECT_EQ(resultElement.vertices, expectedElement.vertices);
         }
     }
 }
