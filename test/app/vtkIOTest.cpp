@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <map>
+#include <stdexcept>
 
 using namespace meshlib::vtkIO;
 
@@ -215,4 +216,24 @@ TEST_F(VTKIOTest, exportGridToVTU)
     auto exported{ readInputMesh(fn) };
 
     EXPECT_EQ(121+121+21, exported.countElems());
+}
+
+TEST_F(VTKIOTest, missingFileThrows)
+{
+    EXPECT_THROW(
+        readInputMesh("testData/cases/vtkio_file_that_does_not_exist.stl"),
+        std::runtime_error);
+}
+
+TEST_F(VTKIOTest, fileWithoutMeshDataThrows)
+{
+    const auto filename = std::filesystem::temp_directory_path()
+        / "tessellator_empty_input.stl";
+    {
+        std::ofstream stream(filename);
+    }
+
+    EXPECT_THROW(readInputMesh(filename), std::runtime_error);
+
+    std::filesystem::remove(filename);
 }
