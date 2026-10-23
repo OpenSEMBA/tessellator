@@ -72,6 +72,9 @@ The main binary is `tessellator`, which uses a tessellator json format, which wi
     tessellator -i MESH_NAME.tessellator.json
 ```
 
+While meshing, the launcher logs the group being meshed, the time spent on each
+staircase-mesher stage, and a final timing summary per object.
+
 ## JSON Format
 The main entries are as follows:
 
@@ -148,6 +151,7 @@ This optional entry configures the meshing algorithm and its options. If not spe
 For **staircase** mesher:
 - `compress`: (boolean, default: true) Merges compatible adjacent surfaces and lines to minimize exported element counts
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
+- `decimalPlacesInCollapser`: (non-negative integer, default: `4`) Number of decimal places used when collapsing nearby vertices after slicing
 
 For **conformal** mesher:
 - `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced

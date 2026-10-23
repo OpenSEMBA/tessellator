@@ -14,10 +14,34 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 
 using namespace meshlib::app;
 
 namespace {
+
+class StderrCapture
+{
+public:
+    StderrCapture() : previous_(std::cerr.rdbuf(buffer_.rdbuf())) {}
+    ~StderrCapture() { std::cerr.rdbuf(previous_); }
+
+    std::string str() const { return buffer_.str(); }
+
+private:
+    std::ostringstream buffer_;
+    std::streambuf* previous_;
+};
+
+int callLauncher(const std::string& input, std::string& error)
+{
+    const char* arguments[] = {nullptr, "-i", input.c_str()};
+    StderrCapture capture;
+    const int exitCode = launcher(3, arguments);
+    error = capture.str();
+    return exitCode;
+}
 
 bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
 {
@@ -123,6 +147,7 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
+    EXPECT_EQ(options.decimalPlacesInCollapser, 4);
 }
 
 TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
@@ -146,6 +171,48 @@ TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
         dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
 
     EXPECT_TRUE(staircase.getOptions().splitHexahedra);
+}
+
+TEST_F(LauncherTest, buildsStaircasedMesherWithDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"decimalPlacesInCollapser", 2}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+
+    EXPECT_EQ(staircase.getOptions().decimalPlacesInCollapser, 2);
+}
+
+TEST_F(LauncherTest, rejectsInvalidStaircaseDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    ObjectDefinition object;
+
+    for (const nlohmann::json& decimalPlaces : {
+            nlohmann::json(true), nlohmann::json(1.0), nlohmann::json(-1)}) {
+        const nlohmann::json config = {
+            {"mesher", {{"type", "staircase"}, {"options", {{"decimalPlacesInCollapser", decimalPlaces}}}}}
+        };
+        EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+    }
 }
 
 TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
@@ -731,11 +798,74 @@ TEST_F(LauncherTest, rejectsDuplicateGroupNamesInSingleFileOutput)
         stream << config;
     }
     const std::string inputString = input.string();
-    const char* av[] = {nullptr, "-i", inputString.c_str()};
-
-    EXPECT_THROW(launcher(3, av), std::runtime_error);
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("duplicate group"), std::string::npos);
 
     std::filesystem::remove(input);
+}
+
+TEST_F(LauncherTest, missingInputFileReturnsError)
+{
+    const auto input = std::filesystem::temp_directory_path()
+        / "tessellator_missing_input.tessellator.json";
+    std::filesystem::remove(input);
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Input file not found"), std::string::npos);
+    EXPECT_NE(error.find(inputString), std::string::npos);
+}
+
+TEST_F(LauncherTest, malformedInputFileReturnsError)
+{
+    const auto input = std::filesystem::temp_directory_path()
+        / "tessellator_malformed_input.tessellator.json";
+    {
+        std::ofstream stream(input);
+        stream << "{ this is not valid JSON";
+    }
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Could not parse input file"), std::string::npos);
+    EXPECT_NE(error.find(inputString), std::string::npos);
+
+    std::filesystem::remove(input);
+}
+
+TEST_F(LauncherTest, missingObjectFileReturnsError)
+{
+    const auto directory = std::filesystem::temp_directory_path()
+        / "tessellator_missing_object";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+
+    const auto input = directory / "missing.tessellator.json";
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {2, 2, 2}},
+            {"boundingBox", {{0, 0, 0}, {1, 1, 1}}}
+        }},
+        {"objects", {
+            {{"filename", "does_not_exist.stl"}, {"group", "missing"}}
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    std::string error;
+    EXPECT_EQ(callLauncher(input.string(), error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Object file not found"), std::string::npos);
+    EXPECT_NE(error.find("does_not_exist.stl"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(directory / "missing.tessellator.str.vtk"));
+    EXPECT_FALSE(std::filesystem::exists(directory / "missing.tessellator.grid.vtk"));
+
+    std::filesystem::remove_all(directory);
 }
 
 TEST_F(LauncherTest, launches_multiObject_mixedMesher)

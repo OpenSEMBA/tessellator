@@ -8,6 +8,7 @@ class StaircaseMesherOptions : public MesherBaseOptions {
 public:
     bool compress = true;
     bool splitHexahedra = false;
+    int decimalPlacesInCollapser = 4;
 };
 
 }
