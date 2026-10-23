@@ -10,7 +10,5 @@ inline constexpr std::string_view gitCommit = "@TESSELLATOR_GIT_COMMIT_ESCAPED@"
 inline constexpr std::string_view compiler = "@TESSELLATOR_COMPILER_ESCAPED@";
 inline constexpr std::string_view buildType = "@TESSELLATOR_BUILD_TYPE_ESCAPED@";
 inline constexpr std::string_view compilationFlags = "@TESSELLATOR_COMPILATION_FLAGS_ESCAPED@";
-inline constexpr std::string_view compilationFlagsDebug = "@TESSELLATOR_COMPILATION_FLAGS_DEBUG_ESCAPED@";
-inline constexpr std::string_view compilationFlagsRelease = "@TESSELLATOR_COMPILATION_FLAGS_RELEASE_ESCAPED@";
 
 } // namespace meshlib::app::buildInfo

@@ -6,11 +6,12 @@
 #include <array>
 #include <cmath>
 #include <map>
-#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
+
+#include "utils/FlatHashMap.h"
 
 namespace meshlib::core {
 
@@ -19,7 +20,19 @@ using namespace utils;
 namespace {
 
 using Ray = std::array<CellDir, 2>;
-using Rays = std::array<std::map<Ray, std::multiset<CellDir>>, 3>;
+using Rays = std::array<std::map<Ray, std::vector<CellDir>>, 3>;
+
+struct CellHash {
+    std::size_t operator()(const Cell& cell) const noexcept {
+        std::size_t h = 0;
+        for (Axis axis : {X, Y, Z}) {
+            h ^= std::hash<CellDir>{}(cell[axis]) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
+        return h;
+    }
+};
+
+using CellCoordinateMap = FlatHashMap<Cell, CoordinateId, CellHash>;
 
 Cell coordinateCell(const Coordinate& coordinate, const GridTools& tools)
 {
@@ -84,13 +97,12 @@ std::pair<Axis, Cell> quadSurfel(
 
 CoordinateId findOrAddCoordinate(
     Mesh& mesh,
-    std::map<Cell, CoordinateId>& coordinateIds,
+    CellCoordinateMap& coordinateIds,
     const Cell& cell,
     const GridTools& tools)
 {
-    const auto found = coordinateIds.find(cell);
-    if (found != coordinateIds.end()) {
-        return found->second;
+    if (const CoordinateId* found = coordinateIds.find(cell)) {
+        return *found;
     }
     const CoordinateId id = mesh.coordinates.size();
     mesh.coordinates.push_back(tools.getPos(GridTools::toRelative(cell)));
@@ -100,7 +112,7 @@ CoordinateId findOrAddCoordinate(
 
 Element buildHexahedron(
     Mesh& mesh,
-    std::map<Cell, CoordinateId>& coordinateIds,
+    CellCoordinateMap& coordinateIds,
     const Cell& lower,
     const Cell& upper,
     const GridTools& tools)
@@ -134,7 +146,8 @@ VolumeFiller::VolumeFiller(
     mesh_.grid = staircasedSurface.grid;
     mesh_.coordinates = staircasedSurface.coordinates;
     mesh_.groups.resize(staircasedSurface.groups.size());
-    std::map<Cell, CoordinateId> coordinateIds;
+    CellCoordinateMap coordinateIds;
+    coordinateIds.reserve(staircasedSurface.coordinates.size() * 2);
     for (CoordinateId id = 0; id < staircasedSurface.coordinates.size(); ++id) {
         coordinateIds.emplace(
             coordinateCell(staircasedSurface.coordinates[id], *this), id);
@@ -158,7 +171,12 @@ VolumeFiller::VolumeFiller(
             std::tie(axis, surfel) = quadSurfel(element, staircasedSurface.coordinates, *this);
             const Axis axis1 = (axis + 1) % 3;
             const Axis axis2 = (axis + 2) % 3;
-            rays[axis][{surfel[axis1], surfel[axis2]}].insert(surfel[axis]);
+            rays[axis][{surfel[axis1], surfel[axis2]}].push_back(surfel[axis]);
+        }
+        for (Axis axis : {X, Y, Z}) {
+            for (auto& ray : rays[axis]) {
+                std::sort(ray.second.begin(), ray.second.end());
+            }
         }
 
         Axis fillAxis = X;
@@ -169,6 +187,26 @@ VolumeFiller::VolumeFiller(
         }
         const Axis axis1 = (fillAxis + 1) % 3;
         const Axis axis2 = (fillAxis + 2) % 3;
+
+        std::size_t expectedHexahedra = 0;
+        for (const auto& ray : rays[fillAxis]) {
+            const auto& crossings = ray.second;
+            if (crossings.size() % 2 != 0) {
+                continue;
+            }
+            for (std::size_t crossing = 0; crossing < crossings.size(); crossing += 2) {
+                const CellDir begin = crossings[crossing];
+                const CellDir end = crossings[crossing + 1];
+                if (begin == end) {
+                    continue;
+                }
+                expectedHexahedra += splitHexahedra
+                    ? static_cast<std::size_t>(end - begin)
+                    : 1;
+            }
+        }
+        outputGroup.elements.reserve(outputGroup.elements.size() + expectedHexahedra);
+
         for (const auto& ray : rays[fillAxis]) {
             const auto& crossings = ray.second;
             if (crossings.size() % 2 != 0) {

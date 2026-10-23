@@ -1,6 +1,9 @@
 #include "StaircaseMesher.h"
 
+#include <chrono>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 #include <cstdint>
 #include <tuple>
@@ -15,12 +18,69 @@
 #include "utils/RedundancyCleaner.h"
 #include "utils/MeshTools.h"
 #include "utils/GridTools.h"
+#include "utils/FlatHashMap.h"
 
 namespace meshlib::meshers {
 
 using namespace utils;
 using namespace core;
 using namespace meshTools;
+
+namespace {
+
+using PhaseClock = std::chrono::steady_clock;
+
+double elapsedSeconds(PhaseClock::time_point start)
+{
+    return std::chrono::duration<double>(PhaseClock::now() - start).count();
+}
+
+std::string formatSeconds(double seconds)
+{
+    std::ostringstream output;
+    output << std::fixed << std::setprecision(3) << seconds << " s";
+    return output.str();
+}
+
+std::string describeGroups(const Groups& groups)
+{
+    if (groups.empty()) {
+        return "<none>";
+    }
+    std::ostringstream output;
+    for (std::size_t i = 0; i < groups.size(); ++i) {
+        if (i > 0) {
+            output << ", ";
+        }
+        output << (groups[i].name.empty()
+            ? "<unnamed " + std::to_string(i) + ">"
+            : groups[i].name);
+    }
+    return output.str();
+}
+
+}
+
+void StaircaseMesher::addTiming(
+    const std::string& phase,
+    const std::string& description,
+    double seconds,
+    std::size_t level) const
+{
+    timings_.push_back({phase, seconds});
+    log(description + " (" + formatSeconds(seconds) + ")", level);
+}
+
+void StaircaseMesher::logTimings() const
+{
+    double total = 0.0;
+    log("Timings.", 0);
+    for (const auto& timing : timings_) {
+        total += timing.seconds;
+        log(timing.phase + ": " + formatSeconds(timing.seconds), 1);
+    }
+    log("Total: " + formatSeconds(total), 0);
+}
 
 std::vector<std::string> getGroupNames(const Groups& groups);
 void copyGroupNames(Mesh& mesh, const std::vector<std::string>& names);
@@ -71,9 +131,8 @@ bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance)
 
   std::vector<CoordinateId> old_to_new_coordinate_id(num_coordinates);
 
-  // Unordered map for O(1) expected average lookup
-  std::unordered_map<GridKey,CoordinateId,GridKeyHash> unique_coordinates;
-  unique_coordinates.reserve(num_coordinates);
+  // Flat hash map for fast, allocation-free lookups
+  utils::FlatHashMap<GridKey,CoordinateId,GridKeyHash> unique_coordinates(num_coordinates);
 
   std::vector<Coordinate> collapsed_coordinates;
   collapsed_coordinates.reserve(num_coordinates);
@@ -82,15 +141,14 @@ bool StaircaseMesher::collapse_nodes(Mesh& z_output_mesh,const double tolerance)
     const auto& coordinate=z_output_mesh.coordinates[i_coordinate];
     GridKey key=make_key(coordinate);
 
-    // Single lookup and insertion step using try_emplace (C++17)
     const CoordinateId next_id=static_cast<CoordinateId>(collapsed_coordinates.size());
-    auto [it,inserted]=unique_coordinates.try_emplace(key,next_id);
+    auto [it,inserted]=unique_coordinates.emplace(key,next_id);
 
     if(inserted) {
       old_to_new_coordinate_id[i_coordinate]=next_id;
       collapsed_coordinates.push_back(coordinate);
     } else {
-      old_to_new_coordinate_id[i_coordinate]=it->second;
+      old_to_new_coordinate_id[i_coordinate]=*it;
     }
   }
 
@@ -122,30 +180,43 @@ StaircaseMesher::StaircaseMesher(const Mesh& inputMesh, StaircaseMesherOptions o
     MesherBase(inputMesh),
     opts_(opts)
 {
-    log("Preparing surfaces.");
+    log(std::string("Meshing ") + (inputMesh.groups.size() == 1 ? "group: " : "groups: ")
+        + describeGroups(inputMesh.groups), 0);
+
+    auto phaseStart = PhaseClock::now();
     surfaceMesh_ = MesherBase::buildSurfaceMesh(inputMesh, opts_.volumeGroups);
-    log("Processing surface mesh.");
-    process(surfaceMesh_);
+    addTiming("buildSurfaceMesh", "Preparing surfaces.", elapsedSeconds(phaseStart), 0);
 
-    log("Preparing volumes");
+    process(surfaceMesh_, opts_.compress, "surface");
+
+    phaseStart = PhaseClock::now();
     volumeMesh_ = MesherBase::buildVolumeMesh(inputMesh, opts_.volumeGroups);
-    if (!volumeMesh_.emptyOfElements()) {
-        volumeMesh_ = VolumeShellExtractor(volumeMesh_).getMesh();
+    addTiming("buildVolumeMesh", "Preparing volumes.", elapsedSeconds(phaseStart), 0);
 
-        log("Processing volume shell.");
-        process(volumeMesh_, false);
-        log("Filling volume shell with hexahedra.");
+    if (!volumeMesh_.emptyOfElements()) {
+        phaseStart = PhaseClock::now();
+        volumeMesh_ = VolumeShellExtractor(volumeMesh_).getMesh();
+        addTiming("volumeShellExtractor", "Extracting volume shell.", elapsedSeconds(phaseStart), 0);
+
+        process(volumeMesh_, false, "volumeShell");
+
+        phaseStart = PhaseClock::now();
         volumeMesh_ = VolumeFiller(volumeMesh_, opts_.splitHexahedra).getMesh();
+        addTiming("volumeFiller", "Filling volume shell with hexahedra.", elapsedSeconds(phaseStart), 0);
         logNumberOfHexahedra(countMeshElementsIf(volumeMesh_, isHexahedron));
     }
 
+    phaseStart = PhaseClock::now();
     mergeMesh(surfaceMesh_, volumeMesh_);
     RedundancyCleaner::cleanCoords(surfaceMesh_);
+    addTiming("mergeAndClean", "Merging and cleaning.", elapsedSeconds(phaseStart), 0);
 
-    log("collapsing nodes");
+    phaseStart = PhaseClock::now();
     collapse_nodes(surfaceMesh_,1e-8);
-    
-    log("Mesh built succesfully.", 1);
+    addTiming("collapseNodes", "Collapsing nodes.", elapsedSeconds(phaseStart), 0);
+
+    logTimings();
+    log("Mesh built successfully.", 1);
 }
 
 Mesh StaircaseMesher::buildSurfaceMesh(const Mesh& inputMesh, const Mesh & volumeSurface)
@@ -180,11 +251,17 @@ static Mesh toAbsolute(const Mesh& m)
 
 void StaircaseMesher::process(Mesh& mesh) const
 {
-    process(mesh, opts_.compress);
+    process(mesh, opts_.compress, "mesh");
 }
 
 void StaircaseMesher::process(Mesh& mesh, bool compress) const
 {
+    process(mesh, compress, "mesh");
+}
+
+void StaircaseMesher::process(Mesh& mesh, bool compress, const std::string& label) const
+{
+    const std::string prefix = label.empty() ? std::string() : label + ".";
     const auto groupNames = getGroupNames(mesh.groups);
     const auto slicingGrid{ buildSlicingGrid(originalGrid_, enlargedGrid_) };
     if (mesh.countElems() == 0) {
@@ -192,54 +269,61 @@ void StaircaseMesher::process(Mesh& mesh, bool compress) const
         return;
     }
 
-    auto dimensions = getHighestDimensionByGroup(mesh);
+    log("Processing " + label + " groups: " + describeGroups(mesh.groups) + ".", 0);
 
-    log("Slicing.", 1);
+    auto dimensions = getHighestDimensionByGroup(mesh);
+    auto phaseStart = PhaseClock::now();
+
     mesh.grid = slicingGrid;
     mesh = Slicer{ mesh, dimensions }.getMesh();
+    addTiming(prefix + "slicing", "Slicing.", elapsedSeconds(phaseStart));
     
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
 
-    log("Collapsing.", 1);
+    phaseStart = PhaseClock::now();
     mesh = Collapser(mesh, opts_.decimalPlacesInCollapser, dimensions).getMesh();
+    addTiming(prefix + "collapsing", "Collapsing.", elapsedSeconds(phaseStart));
 
     logNumberOfTriangles(countMeshElementsIf(mesh, isTriangle));
     
-    log("Staircasing.", 1);
+    phaseStart = PhaseClock::now();
     mesh = Staircaser(mesh).getMesh();
+    addTiming(prefix + "staircasing", "Staircasing.", elapsedSeconds(phaseStart));
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
-    log("Removing repeated and overlapping elements.", 1);   
+    phaseStart = PhaseClock::now();
     RedundancyCleaner::removeOverlappedElementsByDimension(mesh, dimensions);
+    addTiming(prefix + "removeOverlapped", "Removing repeated and overlapping elements.", elapsedSeconds(phaseStart));
 
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));
 
     if (compress) {
-        log("Compressing surfaces.", 1);
+        phaseStart = PhaseClock::now();
         std::size_t beforeQuads = countMeshElementsIf(mesh, isQuad);
         std::size_t merged = Compressor::compressSurfacesInMesh(mesh);
         std::size_t afterQuads = countMeshElementsIf(mesh, isQuad);
+        addTiming(prefix + "compressSurfaces", "Compressing surfaces.", elapsedSeconds(phaseStart));
         log("Compressed " + std::to_string(beforeQuads) + 
             " -> " + std::to_string(afterQuads) + 
             " quads (merged " + std::to_string(merged) + " surfaces)", 1);
         
-        log("Compressing lines.", 1);
+        phaseStart = PhaseClock::now();
         std::size_t beforeLines = countMeshElementsIf(mesh, isLine);
         merged = Compressor::compressLinesInMesh(mesh, dimensions);
         std::size_t afterLines = countMeshElementsIf(mesh, isLine);
+        addTiming(prefix + "compressLines", "Compressing lines.", elapsedSeconds(phaseStart));
         log("Compressed " + std::to_string(beforeLines) + 
             " -> " + std::to_string(afterLines) + 
             " lines (merged " + std::to_string(merged) + " segments)", 1);
     }
     
-    log("Recovering original grid size.", 1);
+    phaseStart = PhaseClock::now();
     reduceGrid(mesh, originalGrid_);
-
-    log("Converting relative to absolute coordinates.", 1);
     utils::meshTools::convertToAbsoluteCoordinates(mesh);
+    addTiming(prefix + "reduceGridAndToAbsolute", "Recovering original grid size.", elapsedSeconds(phaseStart));
     
     logNumberOfQuads(countMeshElementsIf(mesh, isQuad));
     logNumberOfLines(countMeshElementsIf(mesh, isLine));

@@ -94,6 +94,11 @@ vtkSmartPointer<vtkUnstructuredGrid> readAsVTU(const std::filesystem::path& file
     } else {
         throw std::runtime_error("Unsupported file format");
     }
+
+    if (!vtu || vtu->GetNumberOfPoints() == 0) {
+        throw std::runtime_error("No mesh data could be read from file: " + fn);
+    }
+
     return vtu;
 }
 
