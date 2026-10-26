@@ -1315,6 +1315,31 @@ TEST_F(LauncherTest, parsesThinSlotModeAndPerimeterOption)
         staircase.getOptions().thinSlotMode,
         meshlib::meshers::ThinSlotMode::Surface);
     EXPECT_TRUE(staircase.getOptions().thinSlotAllowOnSurfacePerimeter);
+    EXPECT_FALSE(staircase.getOptions().thinSlotIsExplicit);
+}
+
+TEST_F(LauncherTest, objectOverrideMarksThinSlotAsExplicit)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = nlohmann::json::object();
+
+    ObjectDefinition object;
+    object.mesherOverride = {
+        {"type", "staircase"},
+        {"options", {{"thinSlot", "line"}}}
+    };
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_EQ(
+        staircase.getOptions().thinSlotMode,
+        meshlib::meshers::ThinSlotMode::Line);
+    EXPECT_TRUE(staircase.getOptions().thinSlotIsExplicit);
 }
 
 TEST_F(LauncherTest, rejectsInvalidThinSlotMode)
@@ -1501,4 +1526,43 @@ TEST_F(LauncherTest, globalThinSlotOptionSkipsHostSurfaceObjects)
         "squareInSquare.thinSlotLine.global.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, globalThinSlotOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/thinSlot/volume/"
+        "globalWithVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, explicitThinSlotOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/thinSlot/volume/"
+        "explicitVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, globalThinSlotOptionSkipsGhostLineObjects)
+{
+    const std::string input =
+        "testData/cases/thinSlot/volume/"
+        "globalGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, explicitThinSlotOptionFailsOnGhostLineObject)
+{
+    const std::string input =
+        "testData/cases/thinSlot/volume/"
+        "explicitGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a ghost object"), std::string::npos);
 }

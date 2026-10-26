@@ -192,6 +192,8 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
             res.decimalPlacesInCollapser = decimalPlaces.get<int>();
         }
         readThinSlotOptions(options, res);
+        res.thinSlotIsExplicit = override.has_value()
+            && res.thinSlotMode != meshlib::meshers::ThinSlotMode::None;
     }
 
     return res;
@@ -473,6 +475,7 @@ int launcher(int argc, const char* argv[])
             meshlib::meshers::ThinSlotMode thinSlotMode =
                 meshlib::meshers::ThinSlotMode::None;
             bool thinSlotAllowOnSurfacePerimeter = false;
+            bool thinSlotIsExplicit = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
@@ -484,6 +487,7 @@ int launcher(int argc, const char* argv[])
                 thinSlotMode = staircaseOptions.thinSlotMode;
                 thinSlotAllowOnSurfacePerimeter =
                     staircaseOptions.thinSlotAllowOnSurfacePerimeter;
+                thinSlotIsExplicit = staircaseOptions.thinSlotIsExplicit;
             }
             meshedObjects.push_back({
                 objDef,
@@ -492,6 +496,7 @@ int launcher(int argc, const char* argv[])
                 compress,
                 thinSlotMode,
                 thinSlotAllowOnSurfacePerimeter,
+                thinSlotIsExplicit,
                 std::move(resultMesh)
             });
         }

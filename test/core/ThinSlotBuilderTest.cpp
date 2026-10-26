@@ -98,6 +98,47 @@ std::size_t countQuads(const Mesh& mesh)
         mesh, [](const Element& element) { return element.isQuad(); });
 }
 
+std::size_t maximumSelectedQuadDegree(const Mesh& mesh)
+{
+    std::vector<const Element*> quads;
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            if (element.isQuad()) {
+                quads.push_back(&element);
+            }
+        }
+    }
+
+    std::map<std::pair<CoordinateId, CoordinateId>, std::vector<std::size_t>> edgeQuads;
+    for (std::size_t quadId = 0; quadId < quads.size(); ++quadId) {
+        for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+            CoordinateId first = quads[quadId]->vertices[vertex];
+            CoordinateId second = quads[quadId]->vertices[(vertex + 1) % 4];
+            if (second < first) {
+                std::swap(first, second);
+            }
+            edgeQuads[{ first, second }].push_back(quadId);
+        }
+    }
+
+    std::vector<std::set<std::size_t>> adjacency(quads.size());
+    for (const auto& entry : edgeQuads) {
+        const auto& ids = entry.second;
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            for (std::size_t j = i + 1; j < ids.size(); ++j) {
+                adjacency[ids[i]].insert(ids[j]);
+                adjacency[ids[j]].insert(ids[i]);
+            }
+        }
+    }
+
+    std::size_t maximum = 0;
+    for (const auto& neighbours : adjacency) {
+        maximum = std::max(maximum, neighbours.size());
+    }
+    return maximum;
+}
+
 std::size_t countSelectedQuadsAtVertex(const Mesh& mesh)
 {
     std::map<std::array<double, 3>, std::size_t> uses;
@@ -239,6 +280,7 @@ TEST_F(ThinSlotBuilderTest, buildsOneQuadWideStripAlongInternalEdge)
     const Mesh strip = ThinSlotBuilder::buildSurfaceStrip(cellAligned, components);
     EXPECT_EQ(3u, countQuads(strip));
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
+    EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
 }
 
 TEST_F(ThinSlotBuilderTest, buildsContinuousStripAroundTurn)
@@ -256,6 +298,54 @@ TEST_F(ThinSlotBuilderTest, buildsContinuousStripAroundTurn)
     const Mesh strip = ThinSlotBuilder::buildSurfaceStrip(cellAligned, components);
     EXPECT_GT(countQuads(strip), 0u);
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
+    EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
+}
+
+TEST_F(ThinSlotBuilderTest, deduplicatesSameDirectionSegments)
+{
+    const Mesh line = makeLine({
+        { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) },
+        { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) },
+        { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) }
+    });
+
+    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    ASSERT_EQ(1u, components.size());
+    EXPECT_EQ(1u, components.front().size());
+    EXPECT_EQ(Cell({ 0, 0, 0 }), components.front().front()[0]);
+    EXPECT_EQ(Cell({ 1, 0, 0 }), components.front().front()[1]);
+}
+
+TEST_F(ThinSlotBuilderTest, cancelsOppositeSegments)
+{
+    const Mesh line = makeLine({
+        { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) },
+        { Cell({ 1, 0, 0 }), Cell({ 0, 0, 0 }) }
+    });
+
+    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    EXPECT_TRUE(components.empty());
+}
+
+TEST_F(ThinSlotBuilderTest, overlappingHostFacesDoNotHideSurfacePerimeter)
+{
+    const Mesh host = makeSurface({
+        unitQuad(0, 0),
+        unitQuad(0, 0)
+    });
+    const Mesh line = makeLine({ {
+        Cell({ 0, 0, 0 }),
+        Cell({ 0, 1, 0 })
+    } });
+
+    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
+
+    EXPECT_THROW(
+        ThinSlotBuilder::validateEmbedding(cellAligned, components, false),
+        std::runtime_error);
+    EXPECT_NO_THROW(
+        ThinSlotBuilder::validateEmbedding(cellAligned, components, true));
 }
 
 TEST_F(ThinSlotBuilderTest, rejectsBranchingLine)

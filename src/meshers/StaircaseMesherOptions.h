@@ -18,6 +18,7 @@ public:
     // JSON: "thinSlot": "line" | "surface".
     ThinSlotMode thinSlotMode = ThinSlotMode::None;
     bool thinSlotAllowOnSurfacePerimeter = false;
+    bool thinSlotIsExplicit = false;
 };
 
 }

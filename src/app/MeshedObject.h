@@ -17,6 +17,7 @@ struct MeshedObject {
     meshlib::meshers::ThinSlotMode thinSlotMode =
         meshlib::meshers::ThinSlotMode::None;
     bool thinSlotAllowOnSurfacePerimeter = false;
+    bool thinSlotIsExplicit = false;
     Mesh mesh;
 };
 

@@ -155,7 +155,7 @@ For **staircase** mesher:
 - `thinSlot`: (optional string, default: unset) Enables thin-slot processing for a line object. Use `"line"` to keep the line output and require it to be embedded in a staircase surface, or `"surface"` to replace the line with a continuous one-quad-wide strip of surface quads. The line must lie on a non-ghost staircase surface object. Invalid values and lines that cannot be embedded produce an error.
 - `thinSlotAllowOnSurfacePerimeter`: (boolean, default: `false`) When false, a thin-slot line running along the perimeter of its host surface produces an error. Set to true to allow it.
 
-Thin-slot options can be set in the global `mesher.options` block or overridden per object. They only apply to staircase line objects. Compressed host surfaces are supported: the line and strip are checked against the underlying cell-aligned surface without modifying the host output. Example:
+Thin-slot options can be set in the global `mesher.options` block or overridden per object. They only apply to staircase line objects. Thin slots cannot be applied to volume objects: a global `thinSlot` option therefore fails if the input contains any volume object, so use a per-object override when only some objects are slots. An inherited global option is ignored for ghost objects; explicitly setting `thinSlot` on a ghost line object remains an error. Compressed host surfaces are supported: the line and strip are checked against the underlying cell-aligned surface without modifying the host output. Example:
 
 ```json
   "objects": [

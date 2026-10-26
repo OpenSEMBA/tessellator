@@ -93,21 +93,30 @@ bool elementBounds(
 
 std::map<EdgeKey, std::size_t> buildEdgeFaceCounts(const Mesh& mesh)
 {
-    std::map<EdgeKey, std::size_t> counts;
+    std::map<EdgeKey, std::set<std::vector<CoordinateId>>> facesByEdge;
     for (const Group& group : mesh.groups) {
         for (const Element& element : group.elements) {
             if (!element.isTriangle() && !element.isQuad()) {
                 continue;
             }
+
+            std::vector<CoordinateId> face = element.vertices;
+            std::sort(face.begin(), face.end());
+
             for (std::size_t vertex = 0;
                  vertex < element.vertices.size();
                  ++vertex) {
                 const CoordinateId first = element.vertices[vertex];
                 const CoordinateId second = element.vertices[
                     (vertex + 1) % element.vertices.size()];
-                ++counts[edgeKey(first, second)];
+                facesByEdge[edgeKey(first, second)].insert(face);
             }
         }
+    }
+
+    std::map<EdgeKey, std::size_t> counts;
+    for (const auto& entry : facesByEdge) {
+        counts.emplace(entry.first, entry.second.size());
     }
     return counts;
 }
@@ -169,6 +178,9 @@ Transition findTransition(
         return {};
     }
 
+    // Both sides of an interior line can be valid. Ties are resolved by the
+    // host element id, so the chosen side is deterministic for a given host
+    // mesh but depends on the host element ordering.
     for (const ElementId candidate : firstIt->second) {
         if (candidate == first || candidate == second) {
             continue;
@@ -349,8 +361,8 @@ std::vector<ElementId> solveComponent(
 ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
     const Mesh& lineMesh)
 {
-    std::map<std::array<Cell, 2>, int> occurrences;
-    std::vector<Segment> allSegments;
+    std::map<std::array<Cell, 2>, int> directedOccurrences;
+    std::set<std::array<Cell, 2>> canonicalEdges;
 
     for (const Group& group : lineMesh.groups) {
         for (const Element& element : group.elements) {
@@ -384,29 +396,32 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
                 Cell next = current;
                 next[axis] += step;
                 const Segment segment{ current, next };
+                ++directedOccurrences[{ segment[0], segment[1] }];
                 std::array<Cell, 2> key{ segment[0], segment[1] };
                 if (key[1] < key[0]) {
                     std::swap(key[0], key[1]);
                 }
-                ++occurrences[key];
-                allSegments.push_back(segment);
+                canonicalEdges.insert(key);
                 current = next;
             }
         }
     }
 
     std::vector<Segment> segments;
-    segments.reserve(allSegments.size());
-    for (const Segment& segment : allSegments) {
-        std::array<Cell, 2> key{ segment[0], segment[1] };
-        if (key[1] < key[0]) {
-            std::swap(key[0], key[1]);
-        }
-        // Paired opposite segments are staircase backtracks (for example a
+    segments.reserve(canonicalEdges.size());
+    for (const auto& key : canonicalEdges) {
+        const int forward = directedOccurrences[{ key[0], key[1] }];
+        const int backward = directedOccurrences[{ key[1], key[0] }];
+
+        // Opposite traversals are staircase backtracks (for example a
         // one-cell spur at a corner). They carry no thin-slot area and would
-        // otherwise make the line look branched.
-        if (occurrences[key] == 1) {
-            segments.push_back(segment);
+        // otherwise make the line look branched. Same-direction repeats are
+        // deduplicated; the majority direction keeps the surviving edge.
+        if (forward > backward) {
+            segments.push_back({ key[0], key[1] });
+        }
+        else if (backward > forward) {
+            segments.push_back({ key[1], key[0] });
         }
     }
 
@@ -787,6 +802,9 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
                     segmentToString(segment));
             }
             std::vector<ElementId> unique = edgeIt->second;
+            // Equal-cost sides are broken by host element id. This keeps the
+            // result deterministic for a given host mesh while avoiding an
+            // arbitrary geometric preference between two valid sides.
             std::sort(unique.begin(), unique.end());
             unique.erase(std::unique(unique.begin(), unique.end()), unique.end());
             candidates.push_back(std::move(unique));
@@ -854,10 +872,13 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
                 "of surface quads are allowed.");
         }
     }
+    // A one-quad-wide strip is a path or a closed loop: every selected quad
+    // may have at most two edge-neighbours. Wider or branching selections are
+    // rejected. The vertex-use check above separately rejects 2x2 blocks.
     for (const ElementId quadId : deduplicated) {
-        if (selectedAdjacency[quadId].size() > 3) {
+        if (selectedAdjacency[quadId].size() > 2) {
             throw std::runtime_error(
-                "Thin slot surface strip branches.");
+                "Thin slot surface strip branches or is wider than one quad.");
         }
     }
 

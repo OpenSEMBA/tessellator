@@ -15,26 +15,18 @@ namespace {
 
 bool hasSurfaceElements(const Mesh& mesh)
 {
-    for (const Group& group : mesh.groups) {
-        for (const Element& element : group.elements) {
-            if (element.isTriangle() || element.isQuad()) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return utils::meshTools::countMeshElementsIf(
+        mesh, [](const Element& element) {
+            return element.isTriangle() || element.isQuad();
+        }) > 0;
 }
 
 bool hasLineElements(const Mesh& mesh)
 {
-    for (const Group& group : mesh.groups) {
-        for (const Element& element : group.elements) {
-            if (element.isLine()) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return utils::meshTools::countMeshElementsIf(
+        mesh, [](const Element& element) {
+            return element.isLine();
+        }) > 0;
 }
 
 Mesh buildThinSlotLineMesh(
@@ -172,10 +164,25 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
             continue;
         }
 
+        // Volumes are never valid thin-slot targets, even when the option is
+        // inherited from the global mesher block.
+        if (object.definition.isVolume) {
+            isSlot[index] = true;
+            slotIndices.push_back(index);
+            continue;
+        }
+
+        // Ghost objects are excluded from cross-object decisions. An
+        // inherited global option must not turn a ghost line into a slot;
+        // explicitly configuring one remains an error.
+        if (object.definition.ghost && !object.thinSlotIsExplicit) {
+            continue;
+        }
+
         // A global thinSlot option also reaches host surface objects. They
         // are hosts, not slots.
-        const bool isHostSurface = !object.definition.isVolume
-            && !hasLineElements(object.mesh)
+        const bool isHostSurface =
+            !hasLineElements(object.mesh)
             && hasSurfaceElements(object.mesh);
         if (isHostSurface) {
             continue;
@@ -238,6 +245,8 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
                 components,
                 object.thinSlotAllowOnSurfacePerimeter);
 
+            // Mesh currently carries only grid, coordinates and groups, so
+            // replacing it here does not drop any other object metadata.
             if (object.thinSlotMode == meshlib::meshers::ThinSlotMode::Surface) {
                 Mesh strip = core::ThinSlotBuilder::buildSurfaceStrip(
                     cellAlignedSurface, components);
