@@ -231,8 +231,6 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
             res.snapperOptions.forbiddenLength = value;
         }
         res.compress = options.value("compress", res.compress);
-        res.staircaseSharedCells = options.value(
-            "staircaseSharedCells", res.staircaseSharedCells);
         res.mergeAxisAlignedTriangles = options.value(
             "mergeAxisAlignedTriangles", res.mergeAxisAlignedTriangles);
     }
@@ -277,7 +275,6 @@ struct MeshedObject {
     ObjectDefinition definition;
     std::string mesherType;
     std::string extension;
-    bool staircaseSharedCells = false;
     bool compress = false;
     Mesh mesh;
 };
@@ -342,17 +339,16 @@ void validateObjectFiles(
 
 void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 {
-    const bool hasEnabledConformalObject = std::any_of(
+    const bool hasConformalObject = std::any_of(
         objects.begin(), objects.end(), [](const MeshedObject& object) {
             return !object.definition.ghost &&
-                object.mesherType == conformal_mesher &&
-                object.staircaseSharedCells;
+                object.mesherType == conformal_mesher;
         });
     const auto participatingObjectCount = std::count_if(
         objects.begin(), objects.end(), [](const MeshedObject& object) {
             return !object.definition.ghost;
         });
-    if (!hasEnabledConformalObject || participatingObjectCount < 2) {
+    if (!hasConformalObject || participatingObjectCount < 2) {
         return;
     }
 
@@ -371,8 +367,7 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
     }
 
     for (auto& object : objects) {
-        if (object.definition.ghost || object.mesherType != conformal_mesher ||
-            !object.staircaseSharedCells) {
+        if (object.definition.ghost || object.mesherType != conformal_mesher) {
             continue;
         }
 
@@ -380,11 +375,15 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
         utils::meshTools::convertToRelativeCoordinates(relativeMesh);
         relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
             sharedCells, meshlib::core::Staircaser::GapsFillingType::Insert);
-        const auto nonConformalCells = meshlib::meshers::ConformalMesher::findNonConformalCells(
-            relativeMesh);
-        if (!nonConformalCells.empty()) {
+        // Only restaircase cells that still mix surfaces with nodes/lines.
+        // A full findNonConformalCells pass can cascade across a whole
+        // conformal plate when shared-cell staircasing touches a few cells.
+        const auto mixedDimensionalCells =
+            meshlib::meshers::ConformalMesher::cellsContainingNodeOrLineElements(
+                relativeMesh);
+        if (!mixedDimensionalCells.empty()) {
             relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
-                nonConformalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+                mixedDimensionalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
         }
         utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
             relativeMesh);
@@ -475,19 +474,16 @@ int launcher(int argc, const char* argv[])
             }
 
             const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
-            bool staircaseSharedCells = false;
             bool compress = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
-                staircaseSharedCells = conformalOptions.staircaseSharedCells;
                 compress = conformalOptions.compress;
             }
             meshedObjects.push_back({
                 objDef,
                 mesherType,
                 readExtension(inputFileData, objDef.mesherOverride),
-                staircaseSharedCells,
                 compress,
                 std::move(resultMesh)
             });
