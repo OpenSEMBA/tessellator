@@ -266,6 +266,44 @@ void expectConformalVolumeLaunch(
     EXPECT_GT(mesh.countElems(), 0);
 }
 
+std::size_t validateThinSlotSurfaceCase(const std::string& input)
+{
+    std::string error;
+    if (callLauncher(input, error) != EXIT_SUCCESS) {
+        ADD_FAILURE() << error;
+        return 0;
+    }
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto slot = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    EXPECT_EQ(countElements(slot, meshlib::Element::Type::Line), 0u);
+    EXPECT_EQ(
+        countElements(slot, meshlib::Element::Type::Surface),
+        slot.countElems());
+
+    const std::size_t surfaces =
+        countElements(slot, meshlib::Element::Type::Surface);
+    EXPECT_GT(surfaces, 0u);
+
+    for (const meshlib::Group& group : slot.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                ADD_FAILURE() << "Thin slot surface output contains a non-quad.";
+                continue;
+            }
+            EXPECT_TRUE(quadInsideAnyQuad(element, slot, host));
+        }
+    }
+    EXPECT_TRUE(isConnectedStrip(slot));
+    EXPECT_LE(maximumQuadsAtVertex(slot), 3u);
+    return surfaces;
+}
+
 } // namespace
 
 class LauncherTest : public ::testing::Test
@@ -1362,31 +1400,50 @@ TEST_F(LauncherTest, thinSlotSurfaceOnSquareInSquareIsContinuousStrip)
     const std::string input =
         "testData/cases/thinSlot/squareInSquare/"
         "squareInSquare.thinSlotSurface.tessellator.json";
-    std::string error;
-    ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+    EXPECT_GT(validateThinSlotSurfaceCase(input), 0u);
+}
 
-    const std::filesystem::path folder =
-        std::filesystem::path(input).parent_path();
-    const auto host = meshlib::vtkIO::readInputMesh(
-        folder / "SquareInSquare.tessellator.str.vtk");
-    const auto slot = meshlib::vtkIO::readInputMesh(
-        folder / "Discretize_Wire.tessellator.str.vtk");
-
-    EXPECT_EQ(
-        countElements(slot, meshlib::Element::Type::Line), 0u);
-    EXPECT_EQ(
-        countElements(slot, meshlib::Element::Type::Surface),
-        slot.countElems());
-    EXPECT_GT(countElements(slot, meshlib::Element::Type::Surface), 0u);
-
-    for (const meshlib::Group& group : slot.groups) {
-        for (const meshlib::Element& element : group.elements) {
-            EXPECT_TRUE(element.isQuad());
-            EXPECT_TRUE(quadInsideAnyQuad(element, slot, host));
+TEST_F(LauncherTest, thinSlotSurfaceWorksAtIncreasingResolutions)
+{
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {
+            "20x20x20",
+            "testData/cases/thinSlot/squareInSquare/"
+            "squareInSquare.thinSlotSurface.20x20x20.tessellator.json"
+        },
+        {
+            "40x40x23",
+            "testData/cases/thinSlot/squareInSquare/"
+            "squareInSquare.thinSlotSurface.tessellator.json"
+        },
+        {
+            "60x40x23",
+            "testData/cases/thinSlot/squareInSquare/"
+            "squareInSquare.thinSlotSurface.60x40x23.tessellator.json"
+        },
+        {
+            "80x80x46",
+            "testData/cases/thinSlot/squareInSquare/"
+            "squareInSquare.thinSlotSurface.80x80x46.tessellator.json"
+        },
+        {
+            "120x120x68",
+            "testData/cases/thinSlot/squareInSquare/"
+            "squareInSquare.thinSlotSurface.120x120x68.tessellator.json"
         }
+    };
+
+    std::vector<std::size_t> stripQuadCounts;
+    for (const auto& [resolution, input] : cases) {
+        SCOPED_TRACE(resolution);
+        stripQuadCounts.push_back(validateThinSlotSurfaceCase(input));
     }
-    EXPECT_TRUE(isConnectedStrip(slot));
-    EXPECT_LE(maximumQuadsAtVertex(slot), 3u);
+
+    for (std::size_t i = 1; i < stripQuadCounts.size(); ++i) {
+        EXPECT_GT(stripQuadCounts[i], stripQuadCounts[i - 1])
+            << "Strip size did not grow with resolution: "
+            << cases[i - 1].first << " -> " << cases[i].first;
+    }
 }
 
 TEST_F(LauncherTest, thinSlotLineRejectsSurfacePerimeterByDefault)
