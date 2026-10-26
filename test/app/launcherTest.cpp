@@ -893,7 +893,19 @@ TEST_F(LauncherTest, capacitorPlatesRemainConformalExceptNearNodalSource)
         outputDirectory,
         std::filesystem::copy_options::recursive);
 
-    const auto input = outputDirectory / "problem.tessellator.json";
+    const auto input = outputDirectory / "capacitor.tessellator.json";
+    // Inspect the per-object outputs instead of the combined mesh.
+    nlohmann::json config;
+    {
+        std::ifstream stream(input);
+        stream >> config;
+    }
+    config["output"]["singleFile"] = false;
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
     const std::string inputString = input.string();
     const char* argv[] = {nullptr, "-i", inputString.c_str()};
     EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);

@@ -474,19 +474,16 @@ int launcher(int argc, const char* argv[])
             }
 
             const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
-            bool staircaseSharedCells = false;
             bool compress = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
-                staircaseSharedCells = conformalOptions.staircaseSharedCells;
                 compress = conformalOptions.compress;
             }
             meshedObjects.push_back({
                 objDef,
                 mesherType,
                 readExtension(inputFileData, objDef.mesherOverride),
-                staircaseSharedCells,
                 compress,
                 std::move(resultMesh)
             });
