@@ -30,6 +30,7 @@ sliced.vtk
 contour.vtk
 
 testData/cases/*/*.vtk 
+testData/cases/**/*.vtk
 build
 tmp/
 git_info.txt

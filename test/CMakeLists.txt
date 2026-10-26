@@ -21,6 +21,7 @@ add_executable(tessellator_tests
 	"core/SmootherToolsTest.cpp"
 	"core/SnapperTest.cpp"
 	"core/StaircaserTest.cpp"
+	"core/ThinSlotBuilderTest.cpp"
 	"core/VolumeFillerTest.cpp"
 	"core/VolumeShellExtractorTest.cpp"
 	"types/MeshTest.cpp"

@@ -6,6 +6,7 @@
 #include "meshers/ConformalMesher.h"
 #include "core/Staircaser.h"
 #include "core/Compressor.h"
+#include "core/ThinSlotBuilder.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 #include "utils/RedundancyCleaner.h"
@@ -21,6 +22,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <map>
 #include <optional>
 #include <set>
 
@@ -189,6 +191,30 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
             }
             res.decimalPlacesInCollapser = decimalPlaces.get<int>();
         }
+        if (options.contains("thinSlot")) {
+            const auto& thinSlot = options["thinSlot"];
+            if (!thinSlot.is_string()) {
+                throw std::runtime_error(
+                    "thinSlot must be \"line\" or \"surface\"");
+            }
+            const std::string value = thinSlot.get<std::string>();
+            if (value == "line") {
+                res.thinSlotMode = meshlib::meshers::ThinSlotMode::Line;
+            } else if (value == "surface") {
+                res.thinSlotMode = meshlib::meshers::ThinSlotMode::Surface;
+            } else {
+                throw std::runtime_error(
+                    "thinSlot must be \"line\" or \"surface\"");
+            }
+        }
+        if (options.contains("thinSlotAllowOnSurfacePerimeter")) {
+            const auto& allow = options["thinSlotAllowOnSurfacePerimeter"];
+            if (!allow.is_boolean()) {
+                throw std::runtime_error(
+                    "thinSlotAllowOnSurfacePerimeter must be a boolean");
+            }
+            res.thinSlotAllowOnSurfacePerimeter = allow.get<bool>();
+        }
     }
 
     return res;
@@ -279,6 +305,9 @@ struct MeshedObject {
     std::string extension;
     bool staircaseSharedCells = false;
     bool compress = false;
+    meshlib::meshers::ThinSlotMode thinSlotMode =
+        meshlib::meshers::ThinSlotMode::None;
+    bool thinSlotAllowOnSurfacePerimeter = false;
     Mesh mesh;
 };
 
@@ -408,6 +437,203 @@ void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
 
 } // namespace
 
+bool hasSurfaceElements(const Mesh& mesh)
+{
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            if (element.isTriangle() || element.isQuad()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool hasLineElements(const Mesh& mesh)
+{
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            if (element.isLine()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+Mesh buildThinSlotLineMesh(
+    const core::ThinSlotBuilder::Components& components,
+    const Grid& grid)
+{
+    Mesh result;
+    result.grid = grid;
+    result.groups.resize(1);
+    result.groups[0].name = "line";
+
+    std::map<Cell, CoordinateId> coordinateIds;
+    auto addVertex = [&result, &coordinateIds](const Cell& cell) {
+        const auto existing = coordinateIds.find(cell);
+        if (existing != coordinateIds.end()) {
+            return existing->second;
+        }
+        Coordinate coordinate;
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            coordinate[axis] = static_cast<CoordinateDir>(cell[axis]);
+        }
+        const CoordinateId id = result.coordinates.size();
+        result.coordinates.push_back(coordinate);
+        coordinateIds.emplace(cell, id);
+        return id;
+    };
+
+    for (const auto& component : components) {
+        for (const auto& segment : component) {
+            Element line;
+            line.type = Element::Type::Line;
+            line.vertices = {
+                addVertex(segment[0]),
+                addVertex(segment[1])
+            };
+            result.groups[0].elements.push_back(std::move(line));
+        }
+    }
+    return result;
+}
+
+Mesh buildCombinedHostSurface(const std::vector<MeshedObject>& objects)
+{
+    Mesh combined;
+    std::map<Coordinate, CoordinateId> coordinateIds;
+    bool initialized = false;
+
+    for (const MeshedObject& object : objects) {
+        if (object.definition.ghost
+            || object.definition.isVolume
+            || object.mesherType != staircase_mesher
+            || object.thinSlotMode != meshlib::meshers::ThinSlotMode::None
+            || !hasSurfaceElements(object.mesh)) {
+            continue;
+        }
+
+        Mesh relative = object.mesh;
+        utils::meshTools::convertToRelativeCoordinates(relative);
+
+        if (!initialized) {
+            combined.grid = relative.grid;
+            combined.groups.resize(1);
+            combined.groups[0].name = "host";
+            initialized = true;
+        }
+
+        for (const Group& group : relative.groups) {
+            for (const Element& element : group.elements) {
+                if (!element.isTriangle() && !element.isQuad()) {
+                    continue;
+                }
+                Element remapped;
+                remapped.type = Element::Type::Surface;
+                for (const CoordinateId vertexId : element.vertices) {
+                    const Coordinate& coordinate = relative.coordinates[vertexId];
+                    auto [it, inserted] = coordinateIds.emplace(
+                        coordinate, combined.coordinates.size());
+                    if (inserted) {
+                        combined.coordinates.push_back(coordinate);
+                    }
+                    remapped.vertices.push_back(it->second);
+                }
+                combined.groups[0].elements.push_back(std::move(remapped));
+            }
+        }
+    }
+
+    return combined;
+}
+
+void applyThinSlotModes(std::vector<MeshedObject>& objects)
+{
+    const auto hasThinSlot = std::any_of(
+        objects.begin(), objects.end(), [](const MeshedObject& object) {
+            return object.thinSlotMode != meshlib::meshers::ThinSlotMode::None;
+        });
+    if (!hasThinSlot) {
+        return;
+    }
+
+    const Mesh hostSurface = buildCombinedHostSurface(objects);
+    if (hostSurface.countElems() == 0) {
+        throw std::runtime_error(
+            "thinSlot requires at least one non-ghost staircase surface object.");
+    }
+
+    for (MeshedObject& object : objects) {
+        if (object.thinSlotMode == meshlib::meshers::ThinSlotMode::None) {
+            continue;
+        }
+
+        try {
+            if (object.definition.ghost) {
+                throw std::runtime_error(
+                    "thinSlot cannot be used on a ghost object.");
+            }
+            if (object.definition.isVolume) {
+                throw std::runtime_error(
+                    "thinSlot cannot be used on a volume object.");
+            }
+            if (object.mesherType != staircase_mesher) {
+                throw std::runtime_error(
+                    "thinSlot can only be used with the staircase mesher.");
+            }
+
+            const std::size_t surfaces = meshlib::utils::meshTools::countMeshElementsIf(
+                object.mesh, [](const Element& element) {
+                    return element.isTriangle() || element.isQuad()
+                        || element.type == Element::Type::Volume;
+                });
+            if (surfaces != 0) {
+                throw std::runtime_error(
+                    "thinSlot requires an object containing only lines or nodes.");
+            }
+
+            Mesh relativeLine = object.mesh;
+            utils::meshTools::convertToRelativeCoordinates(relativeLine);
+            const core::ThinSlotBuilder::Components components =
+                core::ThinSlotBuilder::buildOrderedUnitSegments(relativeLine);
+            if (components.empty()) {
+                throw std::runtime_error(
+                    "thinSlot requires at least one line element.");
+            }
+
+            const Mesh cellAlignedSurface =
+                core::ThinSlotBuilder::buildCellAlignedSurface(
+                    hostSurface, components);
+            core::ThinSlotBuilder::validateEmbedding(
+                cellAlignedSurface,
+                components,
+                object.thinSlotAllowOnSurfacePerimeter);
+
+            if (object.thinSlotMode == meshlib::meshers::ThinSlotMode::Surface) {
+                Mesh strip = core::ThinSlotBuilder::buildSurfaceStrip(
+                    cellAlignedSurface, components);
+                strip.grid = object.mesh.grid;
+                utils::meshTools::convertToAbsoluteCoordinates(strip);
+                strip.groups.resize(1);
+                strip.groups[0].name = object.definition.group;
+                object.mesh = std::move(strip);
+            }
+            else {
+                Mesh cleanLine = buildThinSlotLineMesh(
+                    components, object.mesh.grid);
+                utils::meshTools::convertToAbsoluteCoordinates(cleanLine);
+                cleanLine.groups[0].name = object.definition.group;
+                object.mesh = std::move(cleanLine);
+            }
+        } catch (const std::exception& e) {
+            throw std::runtime_error(
+                "Thin slot '" + object.definition.group + "': " + e.what());
+        }
+    }
+}
+
 int launcher(int argc, const char* argv[])
 {
     try {
@@ -477,11 +703,29 @@ int launcher(int argc, const char* argv[])
             const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
             bool staircaseSharedCells = false;
             bool compress = false;
+            meshlib::meshers::ThinSlotMode thinSlotMode =
+                meshlib::meshers::ThinSlotMode::None;
+            bool thinSlotAllowOnSurfacePerimeter = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
                 staircaseSharedCells = conformalOptions.staircaseSharedCells;
                 compress = conformalOptions.compress;
+            } else if (mesherType == staircase_mesher) {
+                const auto& staircaseOptions =
+                    dynamic_cast<const meshlib::meshers::StaircaseMesher&>(*mesher)
+                        .getOptions();
+                thinSlotMode = staircaseOptions.thinSlotMode;
+                thinSlotAllowOnSurfacePerimeter =
+                    staircaseOptions.thinSlotAllowOnSurfacePerimeter;
+                if (thinSlotMode != meshlib::meshers::ThinSlotMode::None
+                    && !objDef.isVolume
+                    && !hasLineElements(resultMesh)
+                    && hasSurfaceElements(resultMesh)) {
+                    // A global thinSlot option also reaches the host surface
+                    // objects. They are hosts, not slot objects.
+                    thinSlotMode = meshlib::meshers::ThinSlotMode::None;
+                }
             }
             meshedObjects.push_back({
                 objDef,
@@ -489,11 +733,14 @@ int launcher(int argc, const char* argv[])
                 readExtension(inputFileData, objDef.mesherOverride),
                 staircaseSharedCells,
                 compress,
+                thinSlotMode,
+                thinSlotAllowOnSurfacePerimeter,
                 std::move(resultMesh)
             });
         }
 
         staircaseSharedConformalCells(meshedObjects);
+        applyThinSlotModes(meshedObjects);
 
         if (singleFileOutput && !meshedObjects.empty()) {
             const auto outputFileName = basename + ".tessellator.vtk";
