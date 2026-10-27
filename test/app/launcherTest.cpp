@@ -16,7 +16,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <queue>
+#include <set>
 #include <sstream>
+#include <vector>
 
 using namespace meshlib::app;
 
@@ -42,6 +47,186 @@ int callLauncher(const std::string& input, std::string& error)
     const int exitCode = launcher(3, arguments);
     error = capture.str();
     return exitCode;
+}
+
+std::size_t countElements(const meshlib::Mesh& mesh, meshlib::Element::Type type)
+{
+    std::size_t count = 0;
+    for (const meshlib::Group& group : mesh.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (element.type == type) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+bool pointInsideQuad(
+    const meshlib::Coordinate& point,
+    const meshlib::Element& quad,
+    const meshlib::Coordinates& coordinates)
+{
+    if (!quad.isQuad()) {
+        return false;
+    }
+
+    int planeAxis = -1;
+    double planeValue = 0.0;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+        bool constant = true;
+        const double value = coordinates[quad.vertices.front()][axis];
+        for (const meshlib::CoordinateId vertex : quad.vertices) {
+            if (std::abs(coordinates[vertex][axis] - value) > 1e-6) {
+                constant = false;
+                break;
+            }
+        }
+        if (constant) {
+            if (planeAxis != -1) {
+                return false;
+            }
+            planeAxis = static_cast<int>(axis);
+            planeValue = value;
+        }
+    }
+    if (planeAxis < 0 || std::abs(point[planeAxis] - planeValue) > 1e-6) {
+        return false;
+    }
+
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+        if (static_cast<int>(axis) == planeAxis) {
+            continue;
+        }
+        double minimum = std::numeric_limits<double>::max();
+        double maximum = std::numeric_limits<double>::lowest();
+        for (const meshlib::CoordinateId vertex : quad.vertices) {
+            minimum = std::min(minimum, coordinates[vertex][axis]);
+            maximum = std::max(maximum, coordinates[vertex][axis]);
+        }
+        if (point[axis] < minimum - 1e-6 || point[axis] > maximum + 1e-6) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool segmentInsideAnyQuad(
+    const meshlib::Coordinate& first,
+    const meshlib::Coordinate& second,
+    const meshlib::Mesh& surface)
+{
+    for (const meshlib::Group& group : surface.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            if (pointInsideQuad(first, element, surface.coordinates)
+                && pointInsideQuad(second, element, surface.coordinates)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool quadInsideAnyQuad(
+    const meshlib::Element& quad,
+    const meshlib::Mesh& quadMesh,
+    const meshlib::Mesh& surface)
+{
+    for (const meshlib::Group& group : surface.groups) {
+        for (const meshlib::Element& host : group.elements) {
+            if (!host.isQuad()) {
+                continue;
+            }
+            bool inside = true;
+            for (const meshlib::CoordinateId vertex : quad.vertices) {
+                if (!pointInsideQuad(
+                        quadMesh.coordinates[vertex], host, surface.coordinates)) {
+                    inside = false;
+                    break;
+                }
+            }
+            if (inside) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool isConnectedStrip(const meshlib::Mesh& strip)
+{
+    std::vector<const meshlib::Element*> quads;
+    for (const meshlib::Group& group : strip.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (element.isQuad()) {
+                quads.push_back(&element);
+            }
+        }
+    }
+    if (quads.empty()) {
+        return false;
+    }
+
+    std::map<std::pair<meshlib::Coordinate, meshlib::Coordinate>,
+             std::vector<std::size_t>> edgeQuads;
+    for (std::size_t quadId = 0; quadId < quads.size(); ++quadId) {
+        const auto& vertices = quads[quadId]->vertices;
+        for (std::size_t i = 0; i < 4; ++i) {
+            meshlib::Coordinate first = strip.coordinates[vertices[i]];
+            meshlib::Coordinate second = strip.coordinates[vertices[(i + 1) % 4]];
+            if (second < first) {
+                std::swap(first, second);
+            }
+            edgeQuads[{ first, second }].push_back(quadId);
+        }
+    }
+
+    std::vector<std::set<std::size_t>> adjacency(quads.size());
+    for (const auto& entry : edgeQuads) {
+        const auto& ids = entry.second;
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            for (std::size_t j = i + 1; j < ids.size(); ++j) {
+                adjacency[ids[i]].insert(ids[j]);
+                adjacency[ids[j]].insert(ids[i]);
+            }
+        }
+    }
+
+    std::set<std::size_t> visited;
+    std::queue<std::size_t> pending;
+    pending.push(0);
+    while (!pending.empty()) {
+        const std::size_t current = pending.front();
+        pending.pop();
+        if (!visited.insert(current).second) {
+            continue;
+        }
+        for (const std::size_t neighbour : adjacency[current]) {
+            pending.push(neighbour);
+        }
+    }
+    return visited.size() == quads.size();
+}
+
+std::size_t maximumQuadsAtVertex(const meshlib::Mesh& strip)
+{
+    std::map<meshlib::Coordinate, std::size_t> uses;
+    std::size_t maximum = 0;
+    for (const meshlib::Group& group : strip.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            for (const meshlib::CoordinateId vertex : element.vertices) {
+                maximum = std::max(
+                    maximum, ++uses[strip.coordinates[vertex]]);
+            }
+        }
+    }
+    return maximum;
 }
 
 bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
@@ -79,6 +264,44 @@ void expectConformalVolumeLaunch(
     const auto mesh = meshlib::vtkIO::readInputMesh(output);
     ASSERT_EQ(mesh.groups.size(), 1);
     EXPECT_GT(mesh.countElems(), 0);
+}
+
+std::size_t validateEmbeddedSurfaceCase(const std::string& input)
+{
+    std::string error;
+    if (callLauncher(input, error) != EXIT_SUCCESS) {
+        ADD_FAILURE() << error;
+        return 0;
+    }
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
+    EXPECT_EQ(
+        countElements(embeddedOutput, meshlib::Element::Type::Surface),
+        embeddedOutput.countElems());
+
+    const std::size_t surfaces =
+        countElements(embeddedOutput, meshlib::Element::Type::Surface);
+    EXPECT_GT(surfaces, 0u);
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                ADD_FAILURE() << "Embedded surface output contains a non-quad.";
+                continue;
+            }
+            EXPECT_TRUE(quadInsideAnyQuad(element, embeddedOutput, host));
+        }
+    }
+    EXPECT_TRUE(isConnectedStrip(embeddedOutput));
+    EXPECT_LE(maximumQuadsAtVertex(embeddedOutput), 3u);
+    return surfaces;
 }
 
 } // namespace
@@ -149,6 +372,8 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
     EXPECT_EQ(options.decimalPlacesInCollapser, 4);
+    EXPECT_EQ(options.embeddedMode, meshlib::meshers::EmbeddedMode::None);
+    EXPECT_FALSE(options.embeddedAllowOnSurfacePerimeter);
 }
 
 TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
@@ -1109,4 +1334,282 @@ TEST_F(LauncherTest, crossObjectStaircasingIsAlwaysEnabled)
              plainGrid, legacyGrid, ghostGrid}) {
         std::filesystem::remove(path);
     }
+}
+
+TEST_F(LauncherTest, parsesEmbeddedModeAndPerimeterOption)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {
+                {"embedded", "surface"},
+                {"embeddedAllowOnSurfacePerimeter", true}
+            }}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_EQ(
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Surface);
+    EXPECT_TRUE(staircase.getOptions().embeddedAllowOnSurfacePerimeter);
+    EXPECT_FALSE(staircase.getOptions().embeddedIsExplicit);
+}
+
+TEST_F(LauncherTest, objectOverrideMarksEmbeddedAsExplicit)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = nlohmann::json::object();
+
+    ObjectDefinition object;
+    object.mesherOverride = {
+        {"type", "staircase"},
+        {"options", {{"embedded", "line"}}}
+    };
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_EQ(
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Line);
+    EXPECT_TRUE(staircase.getOptions().embeddedIsExplicit);
+}
+
+TEST_F(LauncherTest, rejectsInvalidEmbeddedMode)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"embedded", "quads"}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+}
+
+TEST_F(LauncherTest, embeddedLineOnSquareInSquareIsEmbedded)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.tessellator.json";
+    std::string error;
+    ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Surface), 0u);
+    EXPECT_GT(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isLine()) {
+                continue;
+            }
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
+            EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
+                << first.str() << " -> " << second.str();
+        }
+    }
+}
+
+TEST_F(LauncherTest, embeddedLineOnFineGridIsEmbedded)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.fine.tessellator.json";
+    std::string error;
+    ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isLine()) {
+                continue;
+            }
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
+            EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
+                << first.str() << " -> " << second.str();
+        }
+    }
+}
+
+TEST_F(LauncherTest, embeddedSurfaceOnSquareInSquareIsContinuousStrip)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedSurface.tessellator.json";
+    EXPECT_GT(validateEmbeddedSurfaceCase(input), 0u);
+}
+
+TEST_F(LauncherTest, embeddedSurfaceWorksAtIncreasingResolutions)
+{
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {
+            "20x20x20",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.20x20x20.tessellator.json"
+        },
+        {
+            "40x40x23",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.tessellator.json"
+        },
+        {
+            "60x40x23",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.60x40x23.tessellator.json"
+        },
+        {
+            "80x80x46",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.80x80x46.tessellator.json"
+        },
+        {
+            "120x120x68",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.120x120x68.tessellator.json"
+        }
+    };
+
+    std::vector<std::size_t> stripQuadCounts;
+    for (const auto& [resolution, input] : cases) {
+        SCOPED_TRACE(resolution);
+        stripQuadCounts.push_back(validateEmbeddedSurfaceCase(input));
+    }
+
+    for (std::size_t i = 1; i < stripQuadCounts.size(); ++i) {
+        EXPECT_GT(stripQuadCounts[i], stripQuadCounts[i - 1])
+            << "Strip size did not grow with resolution: "
+            << cases[i - 1].first << " -> " << cases[i].first;
+    }
+}
+
+TEST_F(LauncherTest, embeddedLineRejectsSurfacePerimeterByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("perimeter"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineAllowsSurfacePerimeterWhenConfigured)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.allowed.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, embeddedSurfaceRejectsSurfacePerimeterByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedSurface.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("perimeter"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineRejectsUnembeddableGrid)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.incompatible.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("not embedded"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineOnInteriorEdgeIsAllowedByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "interior.embeddedLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsHostSurfaceObjects)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.global.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "globalWithVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "explicitVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsGhostLineObjects)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "globalGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnGhostLineObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "explicitGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a ghost object"), std::string::npos);
 }

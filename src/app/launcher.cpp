@@ -1,5 +1,7 @@
 #include "launcher.h"
 #include "vtkIO.h"
+#include "MeshedObject.h"
+#include "EmbeddedElementProcessor.h"
 
 #include "meshers/MesherBase.h"
 #include "meshers/StaircaseMesher.h"
@@ -189,6 +191,9 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
             }
             res.decimalPlacesInCollapser = decimalPlaces.get<int>();
         }
+        readEmbeddedOptions(options, res);
+        res.embeddedIsExplicit = override.has_value()
+            && res.embeddedMode != meshlib::meshers::EmbeddedMode::None;
     }
 
     return res;
@@ -270,14 +275,6 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
 }
 
 namespace {
-
-struct MeshedObject {
-    ObjectDefinition definition;
-    std::string mesherType;
-    std::string extension;
-    bool compress = false;
-    Mesh mesh;
-};
 
 Mesh mergeObjectMeshes(const std::vector<MeshedObject>& objects)
 {
@@ -473,21 +470,37 @@ int launcher(int argc, const char* argv[])
 
             const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
             bool compress = false;
+            meshlib::meshers::EmbeddedMode embeddedMode =
+                meshlib::meshers::EmbeddedMode::None;
+            bool embeddedAllowOnSurfacePerimeter = false;
+            bool embeddedIsExplicit = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
                 compress = conformalOptions.compress;
+            } else if (mesherType == staircase_mesher) {
+                const auto& staircaseOptions =
+                    dynamic_cast<const meshlib::meshers::StaircaseMesher&>(*mesher)
+                        .getOptions();
+                embeddedMode = staircaseOptions.embeddedMode;
+                embeddedAllowOnSurfacePerimeter =
+                    staircaseOptions.embeddedAllowOnSurfacePerimeter;
+                embeddedIsExplicit = staircaseOptions.embeddedIsExplicit;
             }
             meshedObjects.push_back({
                 objDef,
                 mesherType,
                 readExtension(inputFileData, objDef.mesherOverride),
                 compress,
+                embeddedMode,
+                embeddedAllowOnSurfacePerimeter,
+                embeddedIsExplicit,
                 std::move(resultMesh)
             });
         }
 
         staircaseSharedConformalCells(meshedObjects);
+        applyEmbeddedModes(meshedObjects);
 
         if (singleFileOutput && !meshedObjects.empty()) {
             const auto outputFileName = basename + ".tessellator.vtk";

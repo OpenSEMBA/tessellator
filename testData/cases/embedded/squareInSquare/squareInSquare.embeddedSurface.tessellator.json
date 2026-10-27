@@ -1,0 +1,25 @@
+{
+    "grid": {
+        "numberOfCells": [40, 40, 23],
+        "boundingBox": [[-20.0, -20.0, -10.0], [20.0, 20.0, 13.0]]
+    },
+    "objects": [
+        {
+            "filename": "SquareInSquare.vtu",
+            "group": "SquareInSquare"
+        },
+        {
+            "filename": "Discretize_Wire.vtu",
+            "group": "Discretize_Wire",
+            "mesher": {
+                "type": "staircase",
+                "options": {
+                    "embedded": "surface"
+                }
+            }
+        }
+    ],
+    "output": {
+        "singleFile": false
+    }
+}
