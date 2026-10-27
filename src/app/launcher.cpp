@@ -1,7 +1,7 @@
 #include "launcher.h"
 #include "vtkIO.h"
 #include "MeshedObject.h"
-#include "ThinSlotProcessor.h"
+#include "EmbeddedElementProcessor.h"
 
 #include "meshers/MesherBase.h"
 #include "meshers/StaircaseMesher.h"
@@ -191,9 +191,9 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
             }
             res.decimalPlacesInCollapser = decimalPlaces.get<int>();
         }
-        readThinSlotOptions(options, res);
-        res.thinSlotIsExplicit = override.has_value()
-            && res.thinSlotMode != meshlib::meshers::ThinSlotMode::None;
+        readEmbeddedOptions(options, res);
+        res.embeddedIsExplicit = override.has_value()
+            && res.embeddedMode != meshlib::meshers::EmbeddedMode::None;
     }
 
     return res;
@@ -472,10 +472,10 @@ int launcher(int argc, const char* argv[])
 
             const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
             bool compress = false;
-            meshlib::meshers::ThinSlotMode thinSlotMode =
-                meshlib::meshers::ThinSlotMode::None;
-            bool thinSlotAllowOnSurfacePerimeter = false;
-            bool thinSlotIsExplicit = false;
+            meshlib::meshers::EmbeddedMode embeddedMode =
+                meshlib::meshers::EmbeddedMode::None;
+            bool embeddedAllowOnSurfacePerimeter = false;
+            bool embeddedIsExplicit = false;
             if (mesherType == conformal_mesher) {
                 const auto conformalOptions = readConformalMesherOptions(
                     inputFileData, objDef.isVolume, objDef.mesherOverride);
@@ -484,25 +484,25 @@ int launcher(int argc, const char* argv[])
                 const auto& staircaseOptions =
                     dynamic_cast<const meshlib::meshers::StaircaseMesher&>(*mesher)
                         .getOptions();
-                thinSlotMode = staircaseOptions.thinSlotMode;
-                thinSlotAllowOnSurfacePerimeter =
-                    staircaseOptions.thinSlotAllowOnSurfacePerimeter;
-                thinSlotIsExplicit = staircaseOptions.thinSlotIsExplicit;
+                embeddedMode = staircaseOptions.embeddedMode;
+                embeddedAllowOnSurfacePerimeter =
+                    staircaseOptions.embeddedAllowOnSurfacePerimeter;
+                embeddedIsExplicit = staircaseOptions.embeddedIsExplicit;
             }
             meshedObjects.push_back({
                 objDef,
                 mesherType,
                 readExtension(inputFileData, objDef.mesherOverride),
                 compress,
-                thinSlotMode,
-                thinSlotAllowOnSurfacePerimeter,
-                thinSlotIsExplicit,
+                embeddedMode,
+                embeddedAllowOnSurfacePerimeter,
+                embeddedIsExplicit,
                 std::move(resultMesh)
             });
         }
 
         staircaseSharedConformalCells(meshedObjects);
-        applyThinSlotModes(meshedObjects);
+        applyEmbeddedModes(meshedObjects);
 
         if (singleFileOutput && !meshedObjects.empty()) {
             const auto outputFileName = basename + ".tessellator.vtk";

@@ -1,6 +1,6 @@
-#include "ThinSlotProcessor.h"
+#include "EmbeddedElementProcessor.h"
 
-#include "core/ThinSlotBuilder.h"
+#include "core/EmbeddedElementBuilder.h"
 #include "utils/MeshTools.h"
 
 #include <map>
@@ -29,8 +29,8 @@ bool hasLineElements(const Mesh& mesh)
         }) > 0;
 }
 
-Mesh buildThinSlotLineMesh(
-    const core::ThinSlotBuilder::Components& components,
+Mesh buildEmbeddedLineMesh(
+    const core::EmbeddedElementBuilder::Components& components,
     const Grid& grid)
 {
     Mesh result;
@@ -70,14 +70,14 @@ Mesh buildThinSlotLineMesh(
 
 Mesh buildCombinedHostSurface(
     const std::vector<MeshedObject>& objects,
-    const std::vector<bool>& isSlot)
+    const std::vector<bool>& isEmbedded)
 {
     Mesh combined;
     std::map<Coordinate, CoordinateId> coordinateIds;
     bool initialized = false;
 
     for (std::size_t index = 0; index < objects.size(); ++index) {
-        if (isSlot[index]) {
+        if (isEmbedded[index]) {
             continue;
         }
         const MeshedObject& object = objects[index];
@@ -124,63 +124,63 @@ Mesh buildCombinedHostSurface(
 
 } // namespace
 
-void readThinSlotOptions(
+void readEmbeddedOptions(
     const nlohmann::json& options,
     meshlib::meshers::StaircaseMesherOptions& result)
 {
-    if (options.contains("thinSlot")) {
-        const auto& thinSlot = options["thinSlot"];
-        if (!thinSlot.is_string()) {
+    if (options.contains("embedded")) {
+        const auto& embedded = options["embedded"];
+        if (!embedded.is_string()) {
             throw std::runtime_error(
-                "thinSlot must be \"line\" or \"surface\"");
+                "embedded must be \"line\" or \"surface\"");
         }
-        const std::string value = thinSlot.get<std::string>();
+        const std::string value = embedded.get<std::string>();
         if (value == "line") {
-            result.thinSlotMode = meshlib::meshers::ThinSlotMode::Line;
+            result.embeddedMode = meshlib::meshers::EmbeddedMode::Line;
         } else if (value == "surface") {
-            result.thinSlotMode = meshlib::meshers::ThinSlotMode::Surface;
+            result.embeddedMode = meshlib::meshers::EmbeddedMode::Surface;
         } else {
             throw std::runtime_error(
-                "thinSlot must be \"line\" or \"surface\"");
+                "embedded must be \"line\" or \"surface\"");
         }
     }
-    if (options.contains("thinSlotAllowOnSurfacePerimeter")) {
-        const auto& allow = options["thinSlotAllowOnSurfacePerimeter"];
+    if (options.contains("embeddedAllowOnSurfacePerimeter")) {
+        const auto& allow = options["embeddedAllowOnSurfacePerimeter"];
         if (!allow.is_boolean()) {
             throw std::runtime_error(
-                "thinSlotAllowOnSurfacePerimeter must be a boolean");
+                "embeddedAllowOnSurfacePerimeter must be a boolean");
         }
-        result.thinSlotAllowOnSurfacePerimeter = allow.get<bool>();
+        result.embeddedAllowOnSurfacePerimeter = allow.get<bool>();
     }
 }
 
-void applyThinSlotModes(std::vector<MeshedObject>& objects)
+void applyEmbeddedModes(std::vector<MeshedObject>& objects)
 {
-    std::vector<bool> isSlot(objects.size(), false);
-    std::vector<std::size_t> slotIndices;
+    std::vector<bool> isEmbedded(objects.size(), false);
+    std::vector<std::size_t> embeddedIndices;
     for (std::size_t index = 0; index < objects.size(); ++index) {
         const MeshedObject& object = objects[index];
-        if (object.thinSlotMode == meshlib::meshers::ThinSlotMode::None) {
+        if (object.embeddedMode == meshlib::meshers::EmbeddedMode::None) {
             continue;
         }
 
-        // Volumes are never valid thin-slot targets, even when the option is
+        // Volumes are never valid embedded targets, even when the option is
         // inherited from the global mesher block.
         if (object.definition.isVolume) {
-            isSlot[index] = true;
-            slotIndices.push_back(index);
+            isEmbedded[index] = true;
+            embeddedIndices.push_back(index);
             continue;
         }
 
         // Ghost objects are excluded from cross-object decisions. An
-        // inherited global option must not turn a ghost line into a slot;
+        // inherited global option must not turn a ghost line into an embedded line;
         // explicitly configuring one remains an error.
-        if (object.definition.ghost && !object.thinSlotIsExplicit) {
+        if (object.definition.ghost && !object.embeddedIsExplicit) {
             continue;
         }
 
-        // A global thinSlot option also reaches host surface objects. They
-        // are hosts, not slots.
+        // A global embedded option also reaches host surface objects. They
+        // are hosts, not embedded line objects.
         const bool isHostSurface =
             !hasLineElements(object.mesh)
             && hasSurfaceElements(object.mesh);
@@ -188,34 +188,34 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
             continue;
         }
 
-        isSlot[index] = true;
-        slotIndices.push_back(index);
+        isEmbedded[index] = true;
+        embeddedIndices.push_back(index);
     }
 
-    if (slotIndices.empty()) {
+    if (embeddedIndices.empty()) {
         return;
     }
 
-    const Mesh hostSurface = buildCombinedHostSurface(objects, isSlot);
+    const Mesh hostSurface = buildCombinedHostSurface(objects, isEmbedded);
     if (hostSurface.countElems() == 0) {
         throw std::runtime_error(
-            "thinSlot requires at least one non-ghost staircase surface object.");
+            "Embedded geometry requires at least one non-ghost staircase surface object.");
     }
 
-    for (const std::size_t index : slotIndices) {
+    for (const std::size_t index : embeddedIndices) {
         MeshedObject& object = objects[index];
         try {
             if (object.definition.ghost) {
                 throw std::runtime_error(
-                    "thinSlot cannot be used on a ghost object.");
+                    "Embedded geometry cannot be used on a ghost object.");
             }
             if (object.definition.isVolume) {
                 throw std::runtime_error(
-                    "thinSlot cannot be used on a volume object.");
+                    "Embedded geometry cannot be used on a volume object.");
             }
             if (object.mesherType != staircase_mesher) {
                 throw std::runtime_error(
-                    "thinSlot can only be used with the staircase mesher.");
+                    "Embedded geometry can only be used with the staircase mesher.");
             }
 
             const std::size_t surfaces = utils::meshTools::countMeshElementsIf(
@@ -225,30 +225,30 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
                 });
             if (surfaces != 0) {
                 throw std::runtime_error(
-                    "thinSlot requires an object containing only lines or nodes.");
+                    "Embedded geometry requires an object containing only lines or nodes.");
             }
 
             Mesh relativeLine = object.mesh;
             utils::meshTools::convertToRelativeCoordinates(relativeLine);
-            const core::ThinSlotBuilder::Components components =
-                core::ThinSlotBuilder::buildOrderedUnitSegments(relativeLine);
+            const core::EmbeddedElementBuilder::Components components =
+                core::EmbeddedElementBuilder::buildOrderedUnitSegments(relativeLine);
             if (components.empty()) {
                 throw std::runtime_error(
-                    "thinSlot requires at least one line element.");
+                    "Embedded geometry requires at least one line element.");
             }
 
             const Mesh cellAlignedSurface =
-                core::ThinSlotBuilder::buildCellAlignedSurface(
+                core::EmbeddedElementBuilder::buildCellAlignedSurface(
                     hostSurface, components);
-            core::ThinSlotBuilder::validateEmbedding(
+            core::EmbeddedElementBuilder::validateEmbedding(
                 cellAlignedSurface,
                 components,
-                object.thinSlotAllowOnSurfacePerimeter);
+                object.embeddedAllowOnSurfacePerimeter);
 
             // Mesh currently carries only grid, coordinates and groups, so
             // replacing it here does not drop any other object metadata.
-            if (object.thinSlotMode == meshlib::meshers::ThinSlotMode::Surface) {
-                Mesh strip = core::ThinSlotBuilder::buildSurfaceStrip(
+            if (object.embeddedMode == meshlib::meshers::EmbeddedMode::Surface) {
+                Mesh strip = core::EmbeddedElementBuilder::buildSurfaceStrip(
                     cellAlignedSurface, components);
                 strip.grid = object.mesh.grid;
                 utils::meshTools::convertToAbsoluteCoordinates(strip);
@@ -257,7 +257,7 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
                 object.mesh = std::move(strip);
             }
             else {
-                Mesh cleanLine = buildThinSlotLineMesh(
+                Mesh cleanLine = buildEmbeddedLineMesh(
                     components, object.mesh.grid);
                 utils::meshTools::convertToAbsoluteCoordinates(cleanLine);
                 cleanLine.groups[0].name = object.definition.group;
@@ -265,7 +265,7 @@ void applyThinSlotModes(std::vector<MeshedObject>& objects)
             }
         } catch (const std::exception& e) {
             throw std::runtime_error(
-                "Thin slot '" + object.definition.group + "': " + e.what());
+                "Embedded geometry '" + object.definition.group + "': " + e.what());
         }
     }
 }

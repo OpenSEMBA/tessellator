@@ -10,16 +10,12 @@
         },
         {
             "filename": "interiorLine.vtu",
-            "group": "Slot"
-        },
-        {
-            "filename": "tetra.vtu",
-            "group": "Volume",
-            "volume": true,
+            "group": "EmbeddedLine",
+            "ghost": true,
             "mesher": {
                 "type": "staircase",
                 "options": {
-                    "thinSlot": "line"
+                    "embedded": "line"
                 }
             }
         }

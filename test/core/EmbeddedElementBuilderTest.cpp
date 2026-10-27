@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "core/ThinSlotBuilder.h"
+#include "core/EmbeddedElementBuilder.h"
 
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
@@ -13,7 +13,7 @@
 
 namespace meshlib::core {
 
-class ThinSlotBuilderTest : public ::testing::Test {
+class EmbeddedElementBuilderTest : public ::testing::Test {
 };
 
 namespace {
@@ -161,7 +161,7 @@ std::size_t countSelectedQuadsAtVertex(const Mesh& mesh)
 
 }
 
-TEST_F(ThinSlotBuilderTest, expandsCompressedQuadAndEmbedsInteriorLine)
+TEST_F(EmbeddedElementBuilderTest, expandsCompressedQuadAndEmbedsInteriorLine)
 {
     const Mesh host = makeSurface({ {
         Cell({ 0, 0, 0 }),
@@ -174,19 +174,19 @@ TEST_F(ThinSlotBuilderTest, expandsCompressedQuadAndEmbedsInteriorLine)
         Cell({ 1, 1, 0 })
     } });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
     ASSERT_EQ(1u, components.size());
     ASSERT_EQ(1u, components.front().size());
 
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
     EXPECT_EQ(3u, countQuads(cellAligned));
-    EXPECT_NO_THROW(ThinSlotBuilder::validateEmbedding(cellAligned, components, false));
+    EXPECT_NO_THROW(EmbeddedElementBuilder::validateEmbedding(cellAligned, components, false));
 
-    const Mesh strip = ThinSlotBuilder::buildSurfaceStrip(cellAligned, components);
+    const Mesh strip = EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, components);
     EXPECT_EQ(1u, countQuads(strip));
 }
 
-TEST_F(ThinSlotBuilderTest, rejectsPerimeterUnlessAllowed)
+TEST_F(EmbeddedElementBuilderTest, rejectsPerimeterUnlessAllowed)
 {
     const Mesh host = makeSurface({ {
         Cell({ 0, 0, 0 }),
@@ -199,17 +199,17 @@ TEST_F(ThinSlotBuilderTest, rejectsPerimeterUnlessAllowed)
         Cell({ 0, 1, 0 })
     } });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
 
     EXPECT_THROW(
-        ThinSlotBuilder::validateEmbedding(cellAligned, components, false),
+        EmbeddedElementBuilder::validateEmbedding(cellAligned, components, false),
         std::runtime_error);
     EXPECT_NO_THROW(
-        ThinSlotBuilder::validateEmbedding(cellAligned, components, true));
+        EmbeddedElementBuilder::validateEmbedding(cellAligned, components, true));
 }
 
-TEST_F(ThinSlotBuilderTest, rejectsLineOutsideHostSurface)
+TEST_F(EmbeddedElementBuilderTest, rejectsLineOutsideHostSurface)
 {
     const Mesh host = makeSurface({ unitQuad(0, 0) });
     const Mesh line = makeLine({ {
@@ -217,15 +217,15 @@ TEST_F(ThinSlotBuilderTest, rejectsLineOutsideHostSurface)
         Cell({ 1, 0, 1 })
     } });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
 
     EXPECT_THROW(
-        ThinSlotBuilder::validateEmbedding(cellAligned, components, true),
+        EmbeddedElementBuilder::validateEmbedding(cellAligned, components, true),
         std::runtime_error);
 }
 
-TEST_F(ThinSlotBuilderTest, ordersUnorderedLineSegmentsIntoOnePath)
+TEST_F(EmbeddedElementBuilderTest, ordersUnorderedLineSegmentsIntoOnePath)
 {
     const Mesh line = makeLine({
         { Cell({ 1, 1, 0 }), Cell({ 2, 1, 0 }) },
@@ -233,26 +233,26 @@ TEST_F(ThinSlotBuilderTest, ordersUnorderedLineSegmentsIntoOnePath)
         { Cell({ 2, 1, 0 }), Cell({ 3, 1, 0 }) }
     });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
     ASSERT_EQ(1u, components.size());
     ASSERT_EQ(3u, components.front().size());
     EXPECT_EQ(Cell({ 0, 1, 0 }), components.front().front()[0]);
     EXPECT_EQ(Cell({ 3, 1, 0 }), components.front().back()[1]);
 }
 
-TEST_F(ThinSlotBuilderTest, splitsCompressedLineIntoUnitSegments)
+TEST_F(EmbeddedElementBuilderTest, splitsCompressedLineIntoUnitSegments)
 {
     const Mesh line = makeLine({ {
         Cell({ 0, 0, 0 }),
         Cell({ 3, 0, 0 })
     } });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
     ASSERT_EQ(1u, components.size());
     EXPECT_EQ(3u, components.front().size());
 }
 
-TEST_F(ThinSlotBuilderTest, rejectsDiagonalLine)
+TEST_F(EmbeddedElementBuilderTest, rejectsDiagonalLine)
 {
     const Mesh line = makeLine({ {
         Cell({ 0, 0, 0 }),
@@ -260,11 +260,11 @@ TEST_F(ThinSlotBuilderTest, rejectsDiagonalLine)
     } });
 
     EXPECT_THROW(
-        ThinSlotBuilder::buildOrderedUnitSegments(line),
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line),
         std::runtime_error);
 }
 
-TEST_F(ThinSlotBuilderTest, buildsOneQuadWideStripAlongInternalEdge)
+TEST_F(EmbeddedElementBuilderTest, buildsOneQuadWideStripAlongInternalEdge)
 {
     const Mesh host = makeSurface(unitSurface(3, 3));
     const Mesh line = makeLine({
@@ -273,17 +273,17 @@ TEST_F(ThinSlotBuilderTest, buildsOneQuadWideStripAlongInternalEdge)
         { Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 }) }
     });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
-    EXPECT_NO_THROW(ThinSlotBuilder::validateEmbedding(cellAligned, components, false));
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+    EXPECT_NO_THROW(EmbeddedElementBuilder::validateEmbedding(cellAligned, components, false));
 
-    const Mesh strip = ThinSlotBuilder::buildSurfaceStrip(cellAligned, components);
+    const Mesh strip = EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, components);
     EXPECT_EQ(3u, countQuads(strip));
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
     EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
 }
 
-TEST_F(ThinSlotBuilderTest, buildsContinuousStripAroundTurn)
+TEST_F(EmbeddedElementBuilderTest, buildsContinuousStripAroundTurn)
 {
     const Mesh host = makeSurface(unitSurface(3, 3));
     const Mesh line = makeLine({
@@ -291,17 +291,17 @@ TEST_F(ThinSlotBuilderTest, buildsContinuousStripAroundTurn)
         { Cell({ 1, 1, 0 }), Cell({ 2, 1, 0 }) }
     });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
-    EXPECT_NO_THROW(ThinSlotBuilder::validateEmbedding(cellAligned, components, false));
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+    EXPECT_NO_THROW(EmbeddedElementBuilder::validateEmbedding(cellAligned, components, false));
 
-    const Mesh strip = ThinSlotBuilder::buildSurfaceStrip(cellAligned, components);
+    const Mesh strip = EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, components);
     EXPECT_GT(countQuads(strip), 0u);
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
     EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
 }
 
-TEST_F(ThinSlotBuilderTest, deduplicatesSameDirectionSegments)
+TEST_F(EmbeddedElementBuilderTest, deduplicatesSameDirectionSegments)
 {
     const Mesh line = makeLine({
         { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) },
@@ -309,25 +309,25 @@ TEST_F(ThinSlotBuilderTest, deduplicatesSameDirectionSegments)
         { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) }
     });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
     ASSERT_EQ(1u, components.size());
     EXPECT_EQ(1u, components.front().size());
     EXPECT_EQ(Cell({ 0, 0, 0 }), components.front().front()[0]);
     EXPECT_EQ(Cell({ 1, 0, 0 }), components.front().front()[1]);
 }
 
-TEST_F(ThinSlotBuilderTest, cancelsOppositeSegments)
+TEST_F(EmbeddedElementBuilderTest, cancelsOppositeSegments)
 {
     const Mesh line = makeLine({
         { Cell({ 0, 0, 0 }), Cell({ 1, 0, 0 }) },
         { Cell({ 1, 0, 0 }), Cell({ 0, 0, 0 }) }
     });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
     EXPECT_TRUE(components.empty());
 }
 
-TEST_F(ThinSlotBuilderTest, overlappingHostFacesDoNotHideSurfacePerimeter)
+TEST_F(EmbeddedElementBuilderTest, overlappingHostFacesDoNotHideSurfacePerimeter)
 {
     const Mesh host = makeSurface({
         unitQuad(0, 0),
@@ -338,17 +338,17 @@ TEST_F(ThinSlotBuilderTest, overlappingHostFacesDoNotHideSurfacePerimeter)
         Cell({ 0, 1, 0 })
     } });
 
-    const auto components = ThinSlotBuilder::buildOrderedUnitSegments(line);
-    const Mesh cellAligned = ThinSlotBuilder::buildCellAlignedSurface(host, components);
+    const auto components = EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned = EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
 
     EXPECT_THROW(
-        ThinSlotBuilder::validateEmbedding(cellAligned, components, false),
+        EmbeddedElementBuilder::validateEmbedding(cellAligned, components, false),
         std::runtime_error);
     EXPECT_NO_THROW(
-        ThinSlotBuilder::validateEmbedding(cellAligned, components, true));
+        EmbeddedElementBuilder::validateEmbedding(cellAligned, components, true));
 }
 
-TEST_F(ThinSlotBuilderTest, rejectsBranchingLine)
+TEST_F(EmbeddedElementBuilderTest, rejectsBranchingLine)
 {
     const Mesh line = makeLine({
         { Cell({ 1, 1, 0 }), Cell({ 1, 0, 0 }) },
@@ -357,7 +357,7 @@ TEST_F(ThinSlotBuilderTest, rejectsBranchingLine)
     });
 
     EXPECT_THROW(
-        ThinSlotBuilder::buildOrderedUnitSegments(line),
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line),
         std::runtime_error);
 }
 

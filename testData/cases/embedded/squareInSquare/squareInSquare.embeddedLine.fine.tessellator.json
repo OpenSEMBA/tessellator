@@ -29,7 +29,7 @@
             "mesher": {
                 "type": "staircase",
                 "options": {
-                    "thinSlot": "surface"
+                    "embedded": "line"
                 }
             }
         }

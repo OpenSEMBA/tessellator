@@ -1,4 +1,4 @@
-#include "ThinSlotBuilder.h"
+#include "EmbeddedElementBuilder.h"
 
 #include "utils/RedundancyCleaner.h"
 
@@ -34,7 +34,7 @@ std::string cellToString(const Cell& cell)
     return output.str();
 }
 
-std::string segmentToString(const ThinSlotBuilder::Segment& segment)
+std::string segmentToString(const EmbeddedElementBuilder::Segment& segment)
 {
     return cellToString(segment[0]) + " -> " + cellToString(segment[1]);
 }
@@ -46,7 +46,7 @@ Cell toCellOrThrow(const Coordinate& coordinate)
         const double rounded = std::round(coordinate[axis]);
         if (std::abs(coordinate[axis] - rounded) > 1e-5) {
             throw std::runtime_error(
-                "Thin slot geometry is not aligned with the relative grid: " +
+                "Embedded geometry is not aligned with the relative grid: " +
                 coordinate.str());
         }
         cell[axis] = static_cast<CellDir>(rounded);
@@ -199,7 +199,7 @@ Transition findTransition(
 }
 
 std::vector<ElementId> solveComponent(
-    const std::vector<ThinSlotBuilder::Segment>& segments,
+    const std::vector<EmbeddedElementBuilder::Segment>& segments,
     const std::vector<std::vector<ElementId>>& candidates,
     const std::vector<Element>& quads,
     const std::vector<std::set<EdgeKey>>& quadEdges,
@@ -213,7 +213,7 @@ std::vector<ElementId> solveComponent(
     if (segmentCount == 1) {
         if (candidates[0].empty()) {
             throw std::runtime_error(
-                "Thin slot segment is not embedded in a surface quad: " +
+                "Embedded line segment is not embedded in a surface quad: " +
                 segmentToString(segments[0]));
         }
         return { candidates[0].front() };
@@ -230,7 +230,7 @@ std::vector<ElementId> solveComponent(
     const auto startingCellIt = cellToId.find(segments.front()[0]);
     if (startingCellIt == cellToId.end()) {
         throw std::runtime_error(
-            "Thin slot segment is not embedded in a surface: " +
+            "Embedded line segment is not embedded in a surface: " +
             segmentToString(segments.front()));
     }
     const CoordinateId closingVertex = startingCellIt->second;
@@ -340,7 +340,7 @@ std::vector<ElementId> solveComponent(
 
     if (bestSequence.empty() || bestCost == std::numeric_limits<int>::max()) {
         throw std::runtime_error(
-            "Thin slot line cannot be represented as a continuous strip of "
+            "Embedded line path cannot be represented as a continuous strip of "
             "surface quads without diagonal jumps.");
     }
 
@@ -358,7 +358,7 @@ std::vector<ElementId> solveComponent(
 
 } // namespace
 
-ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
+EmbeddedElementBuilder::Components EmbeddedElementBuilder::buildOrderedUnitSegments(
     const Mesh& lineMesh)
 {
     std::map<std::array<Cell, 2>, int> directedOccurrences;
@@ -384,7 +384,7 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
             }
             if (changedAxes.size() != 1) {
                 throw std::runtime_error(
-                    "Thin slot line is not axis-aligned: " +
+                    "Embedded line is not axis-aligned: " +
                     cellToString(first) + " -> " + cellToString(second));
             }
 
@@ -414,7 +414,7 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
         const int backward = directedOccurrences[{ key[1], key[0] }];
 
         // Opposite traversals are staircase backtracks (for example a
-        // one-cell spur at a corner). They carry no thin-slot area and would
+        // one-cell spur at a corner). They carry no embedded area and would
         // otherwise make the line look branched. Same-direction repeats are
         // deduplicated; the majority direction keeps the surviving edge.
         if (forward > backward) {
@@ -472,7 +472,7 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
         for (const auto& entry : degree) {
             if (entry.second > 2) {
                 throw std::runtime_error(
-                    "Thin slot line branches at grid vertex " +
+                    "Embedded line branches at grid vertex " +
                     cellToString(entry.first));
             }
         }
@@ -527,7 +527,7 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
             }
             if (nextCandidates.size() > 1) {
                 throw std::runtime_error(
-                    "Thin slot line branches at grid vertex " +
+                    "Embedded line branches at grid vertex " +
                     cellToString(currentVertex));
             }
             if (!nextCandidates.empty()) {
@@ -537,7 +537,7 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
 
         if (!remaining.empty()) {
             throw std::runtime_error(
-                "Thin slot line is not a single continuous polyline.");
+                "Embedded line is not a single continuous polyline.");
         }
 
         visited.insert(componentIds.begin(), componentIds.end());
@@ -547,12 +547,12 @@ ThinSlotBuilder::Components ThinSlotBuilder::buildOrderedUnitSegments(
     return components;
 }
 
-Mesh ThinSlotBuilder::buildCellAlignedSurface(
+Mesh EmbeddedElementBuilder::buildCellAlignedSurface(
     const Mesh& hostSurface,
     const Components& components)
 {
     if (components.empty()) {
-        throw std::runtime_error("Thin slot has no line segments.");
+        throw std::runtime_error("Embedded geometry has no line segments.");
     }
 
     Cell localMinimum(std::numeric_limits<CellDir>::max());
@@ -701,12 +701,12 @@ Mesh ThinSlotBuilder::buildCellAlignedSurface(
 
     if (result.countElems() == 0) {
         throw std::runtime_error(
-            "Thin slot line is not embedded in any staircase surface.");
+            "Embedded line is not embedded in any staircase surface.");
     }
     return result;
 }
 
-void ThinSlotBuilder::validateEmbedding(
+void EmbeddedElementBuilder::validateEmbedding(
     const Mesh& cellAlignedSurface,
     const Components& components,
     bool allowPerimeter)
@@ -722,26 +722,26 @@ void ThinSlotBuilder::validateEmbedding(
             const auto second = cellToId.find(segment[1]);
             if (first == cellToId.end() || second == cellToId.end()) {
                 throw std::runtime_error(
-                    "Thin slot segment is not embedded in any surface: " +
+                    "Embedded line segment is not embedded in any surface: " +
                     segmentToString(segment));
             }
 
             const auto count = faceCounts.find(edgeKey(first->second, second->second));
             if (count == faceCounts.end() || count->second == 0) {
                 throw std::runtime_error(
-                    "Thin slot segment is not embedded in any surface: " +
+                    "Embedded line segment is not embedded in any surface: " +
                     segmentToString(segment));
             }
             if (count->second <= 1 && !allowPerimeter) {
                 throw std::runtime_error(
-                    "Thin slot segment runs over the perimeter of a surface: " +
+                    "Embedded line segment runs over the perimeter of a surface: " +
                     segmentToString(segment));
             }
         }
     }
 }
 
-Mesh ThinSlotBuilder::buildSurfaceStrip(
+Mesh EmbeddedElementBuilder::buildSurfaceStrip(
     const Mesh& cellAlignedSurface,
     const Components& components)
 {
@@ -792,13 +792,13 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
             const auto second = cellToId.find(segment[1]);
             if (first == cellToId.end() || second == cellToId.end()) {
                 throw std::runtime_error(
-                    "Thin slot segment is not embedded in a surface quad: " +
+                    "Embedded line segment is not embedded in a surface quad: " +
                     segmentToString(segment));
             }
             const auto edgeIt = edgeQuads.find(edgeKey(first->second, second->second));
             if (edgeIt == edgeQuads.end() || edgeIt->second.empty()) {
                 throw std::runtime_error(
-                    "Thin slot segment is not embedded in a surface quad: " +
+                    "Embedded line segment is not embedded in a surface quad: " +
                     segmentToString(segment));
             }
             std::vector<ElementId> unique = edgeIt->second;
@@ -816,7 +816,7 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
     }
 
     if (selected.empty()) {
-        throw std::runtime_error("Thin slot surface strip is empty.");
+        throw std::runtime_error("Embedded surface strip is empty.");
     }
 
     std::map<std::array<CoordinateId, 4>, ElementId> uniqueSelected;
@@ -856,7 +856,7 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
     }
     if (visited.size() != deduplicated.size()) {
         throw std::runtime_error(
-            "Thin slot surface strip is not continuous.");
+            "Embedded surface strip is not continuous.");
     }
 
     std::map<CoordinateId, std::size_t> vertexUses;
@@ -868,7 +868,7 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
     for (const auto& entry : vertexUses) {
         if (entry.second >= 4) {
             throw std::runtime_error(
-                "Thin slot surface contains a four-quad group; only strips "
+                "Embedded surface contains a four-quad group; only strips "
                 "of surface quads are allowed.");
         }
     }
@@ -878,14 +878,14 @@ Mesh ThinSlotBuilder::buildSurfaceStrip(
     for (const ElementId quadId : deduplicated) {
         if (selectedAdjacency[quadId].size() > 2) {
             throw std::runtime_error(
-                "Thin slot surface strip branches or is wider than one quad.");
+                "Embedded surface strip branches or is wider than one quad.");
         }
     }
 
     Mesh result = cellAlignedSurface;
     result.groups.resize(1);
     result.groups[0].elements.clear();
-    result.groups[0].name = "thinSlot";
+    result.groups[0].name = "embeddedSurface";
     for (const ElementId quadId : deduplicated) {
         result.groups[0].elements.push_back(quads[quadId]);
     }

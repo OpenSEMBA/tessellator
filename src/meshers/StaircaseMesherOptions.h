@@ -4,7 +4,7 @@
 
 namespace meshlib::meshers {
 
-enum class ThinSlotMode {
+enum class EmbeddedMode {
     None,
     Line,
     Surface
@@ -15,10 +15,10 @@ public:
     bool compress = true;
     bool splitHexahedra = false;
     int decimalPlacesInCollapser = 4;
-    // JSON: "thinSlot": "line" | "surface".
-    ThinSlotMode thinSlotMode = ThinSlotMode::None;
-    bool thinSlotAllowOnSurfacePerimeter = false;
-    bool thinSlotIsExplicit = false;
+    // JSON: "embedded": "line" | "surface".
+    EmbeddedMode embeddedMode = EmbeddedMode::None;
+    bool embeddedAllowOnSurfacePerimeter = false;
+    bool embeddedIsExplicit = false;
 };
 
 }

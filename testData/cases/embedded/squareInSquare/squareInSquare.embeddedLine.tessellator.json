@@ -1,22 +1,7 @@
 {
     "grid": {
-        "numberOfCells": [
-            120,
-            120,
-            68
-        ],
-        "boundingBox": [
-            [
-                -20.0,
-                -20.0,
-                -10.0
-            ],
-            [
-                20.0,
-                20.0,
-                13.0
-            ]
-        ]
+        "numberOfCells": [40, 40, 23],
+        "boundingBox": [[-20.0, -20.0, -10.0], [20.0, 20.0, 13.0]]
     },
     "objects": [
         {
@@ -29,7 +14,7 @@
             "mesher": {
                 "type": "staircase",
                 "options": {
-                    "thinSlot": "surface"
+                    "embedded": "line"
                 }
             }
         }

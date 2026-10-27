@@ -8,7 +8,7 @@ add_library(tessellator-core
     "Smoother.cpp"
     "SmootherTools.cpp"
     "Staircaser.cpp"
-    "ThinSlotBuilder.cpp"
+    "EmbeddedElementBuilder.cpp"
     "VolumeFiller.cpp"
     "VolumeShellExtractor.cpp"
 )

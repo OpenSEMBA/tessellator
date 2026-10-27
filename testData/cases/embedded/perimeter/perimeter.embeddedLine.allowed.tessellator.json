@@ -25,11 +25,12 @@
         },
         {
             "filename": "perimeterLine.vtu",
-            "group": "Slot",
+            "group": "EmbeddedLine",
             "mesher": {
                 "type": "staircase",
                 "options": {
-                    "thinSlot": "surface"
+                    "embedded": "line",
+                    "embeddedAllowOnSurfacePerimeter": true
                 }
             }
         }

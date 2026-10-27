@@ -9,13 +9,12 @@
             "group": "Plate"
         },
         {
-            "filename": "interiorLine.vtu",
-            "group": "Slot",
-            "ghost": true,
+            "filename": "perimeterLine.vtu",
+            "group": "EmbeddedLine",
             "mesher": {
                 "type": "staircase",
                 "options": {
-                    "thinSlot": "line"
+                    "embedded": "line"
                 }
             }
         }

@@ -3,12 +3,6 @@
         "numberOfCells": [2, 2, 2],
         "boundingBox": [[0.0, 0.0, -1.0], [2.0, 2.0, 1.0]]
     },
-    "mesher": {
-        "type": "staircase",
-        "options": {
-            "thinSlot": "line"
-        }
-    },
     "objects": [
         {
             "filename": "plate.vtu",
@@ -16,12 +10,18 @@
         },
         {
             "filename": "interiorLine.vtu",
-            "group": "Slot"
+            "group": "EmbeddedLine"
         },
         {
             "filename": "tetra.vtu",
             "group": "Volume",
-            "volume": true
+            "volume": true,
+            "mesher": {
+                "type": "staircase",
+                "options": {
+                    "embedded": "line"
+                }
+            }
         }
     ]
 }

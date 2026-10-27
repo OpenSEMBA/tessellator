@@ -6,7 +6,7 @@
     "mesher": {
         "type": "staircase",
         "options": {
-            "thinSlot": "line"
+            "embedded": "line"
         }
     },
     "objects": [
@@ -16,7 +16,7 @@
         },
         {
             "filename": "interiorLine.vtu",
-            "group": "Slot",
+            "group": "EmbeddedLine",
             "ghost": true
         }
     ]

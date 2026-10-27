@@ -9,16 +9,16 @@
 namespace meshlib {
 namespace core {
 
-// Builds the thin-slot representations requested by the staircase mesher's
-// "thinSlot" option. All meshes passed to this class must be expressed in
+// Builds the embedded representations requested by the staircase mesher's
+// "embedded" option. All meshes passed to this class must be expressed in
 // relative grid coordinates.
-class ThinSlotBuilder {
+class EmbeddedElementBuilder {
 public:
     // A directed unit grid edge. The coordinates are grid vertices.
     using Segment = std::array<Cell, 2>;
     using Components = std::vector<std::vector<Segment>>;
 
-    ThinSlotBuilder() = delete;
+    EmbeddedElementBuilder() = delete;
 
     // Splits line elements into unit grid edges and groups them into connected
     // components. Each component is ordered so that consecutive segments share

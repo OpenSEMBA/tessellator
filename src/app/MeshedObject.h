@@ -14,10 +14,10 @@ struct MeshedObject {
     std::string mesherType;
     std::string extension;
     bool compress = false;
-    meshlib::meshers::ThinSlotMode thinSlotMode =
-        meshlib::meshers::ThinSlotMode::None;
-    bool thinSlotAllowOnSurfacePerimeter = false;
-    bool thinSlotIsExplicit = false;
+    meshlib::meshers::EmbeddedMode embeddedMode =
+        meshlib::meshers::EmbeddedMode::None;
+    bool embeddedAllowOnSurfacePerimeter = false;
+    bool embeddedIsExplicit = false;
     Mesh mesh;
 };
 

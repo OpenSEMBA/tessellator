@@ -1,7 +1,7 @@
 {
     "grid": {
         "numberOfCells": [
-            40,
+            60,
             40,
             23
         ],
@@ -25,16 +25,16 @@
         },
         {
             "filename": "Discretize_Wire.vtu",
-            "group": "Discretize_Wire"
+            "group": "Discretize_Wire",
+            "mesher": {
+                "type": "staircase",
+                "options": {
+                    "embedded": "surface"
+                }
+            }
         }
     ],
     "output": {
         "singleFile": false
-    },
-    "mesher": {
-        "type": "staircase",
-        "options": {
-            "thinSlot": "line"
-        }
     }
 }

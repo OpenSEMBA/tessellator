@@ -266,7 +266,7 @@ void expectConformalVolumeLaunch(
     EXPECT_GT(mesh.countElems(), 0);
 }
 
-std::size_t validateThinSlotSurfaceCase(const std::string& input)
+std::size_t validateEmbeddedSurfaceCase(const std::string& input)
 {
     std::string error;
     if (callLauncher(input, error) != EXIT_SUCCESS) {
@@ -278,29 +278,29 @@ std::size_t validateThinSlotSurfaceCase(const std::string& input)
         std::filesystem::path(input).parent_path();
     const auto host = meshlib::vtkIO::readInputMesh(
         folder / "SquareInSquare.tessellator.str.vtk");
-    const auto slot = meshlib::vtkIO::readInputMesh(
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
         folder / "Discretize_Wire.tessellator.str.vtk");
 
-    EXPECT_EQ(countElements(slot, meshlib::Element::Type::Line), 0u);
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
     EXPECT_EQ(
-        countElements(slot, meshlib::Element::Type::Surface),
-        slot.countElems());
+        countElements(embeddedOutput, meshlib::Element::Type::Surface),
+        embeddedOutput.countElems());
 
     const std::size_t surfaces =
-        countElements(slot, meshlib::Element::Type::Surface);
+        countElements(embeddedOutput, meshlib::Element::Type::Surface);
     EXPECT_GT(surfaces, 0u);
 
-    for (const meshlib::Group& group : slot.groups) {
+    for (const meshlib::Group& group : embeddedOutput.groups) {
         for (const meshlib::Element& element : group.elements) {
             if (!element.isQuad()) {
-                ADD_FAILURE() << "Thin slot surface output contains a non-quad.";
+                ADD_FAILURE() << "Embedded surface output contains a non-quad.";
                 continue;
             }
-            EXPECT_TRUE(quadInsideAnyQuad(element, slot, host));
+            EXPECT_TRUE(quadInsideAnyQuad(element, embeddedOutput, host));
         }
     }
-    EXPECT_TRUE(isConnectedStrip(slot));
-    EXPECT_LE(maximumQuadsAtVertex(slot), 3u);
+    EXPECT_TRUE(isConnectedStrip(embeddedOutput));
+    EXPECT_LE(maximumQuadsAtVertex(embeddedOutput), 3u);
     return surfaces;
 }
 
@@ -372,8 +372,8 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
     EXPECT_EQ(options.decimalPlacesInCollapser, 4);
-    EXPECT_EQ(options.thinSlotMode, meshlib::meshers::ThinSlotMode::None);
-    EXPECT_FALSE(options.thinSlotAllowOnSurfacePerimeter);
+    EXPECT_EQ(options.embeddedMode, meshlib::meshers::EmbeddedMode::None);
+    EXPECT_FALSE(options.embeddedAllowOnSurfacePerimeter);
 }
 
 TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
@@ -1289,7 +1289,7 @@ TEST_F(LauncherTest, crossObjectStaircasingIsAlwaysEnabled)
     }
 }
 
-TEST_F(LauncherTest, parsesThinSlotModeAndPerimeterOption)
+TEST_F(LauncherTest, parsesEmbeddedModeAndPerimeterOption)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -1301,8 +1301,8 @@ TEST_F(LauncherTest, parsesThinSlotModeAndPerimeterOption)
         {"mesher", {
             {"type", "staircase"},
             {"options", {
-                {"thinSlot", "surface"},
-                {"thinSlotAllowOnSurfacePerimeter", true}
+                {"embedded", "surface"},
+                {"embeddedAllowOnSurfacePerimeter", true}
             }}
         }}
     };
@@ -1312,13 +1312,13 @@ TEST_F(LauncherTest, parsesThinSlotModeAndPerimeterOption)
     const auto& staircase =
         dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
     EXPECT_EQ(
-        staircase.getOptions().thinSlotMode,
-        meshlib::meshers::ThinSlotMode::Surface);
-    EXPECT_TRUE(staircase.getOptions().thinSlotAllowOnSurfacePerimeter);
-    EXPECT_FALSE(staircase.getOptions().thinSlotIsExplicit);
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Surface);
+    EXPECT_TRUE(staircase.getOptions().embeddedAllowOnSurfacePerimeter);
+    EXPECT_FALSE(staircase.getOptions().embeddedIsExplicit);
 }
 
-TEST_F(LauncherTest, objectOverrideMarksThinSlotAsExplicit)
+TEST_F(LauncherTest, objectOverrideMarksEmbeddedAsExplicit)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -1331,18 +1331,18 @@ TEST_F(LauncherTest, objectOverrideMarksThinSlotAsExplicit)
     ObjectDefinition object;
     object.mesherOverride = {
         {"type", "staircase"},
-        {"options", {{"thinSlot", "line"}}}
+        {"options", {{"embedded", "line"}}}
     };
     auto mesher = buildMesher(meshMock, config, object);
     const auto& staircase =
         dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
     EXPECT_EQ(
-        staircase.getOptions().thinSlotMode,
-        meshlib::meshers::ThinSlotMode::Line);
-    EXPECT_TRUE(staircase.getOptions().thinSlotIsExplicit);
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Line);
+    EXPECT_TRUE(staircase.getOptions().embeddedIsExplicit);
 }
 
-TEST_F(LauncherTest, rejectsInvalidThinSlotMode)
+TEST_F(LauncherTest, rejectsInvalidEmbeddedMode)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -1353,7 +1353,7 @@ TEST_F(LauncherTest, rejectsInvalidThinSlotMode)
     const nlohmann::json config = {
         {"mesher", {
             {"type", "staircase"},
-            {"options", {{"thinSlot", "quads"}}}
+            {"options", {{"embedded", "quads"}}}
         }}
     };
 
@@ -1361,11 +1361,11 @@ TEST_F(LauncherTest, rejectsInvalidThinSlotMode)
     EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
 }
 
-TEST_F(LauncherTest, thinSlotLineOnSquareInSquareIsEmbedded)
+TEST_F(LauncherTest, embeddedLineOnSquareInSquareIsEmbedded)
 {
     const std::string input =
-        "testData/cases/thinSlot/squareInSquare/"
-        "squareInSquare.thinSlotLine.tessellator.json";
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.tessellator.json";
     std::string error;
     ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 
@@ -1373,30 +1373,30 @@ TEST_F(LauncherTest, thinSlotLineOnSquareInSquareIsEmbedded)
         std::filesystem::path(input).parent_path();
     const auto host = meshlib::vtkIO::readInputMesh(
         folder / "SquareInSquare.tessellator.str.vtk");
-    const auto slot = meshlib::vtkIO::readInputMesh(
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
         folder / "Discretize_Wire.tessellator.str.vtk");
 
-    EXPECT_EQ(countElements(slot, meshlib::Element::Type::Surface), 0u);
-    EXPECT_GT(countElements(slot, meshlib::Element::Type::Line), 0u);
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Surface), 0u);
+    EXPECT_GT(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
 
-    for (const meshlib::Group& group : slot.groups) {
+    for (const meshlib::Group& group : embeddedOutput.groups) {
         for (const meshlib::Element& element : group.elements) {
             if (!element.isLine()) {
                 continue;
             }
-            const auto& first = slot.coordinates[element.vertices[0]];
-            const auto& second = slot.coordinates[element.vertices[1]];
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
             EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
                 << first.str() << " -> " << second.str();
         }
     }
 }
 
-TEST_F(LauncherTest, thinSlotLineOnFineGridIsEmbedded)
+TEST_F(LauncherTest, embeddedLineOnFineGridIsEmbedded)
 {
     const std::string input =
-        "testData/cases/thinSlot/squareInSquare/"
-        "squareInSquare.thinSlotLine.fine.tessellator.json";
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.fine.tessellator.json";
     std::string error;
     ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 
@@ -1404,64 +1404,64 @@ TEST_F(LauncherTest, thinSlotLineOnFineGridIsEmbedded)
         std::filesystem::path(input).parent_path();
     const auto host = meshlib::vtkIO::readInputMesh(
         folder / "SquareInSquare.tessellator.str.vtk");
-    const auto slot = meshlib::vtkIO::readInputMesh(
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
         folder / "Discretize_Wire.tessellator.str.vtk");
 
-    for (const meshlib::Group& group : slot.groups) {
+    for (const meshlib::Group& group : embeddedOutput.groups) {
         for (const meshlib::Element& element : group.elements) {
             if (!element.isLine()) {
                 continue;
             }
-            const auto& first = slot.coordinates[element.vertices[0]];
-            const auto& second = slot.coordinates[element.vertices[1]];
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
             EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
                 << first.str() << " -> " << second.str();
         }
     }
 }
 
-TEST_F(LauncherTest, thinSlotSurfaceOnSquareInSquareIsContinuousStrip)
+TEST_F(LauncherTest, embeddedSurfaceOnSquareInSquareIsContinuousStrip)
 {
     const std::string input =
-        "testData/cases/thinSlot/squareInSquare/"
-        "squareInSquare.thinSlotSurface.tessellator.json";
-    EXPECT_GT(validateThinSlotSurfaceCase(input), 0u);
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedSurface.tessellator.json";
+    EXPECT_GT(validateEmbeddedSurfaceCase(input), 0u);
 }
 
-TEST_F(LauncherTest, thinSlotSurfaceWorksAtIncreasingResolutions)
+TEST_F(LauncherTest, embeddedSurfaceWorksAtIncreasingResolutions)
 {
     const std::vector<std::pair<std::string, std::string>> cases = {
         {
             "20x20x20",
-            "testData/cases/thinSlot/squareInSquare/"
-            "squareInSquare.thinSlotSurface.20x20x20.tessellator.json"
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.20x20x20.tessellator.json"
         },
         {
             "40x40x23",
-            "testData/cases/thinSlot/squareInSquare/"
-            "squareInSquare.thinSlotSurface.tessellator.json"
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.tessellator.json"
         },
         {
             "60x40x23",
-            "testData/cases/thinSlot/squareInSquare/"
-            "squareInSquare.thinSlotSurface.60x40x23.tessellator.json"
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.60x40x23.tessellator.json"
         },
         {
             "80x80x46",
-            "testData/cases/thinSlot/squareInSquare/"
-            "squareInSquare.thinSlotSurface.80x80x46.tessellator.json"
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.80x80x46.tessellator.json"
         },
         {
             "120x120x68",
-            "testData/cases/thinSlot/squareInSquare/"
-            "squareInSquare.thinSlotSurface.120x120x68.tessellator.json"
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.120x120x68.tessellator.json"
         }
     };
 
     std::vector<std::size_t> stripQuadCounts;
     for (const auto& [resolution, input] : cases) {
         SCOPED_TRACE(resolution);
-        stripQuadCounts.push_back(validateThinSlotSurfaceCase(input));
+        stripQuadCounts.push_back(validateEmbeddedSurfaceCase(input));
     }
 
     for (std::size_t i = 1; i < stripQuadCounts.size(); ++i) {
@@ -1471,96 +1471,96 @@ TEST_F(LauncherTest, thinSlotSurfaceWorksAtIncreasingResolutions)
     }
 }
 
-TEST_F(LauncherTest, thinSlotLineRejectsSurfacePerimeterByDefault)
+TEST_F(LauncherTest, embeddedLineRejectsSurfacePerimeterByDefault)
 {
     const std::string input =
-        "testData/cases/thinSlot/perimeter/"
-        "perimeter.thinSlotLine.tessellator.json";
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
     EXPECT_NE(error.find("perimeter"), std::string::npos);
 }
 
-TEST_F(LauncherTest, thinSlotLineAllowsSurfacePerimeterWhenConfigured)
+TEST_F(LauncherTest, embeddedLineAllowsSurfacePerimeterWhenConfigured)
 {
     const std::string input =
-        "testData/cases/thinSlot/perimeter/"
-        "perimeter.thinSlotLine.allowed.tessellator.json";
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.allowed.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 }
 
-TEST_F(LauncherTest, thinSlotSurfaceRejectsSurfacePerimeterByDefault)
+TEST_F(LauncherTest, embeddedSurfaceRejectsSurfacePerimeterByDefault)
 {
     const std::string input =
-        "testData/cases/thinSlot/perimeter/"
-        "perimeter.thinSlotSurface.tessellator.json";
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedSurface.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
     EXPECT_NE(error.find("perimeter"), std::string::npos);
 }
 
-TEST_F(LauncherTest, thinSlotLineRejectsUnembeddableGrid)
+TEST_F(LauncherTest, embeddedLineRejectsUnembeddableGrid)
 {
     const std::string input =
-        "testData/cases/thinSlot/squareInSquare/"
-        "squareInSquare.thinSlotLine.incompatible.tessellator.json";
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.incompatible.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
     EXPECT_NE(error.find("not embedded"), std::string::npos);
 }
 
-TEST_F(LauncherTest, thinSlotLineOnInteriorEdgeIsAllowedByDefault)
+TEST_F(LauncherTest, embeddedLineOnInteriorEdgeIsAllowedByDefault)
 {
     const std::string input =
-        "testData/cases/thinSlot/perimeter/"
-        "interior.thinSlotLine.tessellator.json";
+        "testData/cases/embedded/perimeter/"
+        "interior.embeddedLine.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 }
 
-TEST_F(LauncherTest, globalThinSlotOptionSkipsHostSurfaceObjects)
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsHostSurfaceObjects)
 {
     const std::string input =
-        "testData/cases/thinSlot/squareInSquare/"
-        "squareInSquare.thinSlotLine.global.tessellator.json";
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.global.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 }
 
-TEST_F(LauncherTest, globalThinSlotOptionFailsOnVolumeObject)
+TEST_F(LauncherTest, globalEmbeddedOptionFailsOnVolumeObject)
 {
     const std::string input =
-        "testData/cases/thinSlot/volume/"
+        "testData/cases/embedded/volume/"
         "globalWithVolume.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
     EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
 }
 
-TEST_F(LauncherTest, explicitThinSlotOptionFailsOnVolumeObject)
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnVolumeObject)
 {
     const std::string input =
-        "testData/cases/thinSlot/volume/"
+        "testData/cases/embedded/volume/"
         "explicitVolume.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
     EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
 }
 
-TEST_F(LauncherTest, globalThinSlotOptionSkipsGhostLineObjects)
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsGhostLineObjects)
 {
     const std::string input =
-        "testData/cases/thinSlot/volume/"
+        "testData/cases/embedded/volume/"
         "globalGhostLine.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
 }
 
-TEST_F(LauncherTest, explicitThinSlotOptionFailsOnGhostLineObject)
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnGhostLineObject)
 {
     const std::string input =
-        "testData/cases/thinSlot/volume/"
+        "testData/cases/embedded/volume/"
         "explicitGhostLine.tessellator.json";
     std::string error;
     EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);

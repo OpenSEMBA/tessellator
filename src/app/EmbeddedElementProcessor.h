@@ -9,14 +9,14 @@
 namespace meshlib {
 namespace app {
 
-// Parses the staircase mesher's thin-slot options.
-void readThinSlotOptions(
+// Parses the staircase mesher's embedded options.
+void readEmbeddedOptions(
     const nlohmann::json& options,
     meshlib::meshers::StaircaseMesherOptions& result);
 
-// Applies thin-slot processing to already-meshed objects. This includes host
+// Applies embedded processing to already-meshed objects. This includes host
 // surface discovery, embedding/perimeter validation and output conversion.
-void applyThinSlotModes(std::vector<MeshedObject>& objects);
+void applyEmbeddedModes(std::vector<MeshedObject>& objects);
 
 }
 }

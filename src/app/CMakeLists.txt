@@ -47,7 +47,7 @@ if(TESSELLATOR_ENABLE_APP)
         "buildInfo.cpp"
         "vtkIO.cpp"
         "launcher.cpp"
-        "ThinSlotProcessor.cpp"
+        "EmbeddedElementProcessor.cpp"
     )
 
     target_include_directories(tessellator-app PRIVATE
