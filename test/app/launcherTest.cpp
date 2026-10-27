@@ -782,6 +782,53 @@ TEST_F(LauncherTest, rejectsDuplicateGroupNamesInSingleFileOutput)
     std::filesystem::remove(input);
 }
 
+TEST_F(LauncherTest, rejectsDuplicateGroupNamesInPerObjectOutput)
+{
+    const auto temp = std::filesystem::temp_directory_path();
+    const auto input = temp / "tessellator_duplicate_groups_per_object.json";
+    const auto output = temp / "duplicate.tessellator.str.vtk";
+    const auto gridOutput =
+        temp / "tessellator_duplicate_groups_per_object.tessellator.grid.vtk";
+    std::filesystem::remove(input);
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {10, 10, 10}},
+            {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+        }},
+        {"mesher", {{"type", "staircase"}}},
+        {"objects", {
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/sphere.stl").string()},
+                {"group", "duplicate"}
+            },
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/cone.stl").string()},
+                {"group", "duplicate"}
+            }
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("duplicate group"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(output));
+    EXPECT_FALSE(std::filesystem::exists(gridOutput));
+
+    std::filesystem::remove(input);
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+}
+
 TEST_F(LauncherTest, missingInputFileReturnsError)
 {
     const auto input = std::filesystem::temp_directory_path()
