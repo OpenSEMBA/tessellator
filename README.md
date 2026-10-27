@@ -202,10 +202,14 @@ Example with staircase mesher and compression disabled:
 ### `<output>`
 This optional entry controls how multi-object results are written:
 
+Object group names must be unique in every output mode. Duplicate group names
+are rejected before meshing because per-object outputs are named from the group
+and would otherwise overwrite one another.
+
 - `singleFile`: (boolean, default: false) Writes all objects to one
   `{basename}.tessellator.vtk` file instead of separate per-object mesh files.
   Object groups remain identifiable through the `group` and `groupNames` cell
-  attributes. Group names must be unique.
+  attributes.
 
 ```json
   "output": {

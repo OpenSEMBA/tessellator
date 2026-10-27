@@ -309,13 +309,13 @@ Mesh mergeObjectMeshes(const std::vector<MeshedObject>& objects)
     return combined;
 }
 
-void validateCombinedGroupNames(const std::vector<ObjectDefinition>& objects)
+void validateUniqueGroupNames(const std::vector<ObjectDefinition>& objects)
 {
     std::set<std::string> groupNames;
     for (const auto& object : objects) {
         if (!groupNames.insert(object.group).second) {
             throw std::runtime_error(
-                "Combined output requires unique object group names; duplicate group: " +
+                "Output requires unique object group names; duplicate group: " +
                 object.group);
         }
     }
@@ -454,9 +454,7 @@ int launcher(int argc, const char* argv[])
         std::filesystem::path outputFolder = getFolder(inputFileName);
         auto basename = getBasename(inputFileName);
         const bool singleFileOutput = readSingleFileOutputOption(inputFileData);
-        if (singleFileOutput) {
-            validateCombinedGroupNames(objects);
-        }
+        validateUniqueGroupNames(objects);
         validateObjectFiles(outputFolder, objects);
 
         std::vector<MeshedObject> meshedObjects;
