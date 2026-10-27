@@ -18,7 +18,7 @@ public:
     
     Mesh mesh() const;
 
-    const ConformalMesherOptions & getOptions() const { return opts_; }
+    const ConformalMesherOptions & getOptions() const override { return opts_; }
     
     static std::set<Cell> findNonConformalCells(const Mesh& mesh);
     static std::set<Cell> cellsWithMoreThanAVertexInsideEdge(const Mesh& mesh);

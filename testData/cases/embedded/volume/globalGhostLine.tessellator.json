@@ -1,0 +1,23 @@
+{
+    "grid": {
+        "numberOfCells": [2, 2, 2],
+        "boundingBox": [[0.0, 0.0, -1.0], [2.0, 2.0, 1.0]]
+    },
+    "mesher": {
+        "type": "staircase",
+        "options": {
+            "embedded": "line"
+        }
+    },
+    "objects": [
+        {
+            "filename": "plate.vtu",
+            "group": "Plate"
+        },
+        {
+            "filename": "interiorLine.vtu",
+            "group": "EmbeddedLine",
+            "ghost": true
+        }
+    ]
+}

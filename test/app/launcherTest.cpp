@@ -12,12 +12,222 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <queue>
+#include <set>
+#include <sstream>
+#include <vector>
 
 using namespace meshlib::app;
 
 namespace {
+
+class StderrCapture
+{
+public:
+    StderrCapture() : previous_(std::cerr.rdbuf(buffer_.rdbuf())) {}
+    ~StderrCapture() { std::cerr.rdbuf(previous_); }
+
+    std::string str() const { return buffer_.str(); }
+
+private:
+    std::ostringstream buffer_;
+    std::streambuf* previous_;
+};
+
+int callLauncher(const std::string& input, std::string& error)
+{
+    const char* arguments[] = {nullptr, "-i", input.c_str()};
+    StderrCapture capture;
+    const int exitCode = launcher(3, arguments);
+    error = capture.str();
+    return exitCode;
+}
+
+std::size_t countElements(const meshlib::Mesh& mesh, meshlib::Element::Type type)
+{
+    std::size_t count = 0;
+    for (const meshlib::Group& group : mesh.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (element.type == type) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+bool pointInsideQuad(
+    const meshlib::Coordinate& point,
+    const meshlib::Element& quad,
+    const meshlib::Coordinates& coordinates)
+{
+    if (!quad.isQuad()) {
+        return false;
+    }
+
+    int planeAxis = -1;
+    double planeValue = 0.0;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+        bool constant = true;
+        const double value = coordinates[quad.vertices.front()][axis];
+        for (const meshlib::CoordinateId vertex : quad.vertices) {
+            if (std::abs(coordinates[vertex][axis] - value) > 1e-6) {
+                constant = false;
+                break;
+            }
+        }
+        if (constant) {
+            if (planeAxis != -1) {
+                return false;
+            }
+            planeAxis = static_cast<int>(axis);
+            planeValue = value;
+        }
+    }
+    if (planeAxis < 0 || std::abs(point[planeAxis] - planeValue) > 1e-6) {
+        return false;
+    }
+
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+        if (static_cast<int>(axis) == planeAxis) {
+            continue;
+        }
+        double minimum = std::numeric_limits<double>::max();
+        double maximum = std::numeric_limits<double>::lowest();
+        for (const meshlib::CoordinateId vertex : quad.vertices) {
+            minimum = std::min(minimum, coordinates[vertex][axis]);
+            maximum = std::max(maximum, coordinates[vertex][axis]);
+        }
+        if (point[axis] < minimum - 1e-6 || point[axis] > maximum + 1e-6) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool segmentInsideAnyQuad(
+    const meshlib::Coordinate& first,
+    const meshlib::Coordinate& second,
+    const meshlib::Mesh& surface)
+{
+    for (const meshlib::Group& group : surface.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            if (pointInsideQuad(first, element, surface.coordinates)
+                && pointInsideQuad(second, element, surface.coordinates)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool quadInsideAnyQuad(
+    const meshlib::Element& quad,
+    const meshlib::Mesh& quadMesh,
+    const meshlib::Mesh& surface)
+{
+    for (const meshlib::Group& group : surface.groups) {
+        for (const meshlib::Element& host : group.elements) {
+            if (!host.isQuad()) {
+                continue;
+            }
+            bool inside = true;
+            for (const meshlib::CoordinateId vertex : quad.vertices) {
+                if (!pointInsideQuad(
+                        quadMesh.coordinates[vertex], host, surface.coordinates)) {
+                    inside = false;
+                    break;
+                }
+            }
+            if (inside) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool isConnectedStrip(const meshlib::Mesh& strip)
+{
+    std::vector<const meshlib::Element*> quads;
+    for (const meshlib::Group& group : strip.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (element.isQuad()) {
+                quads.push_back(&element);
+            }
+        }
+    }
+    if (quads.empty()) {
+        return false;
+    }
+
+    std::map<std::pair<meshlib::Coordinate, meshlib::Coordinate>,
+             std::vector<std::size_t>> edgeQuads;
+    for (std::size_t quadId = 0; quadId < quads.size(); ++quadId) {
+        const auto& vertices = quads[quadId]->vertices;
+        for (std::size_t i = 0; i < 4; ++i) {
+            meshlib::Coordinate first = strip.coordinates[vertices[i]];
+            meshlib::Coordinate second = strip.coordinates[vertices[(i + 1) % 4]];
+            if (second < first) {
+                std::swap(first, second);
+            }
+            edgeQuads[{ first, second }].push_back(quadId);
+        }
+    }
+
+    std::vector<std::set<std::size_t>> adjacency(quads.size());
+    for (const auto& entry : edgeQuads) {
+        const auto& ids = entry.second;
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            for (std::size_t j = i + 1; j < ids.size(); ++j) {
+                adjacency[ids[i]].insert(ids[j]);
+                adjacency[ids[j]].insert(ids[i]);
+            }
+        }
+    }
+
+    std::set<std::size_t> visited;
+    std::queue<std::size_t> pending;
+    pending.push(0);
+    while (!pending.empty()) {
+        const std::size_t current = pending.front();
+        pending.pop();
+        if (!visited.insert(current).second) {
+            continue;
+        }
+        for (const std::size_t neighbour : adjacency[current]) {
+            pending.push(neighbour);
+        }
+    }
+    return visited.size() == quads.size();
+}
+
+std::size_t maximumQuadsAtVertex(const meshlib::Mesh& strip)
+{
+    std::map<meshlib::Coordinate, std::size_t> uses;
+    std::size_t maximum = 0;
+    for (const meshlib::Group& group : strip.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            for (const meshlib::CoordinateId vertex : element.vertices) {
+                maximum = std::max(
+                    maximum, ++uses[strip.coordinates[vertex]]);
+            }
+        }
+    }
+    return maximum;
+}
 
 bool hasMixedSurfaceAndLowerDimensionalElements(const meshlib::Mesh& mesh)
 {
@@ -54,6 +264,44 @@ void expectConformalVolumeLaunch(
     const auto mesh = meshlib::vtkIO::readInputMesh(output);
     ASSERT_EQ(mesh.groups.size(), 1);
     EXPECT_GT(mesh.countElems(), 0);
+}
+
+std::size_t validateEmbeddedSurfaceCase(const std::string& input)
+{
+    std::string error;
+    if (callLauncher(input, error) != EXIT_SUCCESS) {
+        ADD_FAILURE() << error;
+        return 0;
+    }
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
+    EXPECT_EQ(
+        countElements(embeddedOutput, meshlib::Element::Type::Surface),
+        embeddedOutput.countElems());
+
+    const std::size_t surfaces =
+        countElements(embeddedOutput, meshlib::Element::Type::Surface);
+    EXPECT_GT(surfaces, 0u);
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isQuad()) {
+                ADD_FAILURE() << "Embedded surface output contains a non-quad.";
+                continue;
+            }
+            EXPECT_TRUE(quadInsideAnyQuad(element, embeddedOutput, host));
+        }
+    }
+    EXPECT_TRUE(isConnectedStrip(embeddedOutput));
+    EXPECT_LE(maximumQuadsAtVertex(embeddedOutput), 3u);
+    return surfaces;
 }
 
 } // namespace
@@ -123,6 +371,9 @@ TEST_F(LauncherTest, builds_staircased_mesher_default)
     EXPECT_EQ(options.volumeGroups.size(), 0);
     EXPECT_EQ(options.compress, true);
     EXPECT_FALSE(options.splitHexahedra);
+    EXPECT_EQ(options.decimalPlacesInCollapser, 4);
+    EXPECT_EQ(options.embeddedMode, meshlib::meshers::EmbeddedMode::None);
+    EXPECT_FALSE(options.embeddedAllowOnSurfacePerimeter);
 }
 
 TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
@@ -148,6 +399,48 @@ TEST_F(LauncherTest, buildsStaircasedMesherWithSplitHexahedra)
     EXPECT_TRUE(staircase.getOptions().splitHexahedra);
 }
 
+TEST_F(LauncherTest, buildsStaircasedMesherWithDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"decimalPlacesInCollapser", 2}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+
+    EXPECT_EQ(staircase.getOptions().decimalPlacesInCollapser, 2);
+}
+
+TEST_F(LauncherTest, rejectsInvalidStaircaseDecimalPlacesInCollapser)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    ObjectDefinition object;
+
+    for (const nlohmann::json& decimalPlaces : {
+            nlohmann::json(true), nlohmann::json(1.0), nlohmann::json(-1)}) {
+        const nlohmann::json config = {
+            {"mesher", {{"type", "staircase"}, {"options", {{"decimalPlacesInCollapser", decimalPlaces}}}}}
+        };
+        EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+    }
+}
+
 TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
 {
     EXPECT_FALSE(readSingleFileOutputOption(nlohmann::json::object()));
@@ -156,7 +449,7 @@ TEST_F(LauncherTest, singleFileOutputIsDisabledByDefault)
     }));
 }
 
-TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
+TEST_F(LauncherTest, conformalMesherDefaults)
 {
     meshlib::Mesh meshMock;
     meshMock.grid = {
@@ -174,7 +467,6 @@ TEST_F(LauncherTest, conformalMesherStaircasesSharedCellsByDefault)
         dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
 
     EXPECT_TRUE(conformal.getOptions().compress);
-    EXPECT_TRUE(conformal.getOptions().staircaseSharedCells);
     EXPECT_TRUE(conformal.getOptions().mergeAxisAlignedTriangles);
 }
 
@@ -203,29 +495,6 @@ TEST_F(LauncherTest, conformalTriangleMergingCanBeDisabled)
 
     EXPECT_FALSE(conformal.getOptions().compress);
     EXPECT_FALSE(conformal.getOptions().mergeAxisAlignedTriangles);
-}
-
-TEST_F(LauncherTest, conformalSharedCellStaircasingCanBeDisabled)
-{
-    meshlib::Mesh meshMock;
-    meshMock.grid = {
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1}
-    };
-    const nlohmann::json config = {
-        {"mesher", {
-            {"type", "conformal"},
-            {"options", {{"staircaseSharedCells", false}}}
-        }}
-    };
-
-    ObjectDefinition object;
-    auto mesher = buildMesher(meshMock, config, object);
-    const auto& conformal =
-        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher);
-
-    EXPECT_FALSE(conformal.getOptions().staircaseSharedCells);
 }
 
 TEST_F(LauncherTest, parsesConformalSnapOptions)
@@ -731,11 +1000,121 @@ TEST_F(LauncherTest, rejectsDuplicateGroupNamesInSingleFileOutput)
         stream << config;
     }
     const std::string inputString = input.string();
-    const char* av[] = {nullptr, "-i", inputString.c_str()};
-
-    EXPECT_THROW(launcher(3, av), std::runtime_error);
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("duplicate group"), std::string::npos);
 
     std::filesystem::remove(input);
+}
+
+TEST_F(LauncherTest, rejectsDuplicateGroupNamesInPerObjectOutput)
+{
+    const auto temp = std::filesystem::temp_directory_path();
+    const auto input = temp / "tessellator_duplicate_groups_per_object.json";
+    const auto output = temp / "duplicate.tessellator.str.vtk";
+    const auto gridOutput =
+        temp / "tessellator_duplicate_groups_per_object.tessellator.grid.vtk";
+    std::filesystem::remove(input);
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {10, 10, 10}},
+            {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+        }},
+        {"mesher", {{"type", "staircase"}}},
+        {"objects", {
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/sphere.stl").string()},
+                {"group", "duplicate"}
+            },
+            {
+                {"filename", std::filesystem::absolute(
+                    "testData/cases/multiObject/cone.stl").string()},
+                {"group", "duplicate"}
+            }
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("duplicate group"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(output));
+    EXPECT_FALSE(std::filesystem::exists(gridOutput));
+
+    std::filesystem::remove(input);
+    std::filesystem::remove(output);
+    std::filesystem::remove(gridOutput);
+}
+
+TEST_F(LauncherTest, missingInputFileReturnsError)
+{
+    const auto input = std::filesystem::temp_directory_path()
+        / "tessellator_missing_input.tessellator.json";
+    std::filesystem::remove(input);
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Input file not found"), std::string::npos);
+    EXPECT_NE(error.find(inputString), std::string::npos);
+}
+
+TEST_F(LauncherTest, malformedInputFileReturnsError)
+{
+    const auto input = std::filesystem::temp_directory_path()
+        / "tessellator_malformed_input.tessellator.json";
+    {
+        std::ofstream stream(input);
+        stream << "{ this is not valid JSON";
+    }
+
+    const std::string inputString = input.string();
+    std::string error;
+    EXPECT_EQ(callLauncher(inputString, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Could not parse input file"), std::string::npos);
+    EXPECT_NE(error.find(inputString), std::string::npos);
+
+    std::filesystem::remove(input);
+}
+
+TEST_F(LauncherTest, missingObjectFileReturnsError)
+{
+    const auto directory = std::filesystem::temp_directory_path()
+        / "tessellator_missing_object";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+
+    const auto input = directory / "missing.tessellator.json";
+    const nlohmann::json config = {
+        {"grid", {
+            {"numberOfCells", {2, 2, 2}},
+            {"boundingBox", {{0, 0, 0}, {1, 1, 1}}}
+        }},
+        {"objects", {
+            {{"filename", "does_not_exist.stl"}, {"group", "missing"}}
+        }}
+    };
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    std::string error;
+    EXPECT_EQ(callLauncher(input.string(), error), EXIT_FAILURE);
+    EXPECT_NE(error.find("Object file not found"), std::string::npos);
+    EXPECT_NE(error.find("does_not_exist.stl"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(directory / "missing.tessellator.str.vtk"));
+    EXPECT_FALSE(std::filesystem::exists(directory / "missing.tessellator.grid.vtk"));
+
+    std::filesystem::remove_all(directory);
 }
 
 TEST_F(LauncherTest, launches_multiObject_mixedMesher)
@@ -772,4 +1151,465 @@ TEST_F(LauncherTest, launches_solenoid_multiObject_case)
     int exitCode;
     EXPECT_NO_THROW(exitCode = launcher(ac, av));
     EXPECT_EQ(exitCode, EXIT_SUCCESS);
+}
+
+TEST_F(LauncherTest, capacitorPlatesRemainConformalExceptNearNodalSource)
+{
+    const auto sourceDirectory = std::filesystem::path(
+        "testData/cases/capacitor");
+    const auto outputDirectory = std::filesystem::temp_directory_path()
+        / "tessellator_capacitor_launcher";
+    std::filesystem::remove_all(outputDirectory);
+    std::filesystem::copy(
+        sourceDirectory,
+        outputDirectory,
+        std::filesystem::copy_options::recursive);
+
+    const auto input = outputDirectory / "capacitor.tessellator.json";
+    // Inspect the per-object outputs instead of the combined mesh.
+    nlohmann::json config;
+    {
+        std::ifstream stream(input);
+        stream >> config;
+    }
+    config["output"]["singleFile"] = false;
+    {
+        std::ofstream stream(input);
+        stream << config;
+    }
+
+    const std::string inputString = input.string();
+    const char* argv[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, argv), EXIT_SUCCESS);
+
+    const auto lower = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "lower_plane.tessellator.cmsh.vtk");
+    const auto upper = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "upper_plane.tessellator.cmsh.vtk");
+    const auto nodal = meshlib::vtkIO::readInputMesh(
+        outputDirectory / "nodalSource.tessellator.str.vtk");
+
+    ASSERT_FALSE(lower.coordinates.empty());
+    ASSERT_FALSE(upper.coordinates.empty());
+    ASSERT_FALSE(nodal.coordinates.empty());
+
+    for (const auto& coordinate : lower.coordinates) {
+        EXPECT_NEAR(coordinate[2], 0.0, 1e-6);
+    }
+
+    std::size_t upperInterior = 0;
+    std::size_t upperStaircased = 0;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[2] - 60.0) < 1e-6) {
+            ++upperInterior;
+        } else if (std::abs(coordinate[2] - 100.0) < 1e-6 ||
+                   std::abs(coordinate[2] - 0.0) < 1e-6) {
+            ++upperStaircased;
+        }
+    }
+    EXPECT_GT(upperInterior, 0u);
+    EXPECT_GT(upperStaircased, 0u);
+    EXPECT_GT(upperInterior, upperStaircased);
+
+    bool hasNearNodalStaircased = false;
+    for (const auto& coordinate : upper.coordinates) {
+        if (std::abs(coordinate[0] - 2500.0) < 200.0 &&
+            std::abs(coordinate[1] - 2500.0) < 200.0 &&
+            std::abs(coordinate[2] - 60.0) > 1e-6) {
+            hasNearNodalStaircased = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasNearNodalStaircased);
+
+    EXPECT_GE(
+        meshlib::utils::meshTools::countMeshElementsIf(
+            nodal, meshlib::utils::meshTools::isLine),
+        1u);
+
+    double nodalZMin = nodal.coordinates.front()[2];
+    double nodalZMax = nodal.coordinates.front()[2];
+    for (const auto& coordinate : nodal.coordinates) {
+        nodalZMin = std::min(nodalZMin, coordinate[2]);
+        nodalZMax = std::max(nodalZMax, coordinate[2]);
+    }
+    EXPECT_NEAR(nodalZMin, 0.0, 1e-6);
+    EXPECT_NEAR(nodalZMax, 100.0, 1e-6);
+
+    std::filesystem::remove_all(outputDirectory);
+}
+
+namespace {
+
+std::string readFileContents(const std::filesystem::path& path)
+{
+    std::ifstream stream(path);
+    return std::string{
+        std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+}
+
+void runLauncherOn(const std::filesystem::path& input)
+{
+    const std::string inputString = input.string();
+    const char* av[] = {nullptr, "-i", inputString.c_str()};
+    EXPECT_EQ(launcher(3, av), EXIT_SUCCESS);
+}
+
+} // namespace
+
+TEST_F(LauncherTest, crossObjectStaircasingIsAlwaysEnabled)
+{
+    // Conformal objects always staircase shared cells: the removed
+    // "staircaseSharedCells" option must not change the result.
+    const auto temp = std::filesystem::temp_directory_path();
+    const std::string meshPath = std::filesystem::absolute(
+        "testData/cases/multiObject/sphere.stl").string();
+
+    const auto makeConfig = [&](const std::string& groupB) {
+        return nlohmann::json{
+            {"grid", {
+                {"numberOfCells", {10, 10, 10}},
+                {"boundingBox", {{-100, -100, -100}, {100, 100, 100}}}
+            }},
+            {"mesher", {{"type", "conformal"}}},
+            {"output", {{"singleFile", true}}},
+            {"objects", {
+                {{"filename", meshPath}, {"group", "sphere_a"}},
+                {{"filename", meshPath}, {"group", groupB}}
+            }}
+        };
+    };
+
+    const auto plainJson = temp / "tessellator_cross_plain.json";
+    const auto legacyJson = temp / "tessellator_cross_legacy.json";
+    const auto ghostJson = temp / "tessellator_cross_ghost.json";
+    const auto plainOutput = temp / "tessellator_cross_plain.tessellator.vtk";
+    const auto legacyOutput = temp / "tessellator_cross_legacy.tessellator.vtk";
+    const auto ghostOutput = temp / "tessellator_cross_ghost.tessellator.vtk";
+    const auto plainGrid = temp / "tessellator_cross_plain.tessellator.grid.vtk";
+    const auto legacyGrid = temp / "tessellator_cross_legacy.tessellator.grid.vtk";
+    const auto ghostGrid = temp / "tessellator_cross_ghost.tessellator.grid.vtk";
+
+    for (const auto& path : {
+             plainOutput, legacyOutput, ghostOutput, plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
+
+    {
+        std::ofstream stream(plainJson);
+        stream << makeConfig("sphere_b");
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["mesher"]["options"]["staircaseSharedCells"] = false;
+        std::ofstream stream(legacyJson);
+        stream << config;
+    }
+    {
+        auto config = makeConfig("sphere_b");
+        config["objects"][1]["ghost"] = true;
+        std::ofstream stream(ghostJson);
+        stream << config;
+    }
+
+    runLauncherOn(plainJson);
+    runLauncherOn(legacyJson);
+    runLauncherOn(ghostJson);
+
+    ASSERT_TRUE(std::filesystem::exists(plainOutput));
+    ASSERT_TRUE(std::filesystem::exists(legacyOutput));
+    ASSERT_TRUE(std::filesystem::exists(ghostOutput));
+
+    const std::string plain = readFileContents(plainOutput);
+    const std::string legacy = readFileContents(legacyOutput);
+    const std::string ghost = readFileContents(ghostOutput);
+
+    // The legacy option is ignored.
+    EXPECT_EQ(plain, legacy);
+    // Cross-object staircasing really runs: a ghost object breaks the coupling.
+    EXPECT_NE(plain, ghost);
+
+    for (const auto& path : {
+             plainJson, legacyJson, ghostJson, plainOutput, legacyOutput, ghostOutput,
+             plainGrid, legacyGrid, ghostGrid}) {
+        std::filesystem::remove(path);
+    }
+}
+
+TEST_F(LauncherTest, parsesEmbeddedModeAndPerimeterOption)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {
+                {"embedded", "surface"},
+                {"embeddedAllowOnSurfacePerimeter", true}
+            }}
+        }}
+    };
+
+    ObjectDefinition object;
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_EQ(
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Surface);
+    EXPECT_TRUE(staircase.getOptions().embeddedAllowOnSurfacePerimeter);
+    EXPECT_FALSE(staircase.getOptions().embeddedIsExplicit);
+}
+
+TEST_F(LauncherTest, objectOverrideMarksEmbeddedAsExplicit)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = nlohmann::json::object();
+
+    ObjectDefinition object;
+    object.mesherOverride = {
+        {"type", "staircase"},
+        {"options", {{"embedded", "line"}}}
+    };
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_EQ(
+        staircase.getOptions().embeddedMode,
+        meshlib::meshers::EmbeddedMode::Line);
+    EXPECT_TRUE(staircase.getOptions().embeddedIsExplicit);
+}
+
+TEST_F(LauncherTest, rejectsInvalidEmbeddedMode)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"embedded", "quads"}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    EXPECT_THROW(buildMesher(meshMock, config, object), std::runtime_error);
+}
+
+TEST_F(LauncherTest, embeddedLineOnSquareInSquareIsEmbedded)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.tessellator.json";
+    std::string error;
+    ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    EXPECT_EQ(countElements(embeddedOutput, meshlib::Element::Type::Surface), 0u);
+    EXPECT_GT(countElements(embeddedOutput, meshlib::Element::Type::Line), 0u);
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isLine()) {
+                continue;
+            }
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
+            EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
+                << first.str() << " -> " << second.str();
+        }
+    }
+}
+
+TEST_F(LauncherTest, embeddedLineOnFineGridIsEmbedded)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.fine.tessellator.json";
+    std::string error;
+    ASSERT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+
+    const std::filesystem::path folder =
+        std::filesystem::path(input).parent_path();
+    const auto host = meshlib::vtkIO::readInputMesh(
+        folder / "SquareInSquare.tessellator.str.vtk");
+    const auto embeddedOutput = meshlib::vtkIO::readInputMesh(
+        folder / "Discretize_Wire.tessellator.str.vtk");
+
+    for (const meshlib::Group& group : embeddedOutput.groups) {
+        for (const meshlib::Element& element : group.elements) {
+            if (!element.isLine()) {
+                continue;
+            }
+            const auto& first = embeddedOutput.coordinates[element.vertices[0]];
+            const auto& second = embeddedOutput.coordinates[element.vertices[1]];
+            EXPECT_TRUE(segmentInsideAnyQuad(first, second, host))
+                << first.str() << " -> " << second.str();
+        }
+    }
+}
+
+TEST_F(LauncherTest, embeddedSurfaceOnSquareInSquareIsContinuousStrip)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedSurface.tessellator.json";
+    EXPECT_GT(validateEmbeddedSurfaceCase(input), 0u);
+}
+
+TEST_F(LauncherTest, embeddedSurfaceWorksAtIncreasingResolutions)
+{
+    const std::vector<std::pair<std::string, std::string>> cases = {
+        {
+            "20x20x20",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.20x20x20.tessellator.json"
+        },
+        {
+            "40x40x23",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.tessellator.json"
+        },
+        {
+            "60x40x23",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.60x40x23.tessellator.json"
+        },
+        {
+            "80x80x46",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.80x80x46.tessellator.json"
+        },
+        {
+            "120x120x68",
+            "testData/cases/embedded/squareInSquare/"
+            "squareInSquare.embeddedSurface.120x120x68.tessellator.json"
+        }
+    };
+
+    std::vector<std::size_t> stripQuadCounts;
+    for (const auto& [resolution, input] : cases) {
+        SCOPED_TRACE(resolution);
+        stripQuadCounts.push_back(validateEmbeddedSurfaceCase(input));
+    }
+
+    for (std::size_t i = 1; i < stripQuadCounts.size(); ++i) {
+        EXPECT_GT(stripQuadCounts[i], stripQuadCounts[i - 1])
+            << "Strip size did not grow with resolution: "
+            << cases[i - 1].first << " -> " << cases[i].first;
+    }
+}
+
+TEST_F(LauncherTest, embeddedLineRejectsSurfacePerimeterByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("perimeter"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineAllowsSurfacePerimeterWhenConfigured)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedLine.allowed.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, embeddedSurfaceRejectsSurfacePerimeterByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "perimeter.embeddedSurface.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("perimeter"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineRejectsUnembeddableGrid)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.incompatible.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("not embedded"), std::string::npos);
+}
+
+TEST_F(LauncherTest, embeddedLineOnInteriorEdgeIsAllowedByDefault)
+{
+    const std::string input =
+        "testData/cases/embedded/perimeter/"
+        "interior.embeddedLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsHostSurfaceObjects)
+{
+    const std::string input =
+        "testData/cases/embedded/squareInSquare/"
+        "squareInSquare.embeddedLine.global.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "globalWithVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnVolumeObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "explicitVolume.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a volume object"), std::string::npos);
+}
+
+TEST_F(LauncherTest, globalEmbeddedOptionSkipsGhostLineObjects)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "globalGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_SUCCESS) << error;
+}
+
+TEST_F(LauncherTest, explicitEmbeddedOptionFailsOnGhostLineObject)
+{
+    const std::string input =
+        "testData/cases/embedded/volume/"
+        "explicitGhostLine.tessellator.json";
+    std::string error;
+    EXPECT_EQ(callLauncher(input, error), EXIT_FAILURE);
+    EXPECT_NE(error.find("cannot be used on a ghost object"), std::string::npos);
 }

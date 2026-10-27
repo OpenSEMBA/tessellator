@@ -72,6 +72,9 @@ The main binary is `tessellator`, which uses a tessellator json format, which wi
     tessellator -i MESH_NAME.tessellator.json
 ```
 
+While meshing, the launcher logs the group being meshed, the time spent on each
+staircase-mesher stage, and a final timing summary per object.
+
 ## JSON Format
 The main entries are as follows:
 
@@ -148,6 +151,24 @@ This optional entry configures the meshing algorithm and its options. If not spe
 For **staircase** mesher:
 - `compress`: (boolean, default: true) Merges compatible adjacent surfaces and lines to minimize exported element counts
 - `splitHexahedra`: (boolean, default: false) Splits filled volumes into one conforming hexahedron per occupied grid cell
+- `decimalPlacesInCollapser`: (non-negative integer, default: `4`) Number of decimal places used when collapsing nearby vertices after slicing
+- `embedded`: (optional string, default: unset) Enables embedded line or embedded surface processing for a line object. Use `"line"` to keep the line output and require it to be embedded in a staircase surface, or `"surface"` to replace the line with a continuous one-quad-wide strip of surface quads. The line must lie on a non-ghost staircase surface object. Invalid values and lines that cannot be embedded produce an error.
+- `embeddedAllowOnSurfacePerimeter`: (boolean, default: `false`) When false, an embedded line running along the perimeter of its host surface produces an error. Set to true to allow it.
+
+Embedded options can be set in the global `mesher.options` block or overridden per object. They only apply to staircase line objects. Embedded geometry cannot be applied to volume objects: a global `embedded` option therefore fails if the input contains any volume object, so use a per-object override when only some objects are embedded. An inherited global option is ignored for ghost objects; explicitly setting `embedded` on a ghost line object remains an error. Compressed host surfaces are supported: the line and strip are checked against the underlying cell-aligned surface without modifying the host output. Example:
+
+```json
+  "objects": [
+    {"filename": "surface.vtu"},
+    {
+      "filename": "line.vtu",
+      "mesher": {
+        "type": "staircase",
+        "options": {"embedded": "line"}
+      }
+    }
+  ]
+```
 
 For **conformal** mesher:
 - `edgePoints`: (non-negative integer, default: `0`) Number of evenly spaced
@@ -157,8 +178,29 @@ For **conformal** mesher:
 - `forbiddenLength`: (number, default: `0.0`) Fraction of each grid edge kept
   clear next to both endpoints when placing or snapping to edge points. It must be between `0.0` and `0.5`, inclusive.
 - `compress`: (boolean, default: true) Applies final surface and line compression after conformal validation and any selective staircasing
-- `staircaseSharedCells`: (boolean, default: true) Selectively staircases cells occupied by this conformal object and another object
 - `mergeAxisAlignedTriangles`: (boolean, default: true) Merges two triangles that form a cell-sized quad parallel to a grid plane
+
+### Cross-object behavior (conformal meshes)
+
+In multi-object runs, after each object is meshed independently, Tessellator
+selectively staircases the cells shared by more than one object so the combined
+output can be used with conformal FDTD. The pass runs only when there are at
+least two non-ghost objects and at least one non-ghost conformal object. It
+detects cells occupied by more than one non-ghost group and restructures them in
+every non-ghost conformal object.
+
+| Object setting | Counts for shared-cell detection | May trigger staircasing of other objects | Gets staircased itself |
+| --- | --- | --- | --- |
+| Conformal (non-ghost) | yes | yes | yes |
+| `"ghost": true` | no | no | no |
+
+`ghost` is for objects that should not couple to the rest of the model, such as
+boundary-condition sheets or probes: they are still meshed and exported, but are
+invisible to both detection and restructuring.
+
+The pass is orchestrated by the launcher. Using `ConformalMesher` as a library
+performs per-object structuring of non-conformal cells, but no cross-object
+coupling.
 
 **Global options:**
 - `exportGrid`: (boolean, default: true) Controls whether to export the grid file
@@ -177,10 +219,14 @@ Example with staircase mesher and compression disabled:
 ### `<output>`
 This optional entry controls how multi-object results are written:
 
+Object group names must be unique in every output mode. Duplicate group names
+are rejected before meshing because per-object outputs are named from the group
+and would otherwise overwrite one another.
+
 - `singleFile`: (boolean, default: false) Writes all objects to one
   `{basename}.tessellator.vtk` file instead of separate per-object mesh files.
   Object groups remain identifiable through the `group` and `groupNames` cell
-  attributes. Group names must be unique.
+  attributes.
 
 ```json
   "output": {
