@@ -191,6 +191,9 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
             }
             res.decimalPlacesInCollapser = decimalPlaces.get<int>();
         }
+        if (options.contains("allow_log")) {
+            res.allow_log = options["allow_log"];
+        }
         readEmbeddedOptions(options, res);
         res.embeddedIsExplicit = override.has_value()
             && res.embeddedMode != meshlib::meshers::EmbeddedMode::None;
@@ -234,6 +237,9 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
                 throw std::runtime_error("forbiddenLength must be a number between 0.0 and 0.5");
             }
             res.snapperOptions.forbiddenLength = value;
+        }
+        if (options.contains("allow_log")) {
+            res.allow_log = options["allow_log"];
         }
         res.compress = options.value("compress", res.compress);
         res.mergeAxisAlignedTriangles = options.value(
