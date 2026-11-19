@@ -87,7 +87,7 @@ bool hasSymmetricHoleCornerCoordinates(const Mesh& mesh)
         Coordinate({ 65.0, 65.0, 0.0 })
     }};
 
-    const auto key = [](const Coordinate& coordinate) {
+    const auto key = [coordinateScale](const Coordinate& coordinate) {
         return std::make_pair(
             std::llround(coordinate[X] * coordinateScale),
             std::llround(coordinate[Y] * coordinateScale));
