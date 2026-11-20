@@ -521,6 +521,52 @@ TEST_F(LauncherTest, parsesConformalSnapOptions)
     EXPECT_DOUBLE_EQ(conformal.getOptions().snapperOptions.forbiddenLength, 0.25);
 }
 
+TEST_F(LauncherTest, parsesStaircaseAllowLogOption)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "staircase"},
+            {"options", {{"allow_log", "true"}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    const auto mesher = buildMesher(meshMock, config, object);
+    const auto& options =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher).getOptions();
+
+    EXPECT_TRUE(options.allow_log);
+}
+
+TEST_F(LauncherTest, parsesConformalAllowLogOption)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = {
+        {"mesher", {
+            {"type", "conformal"},
+            {"options", {{"allow_log", "true"}}}
+        }}
+    };
+
+    ObjectDefinition object;
+    const auto mesher = buildMesher(meshMock, config, object);
+    const auto& options =
+        dynamic_cast<meshlib::meshers::ConformalMesher&>(*mesher).getOptions();
+
+    EXPECT_TRUE(options.allow_log);
+}
+
 TEST_F(LauncherTest, rejectsInvalidConformalSnapOptions)
 {
     meshlib::Mesh meshMock;
@@ -1387,6 +1433,27 @@ TEST_F(LauncherTest, objectOverrideMarksEmbeddedAsExplicit)
         staircase.getOptions().embeddedMode,
         meshlib::meshers::EmbeddedMode::Line);
     EXPECT_TRUE(staircase.getOptions().embeddedIsExplicit);
+}
+
+TEST_F(LauncherTest, parseAllowLogOption)
+{
+    meshlib::Mesh meshMock;
+    meshMock.grid = {
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1},
+        std::vector<double>{0, 1}
+    };
+    const nlohmann::json config = nlohmann::json::object();
+
+    ObjectDefinition object;
+    object.mesherOverride = {
+        {"type", "staircase"},
+        {"options", {{"allow_log", "true"}}}
+    };
+    auto mesher = buildMesher(meshMock, config, object);
+    const auto& staircase =
+        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
+    EXPECT_TRUE(staircase.getOptions().allow_log);
 }
 
 TEST_F(LauncherTest, rejectsInvalidEmbeddedMode)
