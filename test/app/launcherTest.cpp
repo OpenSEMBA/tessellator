@@ -532,7 +532,7 @@ TEST_F(LauncherTest, parsesStaircaseAllowLogOption)
     const nlohmann::json config = {
         {"mesher", {
             {"type", "staircase"},
-            {"options", {{"allow_log", "true"}}}
+            {"options", {{"allow_log", true}}}
         }}
     };
 
@@ -555,7 +555,7 @@ TEST_F(LauncherTest, parsesConformalAllowLogOption)
     const nlohmann::json config = {
         {"mesher", {
             {"type", "conformal"},
-            {"options", {{"allow_log", "true"}}}
+            {"options", {{"allow_log", true}}}
         }}
     };
 
