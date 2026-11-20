@@ -19,6 +19,7 @@ namespace {
 
 using Face = std::array<CoordinateId, 3>;
 using Edge = std::array<CoordinateId, 2>;
+using Polygon = CoordinateIds;
 
 Face faceKey(const Face& face)
 {
@@ -35,6 +36,35 @@ Face asFace(const Element& element)
 Edge edgeKey(CoordinateId first, CoordinateId second)
 {
     return first < second ? Edge{first, second} : Edge{second, first};
+}
+
+std::array<Face, 2> triangulateQuad(const Polygon& quad)
+{
+    const Edge firstDiagonal = edgeKey(quad[0], quad[2]);
+    const Edge secondDiagonal = edgeKey(quad[1], quad[3]);
+    if (firstDiagonal < secondDiagonal) {
+        return {Face{quad[0], quad[1], quad[2]},
+            Face{quad[0], quad[2], quad[3]}};
+    }
+    return {Face{quad[1], quad[2], quad[3]},
+        Face{quad[1], quad[3], quad[0]}};
+}
+
+Elements triangulatePolygon(const Polygon& polygon)
+{
+    if (polygon.size() == 3) {
+        return {Element(polygon, Element::Type::Surface)};
+    }
+    if (polygon.size() == 4) {
+        Elements result;
+        for (const Face& face : triangulateQuad(polygon)) {
+            result.emplace_back(
+                CoordinateIds{face[0], face[1], face[2]},
+                Element::Type::Surface);
+        }
+        return result;
+    }
+    throw std::logic_error("Only triangle and quad faces can be triangulated.");
 }
 
 [[noreturn]] void fail(GroupId groupId, const std::string& reason)
@@ -66,69 +96,118 @@ void validateVertexIds(
     }
 }
 
-double signedTetrahedronVolume6(
-    const Coordinate& first,
-    const Coordinate& second,
-    const Coordinate& third,
-    const Coordinate& fourth)
-{
-    return ((second - first) ^ (third - first)) * (fourth - first);
-}
-
 Face outwardFace(
     Face face,
-    CoordinateId opposite,
+    const Coordinate& interior,
     const Coordinates& coordinates)
 {
     const Coordinate& first = coordinates[face[0]];
     const Coordinate normal =
         (coordinates[face[1]] - first) ^ (coordinates[face[2]] - first);
-    if (normal * (coordinates[opposite] - first) > 0.0) {
+    if (normal * (interior - first) > 0.0) {
         std::swap(face[1], face[2]);
     }
     return face;
 }
 
-Elements extractTetrahedronBoundary(
+Elements outwardTriangles(
+    const Polygon& polygon,
+    const Coordinate& interior,
+    const Coordinates& coordinates,
+    GroupId groupId)
+{
+    Elements result = triangulatePolygon(polygon);
+    for (Element& element : result) {
+        Face face = outwardFace(asFace(element), interior, coordinates);
+        element.vertices = {face[0], face[1], face[2]};
+        if (utils::Geometry::isDegenerate(
+                utils::Geometry::asTriV(element, coordinates))) {
+            fail(groupId, "it contains a degenerate face.");
+        }
+    }
+    return result;
+}
+
+double signedVolume6(
+    const Elements& faces,
+    const Coordinates& coordinates,
+    const Coordinate& origin)
+{
+    double result = 0.0;
+    for (const Element& element : faces) {
+        const Face face = asFace(element);
+        result += (coordinates[face[0]] - origin)
+            * ((coordinates[face[1]] - origin)
+                ^ (coordinates[face[2]] - origin));
+    }
+    return result;
+}
+
+Elements extractVolumeBoundary(
     const Group& group,
     const Coordinates& coordinates,
     GroupId groupId)
 {
-    std::set<std::array<CoordinateId, 4>> tetrahedrons;
+    std::set<CoordinateIds> cells;
     std::map<Face, std::vector<Face>> faces;
 
     for (const Element& element : group.elements) {
         validateVertexIds(element, coordinates, groupId);
-        std::array<CoordinateId, 4> tetrahedron{
-            element.vertices[0], element.vertices[1],
-            element.vertices[2], element.vertices[3]};
-        auto tetrahedronKey = tetrahedron;
-        std::sort(tetrahedronKey.begin(), tetrahedronKey.end());
-        if (!tetrahedrons.insert(tetrahedronKey).second) {
-            fail(groupId, "it contains a duplicate tetrahedron.");
+        CoordinateIds cellKey = element.vertices;
+        std::sort(cellKey.begin(), cellKey.end());
+        if (!cells.insert(cellKey).second) {
+            fail(groupId, "it contains a duplicate volume element.");
         }
 
-        if (std::abs(signedTetrahedronVolume6(
-                coordinates[tetrahedron[0]], coordinates[tetrahedron[1]],
-                coordinates[tetrahedron[2]], coordinates[tetrahedron[3]]))
-            <= utils::Geometry::NORM_TOLERANCE) {
-            fail(groupId, "it contains a degenerate tetrahedron.");
+        Coordinate interior;
+        for (CoordinateId vertex : element.vertices) {
+            interior += coordinates[vertex] / double(element.vertices.size());
         }
 
-        for (std::size_t opposite = 0; opposite < tetrahedron.size(); ++opposite) {
-            Face face;
-            std::size_t faceIndex = 0;
-            for (std::size_t vertex = 0; vertex < tetrahedron.size(); ++vertex) {
-                if (vertex != opposite) {
-                    face[faceIndex++] = tetrahedron[vertex];
+        std::vector<Polygon> cellPolygons;
+        if (element.isTetrahedron()) {
+            for (std::size_t opposite = 0; opposite < element.vertices.size(); ++opposite) {
+                Polygon polygon;
+                for (std::size_t vertex = 0; vertex < element.vertices.size(); ++vertex) {
+                    if (vertex != opposite) {
+                        polygon.push_back(element.vertices[vertex]);
+                    }
+                }
+                cellPolygons.push_back(std::move(polygon));
+            }
+        } else {
+            static const std::array<std::array<std::size_t, 4>, 6> hexahedronFaces{{
+                {{0, 1, 2, 3}}, {{4, 5, 6, 7}},
+                {{0, 4, 5, 1}}, {{1, 5, 6, 2}},
+                {{2, 6, 7, 3}}, {{3, 7, 4, 0}}
+            }};
+            for (const auto& face : hexahedronFaces) {
+                Polygon polygon;
+                for (std::size_t vertex : face) {
+                    polygon.push_back(element.vertices[vertex]);
+                }
+                cellPolygons.push_back(std::move(polygon));
+            }
+        }
+
+        Elements cellFaces;
+        for (const Polygon& polygon : cellPolygons) {
+            Elements triangles = outwardTriangles(
+                polygon, interior, coordinates, groupId);
+            cellFaces.insert(cellFaces.end(), triangles.begin(), triangles.end());
+            for (const Element& triangle : triangles) {
+                const Face face = asFace(triangle);
+                auto& occurrences = faces[faceKey(face)];
+                occurrences.push_back(face);
+                if (occurrences.size() > 2) {
+                    fail(groupId, "a volume face is shared more than twice.");
                 }
             }
-            face = outwardFace(face, tetrahedron[opposite], coordinates);
-            auto& occurrences = faces[faceKey(face)];
-            occurrences.push_back(face);
-            if (occurrences.size() > 2) {
-                fail(groupId, "a tetrahedron face is shared more than twice.");
-            }
+        }
+
+        if (std::abs(signedVolume6(cellFaces, coordinates, interior))
+            <= utils::Geometry::NORM_TOLERANCE) {
+            fail(groupId, "it contains a degenerate volume element.");
         }
     }
 
@@ -141,7 +220,7 @@ Elements extractTetrahedronBoundary(
         }
     }
     if (boundary.empty()) {
-        fail(groupId, "its tetrahedrons have no external boundary.");
+        fail(groupId, "its volume elements have no external boundary.");
     }
     return boundary;
 }
@@ -153,17 +232,20 @@ Elements extractSurfaceBoundary(
 {
     Elements boundary;
     std::set<Face> faces;
-    boundary.reserve(group.elements.size());
     for (const Element& element : group.elements) {
         validateVertexIds(element, coordinates, groupId);
-        const Face face = asFace(element);
-        if (!faces.insert(faceKey(face)).second) {
-            fail(groupId, "it contains a duplicate triangle.");
+        Elements triangles = triangulatePolygon(element.vertices);
+        for (const Element& triangle : triangles) {
+            const Face face = asFace(triangle);
+            if (!faces.insert(faceKey(face)).second) {
+                fail(groupId, "it contains a duplicate surface face.");
+            }
+            if (utils::Geometry::isDegenerate(
+                    utils::Geometry::asTriV(triangle, coordinates))) {
+                fail(groupId, "it contains a degenerate surface face.");
+            }
+            boundary.push_back(triangle);
         }
-        if (utils::Geometry::isDegenerate(utils::Geometry::asTriV(element, coordinates))) {
-            fail(groupId, "it contains a degenerate triangle.");
-        }
-        boundary.push_back(element);
     }
     return boundary;
 }
@@ -336,29 +418,37 @@ Elements extractGroupShell(
         return {};
     }
 
-    const bool hasTriangles = std::any_of(
+    const bool hasSurfaces = std::any_of(
         group.elements.begin(), group.elements.end(),
-        [](const Element& element) { return element.isTriangle(); });
-    const bool hasTetrahedrons = std::any_of(
+        [](const Element& element) {
+            return element.isTriangle() || element.isQuad();
+        });
+    const bool hasVolumes = std::any_of(
         group.elements.begin(), group.elements.end(),
-        [](const Element& element) { return element.isTetrahedron(); });
-    if (hasTriangles && hasTetrahedrons) {
-        fail(groupId, "triangles and tetrahedrons cannot be mixed.");
+        [](const Element& element) {
+            return element.isTetrahedron() || element.isHexahedron();
+        });
+    if (hasSurfaces && hasVolumes) {
+        fail(groupId, "surface faces and volume elements cannot be mixed.");
     }
-    if (!hasTriangles && !hasTetrahedrons) {
-        fail(groupId, "only triangles or tetrahedrons are supported.");
+    if (!hasSurfaces && !hasVolumes) {
+        fail(groupId,
+            "only triangles, quads, tetrahedrons, or hexahedrons are supported.");
     }
     if (!std::all_of(
             group.elements.begin(), group.elements.end(),
-            [hasTriangles](const Element& element) {
-                return hasTriangles ? element.isTriangle() : element.isTetrahedron();
+            [hasSurfaces](const Element& element) {
+                return hasSurfaces
+                    ? element.isTriangle() || element.isQuad()
+                    : element.isTetrahedron() || element.isHexahedron();
             })) {
-        fail(groupId, "only triangles or tetrahedrons are supported.");
+        fail(groupId,
+            "only triangles, quads, tetrahedrons, or hexahedrons are supported.");
     }
 
-    Elements faces = hasTriangles
+    Elements faces = hasSurfaces
         ? extractSurfaceBoundary(group, coordinates, groupId)
-        : extractTetrahedronBoundary(group, coordinates, groupId);
+        : extractVolumeBoundary(group, coordinates, groupId);
     const EdgeFaces edgeFaces = buildEdgeFaces(faces, groupId);
     validateVertexFans(faces, edgeFaces, groupId);
     const auto components = orientComponents(faces, edgeFaces, groupId);

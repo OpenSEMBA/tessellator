@@ -31,6 +31,36 @@ Mesh buildOpenTetrahedronShell()
     return mesh;
 }
 
+Mesh buildQuadCubeShell()
+{
+    Mesh mesh;
+    mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 1.0, 2);
+    mesh.coordinates = {
+        Coordinate({0.0, 0.0, 0.0}), Coordinate({1.0, 0.0, 0.0}),
+        Coordinate({1.0, 1.0, 0.0}), Coordinate({0.0, 1.0, 0.0}),
+        Coordinate({0.0, 0.0, 1.0}), Coordinate({1.0, 0.0, 1.0}),
+        Coordinate({1.0, 1.0, 1.0}), Coordinate({0.0, 1.0, 1.0})
+    };
+    mesh.groups = {Group("volume", {
+        Element({0, 3, 2, 1}, Element::Type::Surface),
+        Element({4, 5, 6, 7}, Element::Type::Surface),
+        Element({0, 1, 5, 4}, Element::Type::Surface),
+        Element({1, 2, 6, 5}, Element::Type::Surface),
+        Element({2, 3, 7, 6}, Element::Type::Surface),
+        Element({3, 0, 4, 7}, Element::Type::Surface)
+    })};
+    return mesh;
+}
+
+Mesh buildHexahedronMesh()
+{
+    Mesh mesh = buildQuadCubeShell();
+    mesh.groups[0].elements = {
+        Element({0, 1, 2, 3, 4, 5, 6, 7}, Element::Type::Volume)
+    };
+    return mesh;
+}
+
 }
 
 TEST(VolumeShellExtractorTest, extractsOutwardBoundaryFromTetrahedron)
@@ -63,6 +93,53 @@ TEST(VolumeShellExtractorTest, acceptsAndOrientsClosedTriangleShell)
     EXPECT_EQ(4, shell.countElems());
     EXPECT_TRUE(isAClosedTopology(shell.groups[0].elements));
     EXPECT_GT(signedVolume6(shell, shell.groups[0]), 0.0);
+}
+
+TEST(VolumeShellExtractorTest, acceptsClosedQuadShell)
+{
+    const Mesh shell = VolumeShellExtractor(buildQuadCubeShell()).getMesh();
+
+    EXPECT_EQ(12, shell.countElems());
+    EXPECT_EQ(12, countMeshElementsIf(shell, isTriangle));
+    EXPECT_TRUE(isAClosedTopology(shell.groups[0].elements));
+    EXPECT_GT(signedVolume6(shell, shell.groups[0]), 0.0);
+}
+
+TEST(VolumeShellExtractorTest, acceptsMixedTriangleAndQuadShell)
+{
+    Mesh input = buildQuadCubeShell();
+    input.groups[0].elements.erase(input.groups[0].elements.begin());
+    input.groups[0].elements.push_back(Element({0, 3, 2}));
+    input.groups[0].elements.push_back(Element({0, 2, 1}));
+
+    const Mesh shell = VolumeShellExtractor(input).getMesh();
+
+    EXPECT_EQ(12, shell.countElems());
+    EXPECT_TRUE(isAClosedTopology(shell.groups[0].elements));
+}
+
+TEST(VolumeShellExtractorTest, extractsBoundaryFromHexahedron)
+{
+    const Mesh shell = VolumeShellExtractor(buildHexahedronMesh()).getMesh();
+
+    EXPECT_EQ(12, shell.countElems());
+    EXPECT_TRUE(isAClosedTopology(shell.groups[0].elements));
+    EXPECT_GT(signedVolume6(shell, shell.groups[0]), 0.0);
+}
+
+TEST(VolumeShellExtractorTest, acceptsCompatibleTetrahedronAndHexahedronMesh)
+{
+    Mesh input = buildHexahedronMesh();
+    input.coordinates.push_back(Coordinate({2.0, 0.5, 0.5}));
+    input.groups[0].elements.push_back(
+        Element({1, 5, 6, 8}, Element::Type::Volume));
+    input.groups[0].elements.push_back(
+        Element({1, 6, 2, 8}, Element::Type::Volume));
+
+    const Mesh shell = VolumeShellExtractor(input).getMesh();
+
+    EXPECT_EQ(14, shell.countElems());
+    EXPECT_TRUE(isAClosedTopology(shell.groups[0].elements));
 }
 
 TEST(VolumeShellExtractorTest, preservesEmptyGroupsAndNames)
@@ -170,6 +247,14 @@ TEST(VolumeShellExtractorTest, rejectsDegenerateAndUnsupportedElements)
     unsupported.groups[0].elements = {
         Element({0, 1, 2, 3, 0, 1, 2, 3}, Element::Type::Volume)};
     EXPECT_THROW(VolumeShellExtractor{unsupported}, std::runtime_error);
+
+    Mesh degenerateHexahedron = buildHexahedronMesh();
+    for (CoordinateId vertex : {4, 5, 6, 7}) {
+        degenerateHexahedron.coordinates[vertex][Z] = 0.0;
+    }
+    EXPECT_THROW(
+        VolumeShellExtractor{degenerateHexahedron},
+        std::runtime_error);
 }
 
 }

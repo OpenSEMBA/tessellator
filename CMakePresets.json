@@ -10,6 +10,7 @@
                     "type": "FILEPATH",
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
                 },
+                "CMAKE_BUILD_TYPE": "Release",
                 "TESSELLATOR_ENABLE_CGAL": false
             }
         },
@@ -26,13 +27,14 @@
         {
             "name": "gnu",
             "displayName": "GNU g++ compiler",
+            "binaryDir": "build-rls/",
             "inherits": "default"
         },
         {
             "name": "gnu-cgal",
             "displayName": "GNU g++ compiler with CGAL",
             "inherits": "gnu",
-            "binaryDir": "build-cgal/",
+            "binaryDir": "build-rls-cgal/",
             "cacheVariables": {
                 "TESSELLATOR_ENABLE_CGAL": true
             }

@@ -17,6 +17,10 @@ public:
     Smoother(const Mesh&, const SmootherOptions& opts = SmootherOptions());
     Mesh getMesh() const { return mesh_; }
 
+    static Mesh retriangulatePlanarPatches(
+        const Mesh& mesh,
+        double featureDetectionAngle = SmootherOptions().featureDetectionAngle);
+
 private:
     SmootherOptions opts_;
     SmootherTools sT_;

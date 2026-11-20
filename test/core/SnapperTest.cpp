@@ -7,6 +7,8 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 
+#include <algorithm>
+
 
 #if APP_LOADED
     #include "app/vtkIO.h"
@@ -46,6 +48,100 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
         auto res = Snapper(m, opts).getMesh();
         EXPECT_EQ(res.coordinates, m.coordinates);
 
+    }
+}
+
+TEST_F(SnapperTest, snapsAcrossSharedCellEdgeConsistently)
+{
+    Mesh mesh;
+    mesh.grid = Grid{
+        std::vector<double>{ 0.0, 1.0, 2.0 },
+        std::vector<double>{ 0.0, 1.0 },
+        std::vector<double>{ 0.0, 1.0 }
+    };
+    mesh.coordinates = {
+        Relative({ 1.0, 0.05, 0.0 }), // On the edge shared by cells 0 and 1.
+        Relative({ 0.8, 0.4, 0.0 }), // Inside the left cell.
+        Relative({ 1.0, 0.9, 0.0 }), // On the edge shared by cells 0 and 1.
+        Relative({ 0.2, 0.4, 0.0 })  // Inside the left cell.
+    };
+    mesh.groups = { Group("surface", {
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 2}, Element::Type::Line),
+        Element({1, 3}, Element::Type::Line)
+    }) };
+
+    SnapperOptions options;
+    options.edgePoints = 3;
+    options.forbiddenLength = 0.0;
+
+    const Mesh result = Snapper(mesh, options).getMesh();
+
+    const auto hasCoordinateNear = [&](const Coordinate& expected) {
+        return std::any_of(
+            result.coordinates.begin(), result.coordinates.end(),
+            [&](const Coordinate& coordinate) {
+                return (coordinate - expected).norm() < 1e-9;
+            });
+    };
+
+    EXPECT_TRUE(hasCoordinateNear(Coordinate({ 1.0, 0.0, 0.0 })));
+    EXPECT_FALSE(hasCoordinateNear(Coordinate({ 1.0, 0.5, 0.0 })));
+}
+
+TEST_F(SnapperTest, rejectsSnapsThatInvertIncidentTriangles)
+{
+    Mesh mesh;
+    mesh.grid = buildUnitLengthGrid(1.0);
+    mesh.coordinates = {
+        Relative({0.328, 0.499, 0.0}),
+        Relative({0.206, 0.935, 0.0}),
+        Relative({0.355, 0.190, 0.0}),
+        Relative({0.466, 0.718, 0.0}),
+    };
+    mesh.groups = {Group("surface", {
+        Element({0, 1, 2}),
+        Element({1, 0, 3}),
+    })};
+    SnapperOptions options;
+    options.edgePoints = 4;
+    options.forbiddenLength = 0.25;
+
+    const Snapper snapper(mesh, options);
+    const Mesh result = snapper.getMesh();
+
+    ASSERT_EQ(result.groups.size(), 1);
+    ASSERT_EQ(result.groups[0].elements.size(), 2);
+    for (ElementId elementId = 0; elementId < 2; ++elementId) {
+        const Coordinate originalNormal = Geometry::normal(
+            Geometry::asTriV(mesh.groups[0].elements[elementId], mesh.coordinates));
+        const Coordinate resultNormal = Geometry::normal(
+            Geometry::asTriV(
+                result.groups[0].elements[elementId], result.coordinates));
+        EXPECT_GT(originalNormal * resultNormal, 0.0);
+    }
+    EXPECT_NO_THROW(meshTools::checkNoOverlaps(result));
+    EXPECT_FALSE(hasInvalidSurfaceAdjacency(result));
+    EXPECT_EQ(
+        snapper.getCellsToStaircase(),
+        std::set<Cell>({Cell({0, 0, 0})}));
+}
+
+TEST_F(SnapperTest, acceptsForbiddenLengthBoundaryValues)
+{
+    for (const double forbiddenLength : {0.0, 0.5}) {
+        SnapperOptions options;
+        options.forbiddenLength = forbiddenLength;
+        EXPECT_NO_THROW(Snapper(buildPlane45Mesh(1.0), options));
+    }
+}
+
+TEST_F(SnapperTest, rejectsInvalidForbiddenLength)
+{
+    for (const double forbiddenLength : {-0.1, 0.6}) {
+        SnapperOptions options;
+        options.forbiddenLength = forbiddenLength;
+        EXPECT_THROW(Snapper(buildPlane45Mesh(1.0), options), std::logic_error);
     }
 }
 

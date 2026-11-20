@@ -9,9 +9,18 @@ namespace core {
 
 class Snapper {
 public:
+	enum class SurfaceInversionPolicy {
+		Reject,
+		AllowDuringCollapse,
+	};
 	
-	Snapper(const Mesh& mesh, const SnapperOptions& opts = SnapperOptions());
+	Snapper(
+		const Mesh& mesh,
+		const SnapperOptions& opts = SnapperOptions(),
+		SurfaceInversionPolicy surfaceInversionPolicy =
+			SurfaceInversionPolicy::Reject);
 	Mesh getMesh() const { return mesh_; };
+	const std::set<Cell>& getCellsToStaircase() const { return cellsToStaircase_; }
 	
 private:
 	typedef size_t Component;
@@ -23,6 +32,8 @@ private:
 
 	Mesh mesh_;
 	SnapperOptions opts_;
+	SurfaceInversionPolicy surfaceInversionPolicy_;
+	std::set<Cell> cellsToStaircase_;
 
 	std::pair<Coordinate, Coordinate> findClosestSolverPoint(
 		const Relative& rel,
@@ -33,6 +44,7 @@ private:
 
 
 	void snap();
+	void rollbackUnsafeSurfaceSnaps(const Coordinates& originalCoordinates);
 };
 
 }

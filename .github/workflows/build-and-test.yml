@@ -17,10 +17,13 @@ jobs:
   builds-and-tests:
     strategy:
       matrix:
+        # Keep Ubuntu pinned to 24.04 (GCC 13). ubuntu-latest now resolves to
+        # Ubuntu 26.04 (GCC 15), where vcpkg's gmp 6.3.0#2 configure script and
+        # several geometry tests fail. Revisit when GCC 15 is supported.
         preset: [
           {"os": windows-2022, "name": "msbuild"},
-          {"os": ubuntu-latest, "name": "gnu"},
-          {"os": ubuntu-latest, "name": "gnu-cgal"}
+          {"os": ubuntu-24.04, "name": "gnu"},
+          {"os": ubuntu-24.04, "name": "gnu-cgal"}
         ]
         build-type: ["Release"]
         
@@ -28,8 +31,8 @@ jobs:
         
     name: ${{ matrix.preset.os }} / ${{matrix.preset.name}} / ${{matrix.build-type}}
     runs-on: ${{ matrix.preset.os }}
-    env:
-      VCPKG_BINARY_SOURCES: clear
+    # Inherit the workflow-level x-gha binary cache.  Do not override this
+    # with `clear`: Windows VTK is otherwise rebuilt from source on every run.
 
     steps:
     - name: checkout repository
@@ -46,7 +49,7 @@ jobs:
 
     # I am having issues installing vcpkg in ubuntu.
     - name: Setup vtk in ubuntu
-      if: matrix.preset.os=='ubuntu-latest'
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y libvtk9-dev
@@ -86,7 +89,7 @@ jobs:
       run: build/bin/${{matrix.build-type}}/tessellator_tests.exe
 
     - name: Ubuntu configure and build
-      if: matrix.preset.os=='ubuntu-latest'
+      if: runner.os == 'Linux'
       run: |
         configured=0
         for attempt in 1 2 3; do
@@ -100,5 +103,5 @@ jobs:
         cmake --build build -j
         
     - name: Ubuntu Run tests
-      if: matrix.preset.os=='ubuntu-latest'
+      if: runner.os == 'Linux'
       run: build/bin/tessellator_tests

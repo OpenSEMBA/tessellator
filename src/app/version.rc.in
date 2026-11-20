@@ -1,0 +1,25 @@
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+ PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "CompanyName", "UGR/Elemwave"
+      VALUE "FileDescription", "Tessellator - Mesh generation library"
+      VALUE "FileVersion", "@PROJECT_VERSION@.0"
+      VALUE "InternalName", "tessellator"
+      VALUE "LegalCopyright", "Copyright (C) UGR/Elemwave - Authors: Alberto G. Bravo, Luis D. Angulo, Salvador G. Garcia, Amelia Rubio Bretones"
+      VALUE "OriginalFilename", "tessellator.exe"
+      VALUE "ProductName", "Tessellator"
+      VALUE "ProductVersion", "@PROJECT_VERSION@.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

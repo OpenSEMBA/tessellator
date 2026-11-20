@@ -1,4 +1,5 @@
 #include "types/Mesh.h"
+#include "utils/Geometry.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
 
@@ -11,6 +12,11 @@ static Grid buildUnitLengthGrid(double stepSize)
     const double boxMax = 1.0;
     const std::size_t gridLinesNum = (std::size_t)((boxMax - boxMin) / (double)stepSize) + 1;
     return utils::GridTools::buildCartesianGrid(boxMin, boxMax, gridLinesNum);
+}
+
+static bool hasInvalidSurfaceAdjacency(const Mesh& mesh)
+{
+    return !utils::meshTools::getElementsWithInvalidSurfaceAdjacency(mesh).empty();
 }
 
 static Mesh buildNonManifoldPatchMesh(double stepSize)

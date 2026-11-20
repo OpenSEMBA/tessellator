@@ -2,9 +2,11 @@
 #include "MeshFixtures.h"
 
 #include <array>
+#include <algorithm>
 #include <map>
 #include <queue>
 #include <set>
+#include <string>
 
 #include "meshers/StaircaseMesher.h"
 #include "StaircaseMesherOptions.h"
@@ -36,6 +38,23 @@ using FaceKey = std::array<CoordinateId, 4>;
 EdgeKey edgeKey(CoordinateId first, CoordinateId second)
 {
     return first < second ? EdgeKey{first, second} : EdgeKey{second, first};
+}
+
+std::size_t countBoundaryEdges(const Elements& faces)
+{
+    std::map<EdgeKey, std::size_t> edgeFaces;
+    for (const Element& face : faces) {
+        if (!face.isQuad()) {
+            continue;
+        }
+        for (std::size_t vertex = 0; vertex < face.vertices.size(); ++vertex) {
+            ++edgeFaces[edgeKey(
+                face.vertices[vertex],
+                face.vertices[(vertex + 1) % face.vertices.size()])];
+        }
+    }
+    return std::count_if(edgeFaces.begin(), edgeFaces.end(),
+        [](const auto& entry) { return entry.second == 1; });
 }
 
 bool isSingleClosedSurface(const Elements& faces)
@@ -283,7 +302,9 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
+    StaircaseMesherOptions collapserOptions;
+    collapserOptions.decimalPlacesInCollapser = 2;
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, collapserOptions).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
@@ -343,17 +364,47 @@ TEST_F(StaircaseMesherTest, testStaircaseLinesWithRectilinearGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
+    StaircaseMesherOptions collapserOptions;
+    collapserOptions.decimalPlacesInCollapser = 2;
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, collapserOptions).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
 
     assertMeshEqual(resultMesh, expectedMesh);
 }
 
+TEST_F(StaircaseMesherTest, reportsGroupAndPhaseTimings)
+{
+    Mesh inputMesh = buildTriNonUniformGridMesh();
+    inputMesh.groups[0].name = "testGroup";
+
+    StaircaseMesherOptions options;
+    options.allow_log = true;
+
+    testing::internal::CaptureStdout();
+    StaircaseMesher mesher(inputMesh, options);
+    const std::string log = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(log.find("Meshing group: testGroup"), std::string::npos);
+    EXPECT_NE(log.find("Timings."), std::string::npos);
+    EXPECT_NE(log.find("surface.slicing:"), std::string::npos);
+    EXPECT_NE(log.find("Total:"), std::string::npos);
+
+    const auto& timings = mesher.getTimings();
+    ASSERT_EQ(11u, timings.size());
+    EXPECT_EQ("buildSurfaceMesh", timings.front().phase);
+    EXPECT_EQ("collapseNodes", timings.back().phase);
+    for (const auto& timing : timings) {
+        EXPECT_GE(timing.seconds, 0.0);
+    }
+}
+
 TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
 {
     Mesh out;
-    ASSERT_NO_THROW(out = StaircaseMesher(buildTriNonUniformGridMesh(), 4).mesh());
+    StaircaseMesherOptions options;
+    options.compress = false;
+    ASSERT_NO_THROW(out = StaircaseMesher(buildTriNonUniformGridMesh(), options).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(out));
     EXPECT_EQ(6, out.groups[0].elements.size());
@@ -361,65 +412,6 @@ TEST_F(StaircaseMesherTest, testTriNonUniformGridStaircase)
     EXPECT_EQ(2, countMeshElementsIf(out, isLine));
     EXPECT_EQ(0, countMeshElementsIf(out, isNode));
 }
-
-#if APP_LOADED
-// FOR DEBUG ONLY / OBTAIN VISUAL REPRESENTATION
-
-TEST_F(StaircaseMesherTest, DISABLED_visualSelectiveStaircaserCone)
-{
-    // Input
-    const std::string inputFilename = "testData/cases/cone/cone.stl";
-    auto inputMesh = vtkIO::readInputMesh(inputFilename);
-
-    inputMesh.grid[X] = utils::GridTools::linspace(-2.0,  2.0,  41); 
-    inputMesh.grid[Y] = utils::GridTools::linspace(-2.0,  2.0,  41); 
-    inputMesh.grid[Z] = utils::GridTools::linspace(-1.0, 11.0, 121);
-
-    // SurfaceMesh
-
-    auto surfaceMesh = meshlib::utils::meshTools::buildMeshFilteringElements(inputMesh, meshlib::utils::meshTools::isNotTetrahedron);
-
-    // Slicer
-
-    auto slicedMesh = meshlib::core::Slicer{surfaceMesh}.getMesh();
-
-    // Collapser
-
-    auto collapsedMesh = meshlib::core::Collapser{slicedMesh, 4}.getMesh();
-
-    // Selection the specific cells to staircase and generate the result Mesh
-
-    std::set<Cell> cellSet;
-
-    for (int x = 0; x < 41; ++x) {
-        for (int y = 0; y < 41; ++y) {
-            for (int z = 0; z < 61; ++z) {  
-                cellSet.insert(Cell{x, y, z});
-            }
-        }
-    }
-
-    auto resultMesh = meshlib::core::Staircaser{ collapsedMesh }.getSelectiveMesh(cellSet);
-    ASSERT_NO_THROW(meshTools::checkNoCellsAreCrossed(resultMesh));
-
-    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(resultMesh);
-    utils::meshTools::reduceGrid(resultMesh, inputMesh.grid);
-    utils::meshTools::convertToAbsoluteCoordinates(resultMesh);
-
-    EXPECT_TRUE(meshTools::isAClosedTopology(inputMesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(surfaceMesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(resultMesh.groups[0].elements));
-
-
-
-    std::filesystem::path outputFolder = meshlib::vtkIO::getFolder(inputFilename);
-    auto basename = meshlib::vtkIO::getBasename(inputFilename);
-    meshlib::vtkIO::exportMeshToVTU(outputFolder / (basename + ".tessellator.selective.vtk"), resultMesh);
-    meshlib::vtkIO::exportGridToVTU(outputFolder / (basename + ".tessellator.selective.grid.vtk"), resultMesh.grid);
-}
-
-#endif
 
 TEST_F(StaircaseMesherTest, testStaircaseTriangleWithUniformGrid)
 {
@@ -443,7 +435,10 @@ TEST_F(StaircaseMesherTest, testStaircaseTriangleWithUniformGrid)
     };
 
     Mesh resultMesh;
-    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, 2).mesh());
+    StaircaseMesherOptions options;
+    options.compress = false;
+    options.decimalPlacesInCollapser = 2;
+    ASSERT_NO_THROW(resultMesh = StaircaseMesher(inputMesh, options).mesh());
 
     EXPECT_EQ(0, countRepeatedElements(resultMesh));
     EXPECT_EQ(12, resultMesh.groups[0].elements.size());
@@ -478,11 +473,15 @@ TEST_F(StaircaseMesherTest, testStaircaseWithCompression)
         Element({2, 3}, Element::Type::Line)
     };
 
-    Mesh nonCompressedMesh = StaircaseMesher(inputMesh, 2).mesh();
+    StaircaseMesherOptions nonCompressionOption;
+    nonCompressionOption.compress = false;
+    nonCompressionOption.decimalPlacesInCollapser = 2;
+    Mesh nonCompressedMesh = StaircaseMesher(inputMesh, nonCompressionOption).mesh();
     Mesh compressedMesh;
     StaircaseMesherOptions compressOption;
     compressOption.compress = true;
-    ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, 2, compressOption).mesh());
+    compressOption.decimalPlacesInCollapser = 2;
+    ASSERT_NO_THROW(compressedMesh = StaircaseMesher(inputMesh, compressOption).mesh());
 
     EXPECT_EQ(3, countRepeatedElements(nonCompressedMesh));
     EXPECT_EQ(7, nonCompressedMesh.groups[0].elements.size());
@@ -510,7 +509,7 @@ TEST_F(StaircaseMesherTest, mesh_tetrahedron_volume_2x2){
 //     vtkIO::exportGridToVTU("testData/cases/mesh_tetrahedron_volume_2x2_before_grid.vtk", m.grid);
 // #endif
 
-    auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
+    auto staircasedMesh = StaircaseMesher{m, opts }.mesh();
 
 // #if APP_LOADED
 //     vtkIO::exportMeshToVTU("testData/cases/mesh_tetrahedron_volume_2x2_after.vtk", staircasedMesh);
@@ -531,7 +530,7 @@ TEST_F(StaircaseMesherTest, mesh_surface_volume_2x2){
     meshlib::meshers::StaircaseMesherOptions opts;
     opts.volumeGroups.insert(0);
     // opts.isVolume = true;
-    auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
+    auto staircasedMesh = StaircaseMesher{m, opts }.mesh();
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isQuad));
@@ -545,8 +544,9 @@ TEST_F(StaircaseMesherTest, mesh_surface_not_volume_2x2){
 
 	Mesh m = buildCubeSurfaceMesh(0.5);
     meshlib::meshers::StaircaseMesherOptions opts;
+    opts.compress = false;
     // opts.isVolume = true;
-    auto staircasedMesh = StaircaseMesher{m, 4, opts }.mesh();
+    auto staircasedMesh = StaircaseMesher{m, opts }.mesh();
 
     EXPECT_EQ(0, countMeshElementsIf(staircasedMesh, isTriangle));
     EXPECT_EQ(24, countMeshElementsIf(staircasedMesh, isQuad));
@@ -562,9 +562,10 @@ TEST_F(StaircaseMesherTest, meshesSelectedNonzeroVolumeGroupWithHexahedra)
     mesh.groups.push_back(mesh.groups[0]);
     mesh.groups[1].name = "volume";
     StaircaseMesherOptions options;
+    options.compress = false;
     options.volumeGroups.insert(1);
 
-    const Mesh result = StaircaseMesher(mesh, 4, options).mesh();
+    const Mesh result = StaircaseMesher(mesh, options).mesh();
 
     EXPECT_EQ("surface", result.groups[0].name);
     EXPECT_EQ("volume", result.groups[1].name);
@@ -572,6 +573,7 @@ TEST_F(StaircaseMesherTest, meshesSelectedNonzeroVolumeGroupWithHexahedra)
         result.groups[0].elements.begin(), result.groups[0].elements.end(), isQuad));
     EXPECT_EQ(4, std::count_if(
         result.groups[1].elements.begin(), result.groups[1].elements.end(), isHexahedron));
+    EXPECT_EQ(26, result.coordinates.size());
 }
 
 #if APP_LOADED
@@ -591,12 +593,55 @@ TEST_F(StaircaseMesherTest, fillsSphereAsSingleClosedUnitHexahedralVolume)
     options.splitHexahedra = true;
 
     // vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.volume.before.vtk", mesh);
-    const Mesh result = StaircaseMesher{mesh, 4, options}.mesh();
+    const Mesh result = StaircaseMesher{mesh, options}.mesh();
     // vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.volume.after.vtk", result);
 
     EXPECT_EQ(7967, countMeshElementsIf(result, isHexahedron));
     EXPECT_EQ(result.countElems(), countMeshElementsIf(result, isHexahedron));
     EXPECT_TRUE(isSingleClosedHexahedralVolume(result));
+}
+
+TEST_F(StaircaseMesherTest, fillsSphereWithStaircaseGapsAsClosedVolume)
+{
+    struct Resolution {
+        int cells;
+        std::size_t hexahedra;
+    };
+    const std::array<Resolution, 3> resolutions{{
+        {104, 2096}, {350, 23718}, {400, 30980}}};
+
+    for (const Resolution& resolution : resolutions) {
+        SCOPED_TRACE("cells per axis = " + std::to_string(resolution.cells));
+
+        auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+        for (auto axis : {X, Y, Z}) {
+            mesh.grid[axis] = utils::GridTools::linspace(
+                -100.0, 100.0, resolution.cells + 1);
+        }
+
+        StaircaseMesherOptions options;
+        options.volumeGroups.insert(0);
+
+        const Mesh result = StaircaseMesher{mesh, options}.mesh();
+
+        EXPECT_EQ(resolution.hexahedra, countMeshElementsIf(result, isHexahedron));
+        EXPECT_EQ(result.countElems(), countMeshElementsIf(result, isHexahedron));
+    }
+}
+
+TEST_F(StaircaseMesherTest, staircasedSphereSurfaceHasNoBoundaryAtFourHundredCells)
+{
+    auto mesh = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+    for (auto axis : {X, Y, Z}) {
+        mesh.grid[axis] = utils::GridTools::linspace(-100.0, 100.0, 401);
+    }
+
+    StaircaseMesherOptions options;
+    options.compress = false;
+
+    const Mesh result = StaircaseMesher{mesh, options}.mesh();
+
+    EXPECT_EQ(0, countBoundaryEdges(result.groups[0].elements));
 }
 
 TEST_F(StaircaseMesherTest, fillsAlhambraAsSingleClosedUnitHexahedralVolume)
@@ -612,7 +657,7 @@ TEST_F(StaircaseMesherTest, fillsAlhambraAsSingleClosedUnitHexahedralVolume)
     options.splitHexahedra = true;
 
     // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.volume.before.vtk", mesh);
-    const Mesh result = StaircaseMesher{mesh, 4, options}.mesh();
+    const Mesh result = StaircaseMesher{mesh, options}.mesh();
     // vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.volume.after.vtk", result);
 
     EXPECT_EQ(7255, countMeshElementsIf(result, isHexahedron));
@@ -628,7 +673,9 @@ TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_alhambra)
     mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61); 
     mesh.grid[Z] = utils::GridTools::linspace(-1.872734, 11.236404, 8);
-    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
+    StaircaseMesherOptions options;
+    options.compress = false;
+    auto staircasedMesh = StaircaseMesher{mesh, options}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
     EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));
@@ -641,7 +688,9 @@ TEST_F(StaircaseMesherTest, preserves_topological_closedness_for_sphere)
         mesh.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
     }
 
-    auto staircasedMesh = StaircaseMesher{mesh}.mesh();
+    StaircaseMesherOptions options;
+    options.compress = false;
+    auto staircasedMesh = StaircaseMesher{mesh, options}.mesh();
     
     EXPECT_TRUE(meshTools::isAClosedTopology(mesh.groups[0].elements));
     EXPECT_TRUE(meshTools::isAClosedTopology(staircasedMesh.groups[0].elements));

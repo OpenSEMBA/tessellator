@@ -1,0 +1,16 @@
+# vtk DataFile Version 5.1
+vtk output
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 4 double
+5000 5000 60 0 5000 60 0 0 60 
+5000 0 60 
+CELLS 3 6
+OFFSETS vtktypeint64
+0 3 6 
+CONNECTIVITY vtktypeint64
+0 1 2 0 2 3 
+CELL_TYPES 2
+5
+5
+

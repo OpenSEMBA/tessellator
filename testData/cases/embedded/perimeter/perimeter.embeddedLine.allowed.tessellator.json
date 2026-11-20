@@ -1,0 +1,38 @@
+{
+    "grid": {
+        "numberOfCells": [
+            2,
+            2,
+            2
+        ],
+        "boundingBox": [
+            [
+                0.0,
+                0.0,
+                -1.0
+            ],
+            [
+                2.0,
+                2.0,
+                1.0
+            ]
+        ]
+    },
+    "objects": [
+        {
+            "filename": "plate.vtu",
+            "group": "Plate"
+        },
+        {
+            "filename": "perimeterLine.vtu",
+            "group": "EmbeddedLine",
+            "mesher": {
+                "type": "staircase",
+                "options": {
+                    "embedded": "line",
+                    "embeddedAllowOnSurfacePerimeter": true
+                }
+            }
+        }
+    ]
+}

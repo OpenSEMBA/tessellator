@@ -1,11 +1,16 @@
 #include "launcher.h"
 #include "vtkIO.h"
+#include "MeshedObject.h"
+#include "EmbeddedElementProcessor.h"
 
 #include "meshers/MesherBase.h"
 #include "meshers/StaircaseMesher.h"
 #include "meshers/ConformalMesher.h"
+#include "core/Staircaser.h"
+#include "core/Compressor.h"
 #include "utils/GridTools.h"
 #include "utils/MeshTools.h"
+#include "utils/RedundancyCleaner.h"
 
 #include <boost/program_options.hpp>
 #include <nlohmann/json.hpp>
@@ -14,8 +19,12 @@
 #include <filesystem>
 #include <fstream>
 #include <array>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 
 namespace meshlib::app {
 
@@ -59,6 +68,7 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData
             if (obj.contains("volume")){
                 objDef.isVolume = obj["volume"];
             }
+            objDef.ghost = obj.value("ghost", false);
             if (obj.contains("mesher")) {
                 objDef.mesherOverride = obj["mesher"];
             }
@@ -71,6 +81,7 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData
         if (fileData["object"].contains("volume")){
             objDef.isVolume = fileData["object"]["volume"];
         }
+        objDef.ghost = fileData["object"].value("ghost", false);
         if (fileData.contains("mesher")) {
             objDef.mesherOverride = fileData["mesher"];
         }
@@ -80,6 +91,14 @@ std::vector<ObjectDefinition> readObjectsFromJSON(const nlohmann::json& fileData
     }
 
     return objects;
+}
+
+bool readSingleFileOutputOption(const nlohmann::json& fileData)
+{
+    if (!fileData.contains("output")) {
+        return false;
+    }
+    return fileData["output"].value("singleFile", false);
 }
 
 Mesh readMesh(const nlohmann::json& fileData, const std::filesystem::path& folderPath, const ObjectDefinition& objDef)
@@ -150,16 +169,31 @@ meshlib::meshers::StaircaseMesherOptions readStaircaseMesherOptions(const nlohma
     }
 
     meshlib::meshers::StaircaseMesherOptions res;
+    res.allow_log = true;
     if (isVolume){
         res.volumeGroups.insert(0);
     }
-    if (mesherConfig.contains("options") && 
-        mesherConfig["options"].contains("compress")) {
-        res.compress = mesherConfig["options"]["compress"];
-    }
-    if (mesherConfig.contains("options") &&
-        mesherConfig["options"].contains("splitHexahedra")) {
-        res.splitHexahedra = mesherConfig["options"]["splitHexahedra"];
+    if (mesherConfig.contains("options")) {
+        const auto& options = mesherConfig["options"];
+        if (options.contains("compress")) {
+            res.compress = options["compress"];
+        }
+        if (options.contains("splitHexahedra")) {
+            res.splitHexahedra = options["splitHexahedra"];
+        }
+        if (options.contains("decimalPlacesInCollapser")) {
+            const auto& decimalPlaces = options["decimalPlacesInCollapser"];
+            if (!decimalPlaces.is_number_integer() && !decimalPlaces.is_number_unsigned()) {
+                throw std::runtime_error("decimalPlacesInCollapser must be a non-negative integer");
+            }
+            if (decimalPlaces.is_number_integer() && decimalPlaces.get<std::int64_t>() < 0) {
+                throw std::runtime_error("decimalPlacesInCollapser must be a non-negative integer");
+            }
+            res.decimalPlacesInCollapser = decimalPlaces.get<int>();
+        }
+        readEmbeddedOptions(options, res);
+        res.embeddedIsExplicit = override.has_value()
+            && res.embeddedMode != meshlib::meshers::EmbeddedMode::None;
     }
 
     return res;
@@ -179,8 +213,31 @@ meshlib::meshers::ConformalMesherOptions readConformalMesherOptions(const nlohma
         res.volumeGroups.insert(0);
     }
     if (mesherConfig.contains("options")) {
-        res.snapperOptions.edgePoints = mesherConfig["options"]["edgePoints"];
-        res.snapperOptions.forbiddenLength = mesherConfig["options"]["forbiddenLength"];
+        const auto& options = mesherConfig["options"];
+        if (options.contains("edgePoints")) {
+            const auto& edgePoints = options["edgePoints"];
+            if (!edgePoints.is_number_integer() && !edgePoints.is_number_unsigned()) {
+                throw std::runtime_error("edgePoints must be a non-negative integer");
+            }
+            if (edgePoints.is_number_integer() && edgePoints.get<std::int64_t>() < 0) {
+                throw std::runtime_error("edgePoints must be a non-negative integer");
+            }
+            res.snapperOptions.edgePoints = edgePoints.get<std::size_t>();
+        }
+        if (options.contains("forbiddenLength")) {
+            const auto& forbiddenLength = options["forbiddenLength"];
+            if (!forbiddenLength.is_number()) {
+                throw std::runtime_error("forbiddenLength must be a number between 0.0 and 0.5");
+            }
+            const auto value = forbiddenLength.get<double>();
+            if (!std::isfinite(value) || value < 0.0 || value > 0.5) {
+                throw std::runtime_error("forbiddenLength must be a number between 0.0 and 0.5");
+            }
+            res.snapperOptions.forbiddenLength = value;
+        }
+        res.compress = options.value("compress", res.compress);
+        res.mergeAxisAlignedTriangles = options.value(
+            "mergeAxisAlignedTriangles", res.mergeAxisAlignedTriangles);
     }
     return res;
 }
@@ -208,7 +265,6 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
     if (mesherType == meshlib::app::staircase_mesher) {
         return std::make_unique<meshlib::meshers::StaircaseMesher>(meshlib::meshers::StaircaseMesher{
             in,
-            4,
             readStaircaseMesherOptions(fileData, objDef.isVolume, objDef.mesherOverride)
         });
     } else if (mesherType == meshlib::app::conformal_mesher) {
@@ -218,64 +274,260 @@ std::unique_ptr<meshlib::meshers::MesherBase> buildMesher(const Mesh& in, const 
     }
 }
 
-int launcher(int argc, const char* argv[])
+namespace {
+
+Mesh mergeObjectMeshes(const std::vector<MeshedObject>& objects)
 {
-    po::options_description desc("Allowed options");
-    desc.add_options()
-        ("help,h", "produce help message")
-        ("input,i", po::value<std::string>(), "input file");
-
-    po::variables_map vm;
-    po::store(po::command_line_parser(argc, argv).
-            options(desc).run(), vm);
-    po::notify(vm);
-
-    if (vm.count("help") || !vm.count("input")) {
-        std::cout << desc << std::endl;
-        return EXIT_SUCCESS;
+    Mesh combined;
+    if (objects.empty()) {
+        return combined;
     }
 
-    std::string inputFileName = vm["input"].as<std::string>();
-    std::cout << "-- Input file is: " << inputFileName << std::endl;
-
-    nlohmann::json inputFileData;
-    {
-        std::ifstream i(inputFileName);
-        i >> inputFileData;
-    }
-
-    std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFileData);
-    std::filesystem::path outputFolder = getFolder(inputFileName);
-    auto basename = getBasename(inputFileName);
-
-    Mesh firstMesh;
-    bool first = true;
-
-    for (const auto& objDef : objects) {
-        std::cout << "\n-- Processing object: " << objDef.filename << " (group: " << objDef.group << ")" << std::endl;
-
-        Mesh mesh = readMesh(inputFileData, outputFolder, objDef);
-
-        auto mesher = buildMesher(mesh, inputFileData, objDef);
-        Mesh resultMesh = mesher->mesh();
-
-        if (first) {
-            firstMesh = resultMesh;
-            first = false;
+    combined.grid = objects.front().mesh.grid;
+    for (const auto& object : objects) {
+        if (object.mesh.grid != combined.grid) {
+            throw std::runtime_error("Cannot combine object meshes with different grids.");
+        }
+        if (object.mesh.groups.size() != 1) {
+            throw std::runtime_error(
+                "Each object must produce exactly one mesh group for combined processing.");
         }
 
-        auto extension = readExtension(inputFileData, objDef.mesherOverride);
-        std::string outputFileName = objDef.group + ".tessellator." + extension + ".vtk";
-        exportMeshToVTU(outputFolder / outputFileName, resultMesh);
-        std::cout << "-- Exported: " << outputFileName << std::endl;
+        Mesh namedMesh = object.mesh;
+        namedMesh.groups.front().name = object.definition.group;
+        if (combined.groups.empty()) {
+            combined = std::move(namedMesh);
+        } else {
+            utils::meshTools::mergeMeshAsNewGroup(combined, namedMesh);
+        }
+    }
+    utils::RedundancyCleaner::fuseCoords(combined);
+    utils::RedundancyCleaner::cleanCoords(combined);
+    return combined;
+}
+
+void validateUniqueGroupNames(const std::vector<ObjectDefinition>& objects)
+{
+    std::set<std::string> groupNames;
+    for (const auto& object : objects) {
+        if (!groupNames.insert(object.group).second) {
+            throw std::runtime_error(
+                "Output requires unique object group names; duplicate group: " +
+                object.group);
+        }
+    }
+}
+
+void validateObjectFiles(
+    const std::filesystem::path& folderPath,
+    const std::vector<ObjectDefinition>& objects)
+{
+    for (const auto& object : objects) {
+        const auto path = folderPath / object.filename;
+        if (!std::filesystem::exists(path)) {
+            throw std::runtime_error("Object file not found: " + path.string());
+        }
+        if (!std::filesystem::is_regular_file(path)) {
+            throw std::runtime_error(
+                "Object path is not a regular file: " + path.string());
+        }
+    }
+}
+
+void staircaseSharedConformalCells(std::vector<MeshedObject>& objects)
+{
+    const bool hasConformalObject = std::any_of(
+        objects.begin(), objects.end(), [](const MeshedObject& object) {
+            return !object.definition.ghost &&
+                object.mesherType == conformal_mesher;
+        });
+    const auto participatingObjectCount = std::count_if(
+        objects.begin(), objects.end(), [](const MeshedObject& object) {
+            return !object.definition.ghost;
+        });
+    if (!hasConformalObject || participatingObjectCount < 2) {
+        return;
     }
 
-    if (!first && readExportGridOption(inputFileData, std::nullopt)) {
-        exportGridToVTU(outputFolder / (basename + ".tessellator.grid.vtk"), firstMesh.grid);
-        std::cout << "-- Exported grid: " << basename << ".tessellator.grid.vtk" << std::endl;
+    Mesh relativeCombined = mergeObjectMeshes(objects);
+    utils::meshTools::convertToRelativeCoordinates(relativeCombined);
+    std::set<GroupId> ghostGroups;
+    for (GroupId groupId = 0; groupId < objects.size(); ++groupId) {
+        if (objects[groupId].definition.ghost) {
+            ghostGroups.insert(groupId);
+        }
+    }
+    const auto sharedCells = meshlib::meshers::ConformalMesher::cellsSharedByGroups(
+        relativeCombined, ghostGroups);
+    if (sharedCells.empty()) {
+        return;
     }
 
-    return EXIT_SUCCESS;
+    for (auto& object : objects) {
+        if (object.definition.ghost || object.mesherType != conformal_mesher) {
+            continue;
+        }
+
+        Mesh relativeMesh = object.mesh;
+        utils::meshTools::convertToRelativeCoordinates(relativeMesh);
+        relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
+            sharedCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+        // Only restaircase cells that still mix surfaces with nodes/lines.
+        // A full findNonConformalCells pass can cascade across a whole
+        // conformal plate when shared-cell staircasing touches a few cells.
+        const auto mixedDimensionalCells =
+            meshlib::meshers::ConformalMesher::cellsContainingNodeOrLineElements(
+                relativeMesh);
+        if (!mixedDimensionalCells.empty()) {
+            relativeMesh = meshlib::core::Staircaser{relativeMesh}.getSelectiveMesh(
+                mixedDimensionalCells, meshlib::core::Staircaser::GapsFillingType::Insert);
+        }
+        utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+            relativeMesh);
+        utils::RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
+            relativeMesh);
+        if (object.compress && !object.definition.isVolume) {
+            meshlib::core::Compressor::compressSurfacesInMesh(relativeMesh);
+            meshlib::core::Compressor::compressLinesInMesh(relativeMesh);
+            utils::RedundancyCleaner::fuseCoords(relativeMesh);
+            utils::RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+                relativeMesh);
+            utils::RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(
+                relativeMesh);
+        }
+        utils::RedundancyCleaner::cleanCoords(relativeMesh);
+        object.mesh = std::move(relativeMesh);
+        object.mesh.groups.front().name = object.definition.group;
+        utils::meshTools::convertToAbsoluteCoordinates(object.mesh);
+    }
+}
+
+} // namespace
+
+int launcher(int argc, const char* argv[])
+{
+    try {
+        po::options_description desc("Allowed options");
+        desc.add_options()
+            ("help,h", "produce help message")
+            ("input,i", po::value<std::string>(), "input file");
+
+        po::variables_map vm;
+        po::store(po::command_line_parser(argc, argv).
+                options(desc).run(), vm);
+        po::notify(vm);
+
+        if (vm.count("help") || !vm.count("input")) {
+            std::cout << desc << std::endl;
+            return EXIT_SUCCESS;
+        }
+
+        std::string inputFileName = vm["input"].as<std::string>();
+        std::cout << "-- Input file is: " << inputFileName << std::endl;
+
+        const std::filesystem::path inputPath(inputFileName);
+        if (!std::filesystem::exists(inputPath)) {
+            throw std::runtime_error(
+                "Input file not found: " + inputPath.string());
+        }
+
+        nlohmann::json inputFileData;
+        {
+            std::ifstream i(inputPath);
+            if (!i) {
+                throw std::runtime_error(
+                    "Input file could not be opened: " + inputPath.string());
+            }
+            try {
+                i >> inputFileData;
+            } catch (const nlohmann::json::exception& e) {
+                throw std::runtime_error(
+                    "Could not parse input file '" + inputPath.string() +
+                    "': " + e.what());
+            }
+        }
+
+        std::vector<ObjectDefinition> objects = readObjectsFromJSON(inputFileData);
+        std::filesystem::path outputFolder = getFolder(inputFileName);
+        auto basename = getBasename(inputFileName);
+        const bool singleFileOutput = readSingleFileOutputOption(inputFileData);
+        validateUniqueGroupNames(objects);
+        validateObjectFiles(outputFolder, objects);
+
+        std::vector<MeshedObject> meshedObjects;
+        meshedObjects.reserve(objects.size());
+
+        for (const auto& objDef : objects) {
+            std::cout << "\n-- Processing object: " << objDef.filename << " (group: " << objDef.group << ")" << std::endl;
+
+            Mesh mesh = readMesh(inputFileData, outputFolder, objDef);
+
+            auto mesher = buildMesher(mesh, inputFileData, objDef);
+            Mesh resultMesh = mesher->mesh();
+            if (resultMesh.groups.size() == 1) {
+                resultMesh.groups.front().name = objDef.group;
+            }
+
+            const auto mesherType = readMesherType(inputFileData, objDef.mesherOverride);
+            bool compress = false;
+            meshlib::meshers::EmbeddedMode embeddedMode =
+                meshlib::meshers::EmbeddedMode::None;
+            bool embeddedAllowOnSurfacePerimeter = false;
+            bool embeddedIsExplicit = false;
+            if (mesherType == conformal_mesher) {
+                const auto conformalOptions = readConformalMesherOptions(
+                    inputFileData, objDef.isVolume, objDef.mesherOverride);
+                compress = conformalOptions.compress;
+            } else if (mesherType == staircase_mesher) {
+                const auto& staircaseOptions =
+                    dynamic_cast<const meshlib::meshers::StaircaseMesher&>(*mesher)
+                        .getOptions();
+                embeddedMode = staircaseOptions.embeddedMode;
+                embeddedAllowOnSurfacePerimeter =
+                    staircaseOptions.embeddedAllowOnSurfacePerimeter;
+                embeddedIsExplicit = staircaseOptions.embeddedIsExplicit;
+            }
+            meshedObjects.push_back({
+                objDef,
+                mesherType,
+                readExtension(inputFileData, objDef.mesherOverride),
+                compress,
+                embeddedMode,
+                embeddedAllowOnSurfacePerimeter,
+                embeddedIsExplicit,
+                std::move(resultMesh)
+            });
+        }
+
+        staircaseSharedConformalCells(meshedObjects);
+        applyEmbeddedModes(meshedObjects);
+
+        if (singleFileOutput && !meshedObjects.empty()) {
+            const auto outputFileName = basename + ".tessellator.vtk";
+            exportMeshToVTU(
+                outputFolder / outputFileName, mergeObjectMeshes(meshedObjects));
+            std::cout << "-- Exported: " << outputFileName << std::endl;
+        } else {
+            for (const auto& object : meshedObjects) {
+                const std::string outputFileName = object.definition.group +
+                    ".tessellator." + object.extension + ".vtk";
+                exportMeshToVTU(outputFolder / outputFileName, object.mesh);
+                std::cout << "-- Exported: " << outputFileName << std::endl;
+            }
+        }
+
+        if (!meshedObjects.empty() && readExportGridOption(inputFileData, std::nullopt)) {
+            exportGridToVTU(
+                outputFolder / (basename + ".tessellator.grid.vtk"),
+                meshedObjects.front().mesh.grid);
+            std::cout << "-- Exported grid: " << basename << ".tessellator.grid.vtk" << std::endl;
+        }
+
+        return EXIT_SUCCESS;
+    } catch (const std::exception& e) {
+        std::cerr << std::endl << "-- Error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 }
 
 }

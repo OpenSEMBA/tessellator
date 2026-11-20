@@ -1,12 +1,15 @@
 #include "Smoother.h"
+#include "Slicer.h"
 
 #include "utils/CoordGraph.h"
 #include "utils/ElemGraph.h"
+#include "utils/ConvexHull.h"
 #include "utils/RedundancyCleaner.h"
 #include "utils/Geometry.h"
 #include "utils/Tools.h"
 
 #include <algorithm>
+#include <set>
 #include <stdexcept>
 #include <assert.h>
 #include <iostream>
@@ -408,6 +411,69 @@ void SmootherTools::remeshBoundary(
     }
     else {
         remeshElementsToOneInteriorPoint(es, cs, patch);
+    }
+}
+
+void SmootherTools::retriangulatePlanarPatch(
+    Elements& es,
+    const Coordinates& cs,
+    const ElementsView& patch)
+{
+    if (patch.empty()) {
+        return;
+    }
+
+    const CoordGraph graph(patch);
+    const auto [boundary, interior] = graph.getBoundAndInteriorVertices();
+    if (!interior.empty() || !patchIsPlanar(cs, patch)) {
+        return;
+    }
+
+    const auto cycles = graph.getBoundaryGraph().findCycles();
+    if (cycles.size() != 1) {
+        return;
+    }
+
+    const auto referenceNormal = Geometry::normal(
+        Geometry::asTriV(*patch[0], cs));
+    const auto path = ConvexHull(&cs).get(boundary, referenceNormal);
+    if (path.size() != boundary.size()) {
+        return;
+    }
+
+    using Edge = std::pair<CoordinateId, CoordinateId>;
+    std::set<Edge> boundaryEdges;
+    std::set<Edge> hullEdges;
+    for (std::size_t i = 0; i < path.size(); ++i) {
+        hullEdges.insert(std::minmax(path[i], path[(i + 1) % path.size()]));
+    }
+    for (const auto& line : graph.getBoundaryGraph().getEdgesAsLines()) {
+        boundaryEdges.insert(std::minmax(line.vertices[0], line.vertices[1]));
+    }
+    if (hullEdges != boundaryEdges) {
+        return;
+    }
+
+    auto remeshedElements = Slicer::buildTrianglesFromPath(cs, path);
+    if (remeshedElements.size() != patch.size()
+        || std::any_of(
+            remeshedElements.begin(), remeshedElements.end(),
+            [&](const Element& element) {
+                return Geometry::isDegenerate(Geometry::asTriV(element, cs));
+            })) {
+        return;
+    }
+
+    for (auto& element : remeshedElements) {
+        if (hasWrongOrientation(*patch[0], element, cs)) {
+            reorientSingleElement(element);
+        }
+    }
+
+    const std::lock_guard<std::mutex> lock(writingElements_);
+    for (std::size_t i = 0; i < patch.size(); ++i) {
+        const ElementId elementId = patch[i] - &es.front();
+        es[elementId] = remeshedElements[i];
     }
 }
 

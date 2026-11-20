@@ -29,5 +29,11 @@ CMakeUserPresets.json
 sliced.vtk
 contour.vtk
 
-testData/
+testData/cases/*/*.vtk 
+testData/cases/**/*.vtk
 build
+tmp/
+git_info.txt
+
+# ignore building folder for gid
+linux
