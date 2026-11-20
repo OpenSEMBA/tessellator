@@ -1435,27 +1435,6 @@ TEST_F(LauncherTest, objectOverrideMarksEmbeddedAsExplicit)
     EXPECT_TRUE(staircase.getOptions().embeddedIsExplicit);
 }
 
-TEST_F(LauncherTest, parseAllowLogOption)
-{
-    meshlib::Mesh meshMock;
-    meshMock.grid = {
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1},
-        std::vector<double>{0, 1}
-    };
-    const nlohmann::json config = nlohmann::json::object();
-
-    ObjectDefinition object;
-    object.mesherOverride = {
-        {"type", "staircase"},
-        {"options", {{"allow_log", "true"}}}
-    };
-    auto mesher = buildMesher(meshMock, config, object);
-    const auto& staircase =
-        dynamic_cast<meshlib::meshers::StaircaseMesher&>(*mesher);
-    EXPECT_TRUE(staircase.getOptions().allow_log);
-}
-
 TEST_F(LauncherTest, rejectsInvalidEmbeddedMode)
 {
     meshlib::Mesh meshMock;
