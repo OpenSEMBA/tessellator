@@ -55,6 +55,13 @@ std::set<ElementLocation> findElementsWithUnsafeNormals(
     return unsafe;
 }
 
+LinV sortedEdge(const Coordinate& first, const Coordinate& second)
+{
+    // Adjacent cells describe the same physical edge with opposite endpoint
+    // order. Sorting avoids missing snaps registered from the other side.
+    return first < second ? LinV{ first, second } : LinV{ second, first };
+}
+
 std::optional<CoordinateId> bestVertexToRestore(
     const Element& element,
     const Coordinates& snappedCoordinates,
@@ -207,7 +214,7 @@ void Snapper::snap()
 
             VecD cell = gT.toCell(rel).as<double>();
             for (const auto& edge : coordsToEdge[solverPoint]) {
-                LinV l = { edge[0] + cell, edge[1] + cell };
+                const LinV l = sortedEdge(edge[0] + cell, edge[1] + cell);
                 edgeToSnappedCoords[l].push_back(closest);
             }
         }
@@ -223,7 +230,7 @@ void Snapper::snap()
             double minDist = std::numeric_limits<double>::max();
             for (const auto& edge : coordsToEdge[solverPoint]) {
                 if (edgeIsCandidate(edge, rel, gT)) {
-                    LinV l = { edge[0] + cell, edge[1] + cell };
+                    const LinV l = sortedEdge(edge[0] + cell, edge[1] + cell);
                     for (const auto& c : edgeToSnappedCoords[l]) {
                         double dist = (gT.getPos(rel) - gT.getPos(c)).norm();
                         if (dist < minDist) {
