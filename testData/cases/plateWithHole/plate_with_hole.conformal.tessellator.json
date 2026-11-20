@@ -1,0 +1,19 @@
+{
+    "grid": {
+        "numberOfCells": [20, 20, 2],
+        "boundingBox": [
+            [-0.0, -0.0, -10.0],
+            [ 100,  100,  10]
+        ]
+    },
+    "object": {"filename": "plate_with_hole.stl"},
+    "mesher": {
+      "type" : "conformal",
+      "options" : {
+        "edgePoints" : 0,
+        "forbiddenLength" : 0.0,
+        "compress": false,
+        "allow_log" : true
+      }
+    }
+}
