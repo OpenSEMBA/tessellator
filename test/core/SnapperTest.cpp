@@ -7,6 +7,8 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 
+#include <algorithm>
+
 
 #if APP_LOADED
     #include "app/vtkIO.h"
@@ -47,6 +49,44 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
         EXPECT_EQ(res.coordinates, m.coordinates);
 
     }
+}
+
+TEST_F(SnapperTest, snapsAcrossSharedCellEdgeConsistently)
+{
+    Mesh mesh;
+    mesh.grid = Grid{
+        std::vector<double>{ 0.0, 1.0, 2.0 },
+        std::vector<double>{ 0.0, 1.0 },
+        std::vector<double>{ 0.0, 1.0 }
+    };
+    mesh.coordinates = {
+        Relative({ 1.0, 0.05, 0.0 }), // On the edge shared by cells 0 and 1.
+        Relative({ 0.8, 0.4, 0.0 }), // Inside the left cell.
+        Relative({ 1.0, 0.9, 0.0 }), // On the edge shared by cells 0 and 1.
+        Relative({ 0.2, 0.4, 0.0 })  // Inside the left cell.
+    };
+    mesh.groups = { Group("surface", {
+        Element({0, 1}, Element::Type::Line),
+        Element({1, 2}, Element::Type::Line),
+        Element({1, 3}, Element::Type::Line)
+    }) };
+
+    SnapperOptions options;
+    options.edgePoints = 3;
+    options.forbiddenLength = 0.0;
+
+    const Mesh result = Snapper(mesh, options).getMesh();
+
+    const auto hasCoordinateNear = [&](const Coordinate& expected) {
+        return std::any_of(
+            result.coordinates.begin(), result.coordinates.end(),
+            [&](const Coordinate& coordinate) {
+                return (coordinate - expected).norm() < 1e-9;
+            });
+    };
+
+    EXPECT_TRUE(hasCoordinateNear(Coordinate({ 1.0, 0.0, 0.0 })));
+    EXPECT_FALSE(hasCoordinateNear(Coordinate({ 1.0, 0.5, 0.0 })));
 }
 
 TEST_F(SnapperTest, rejectsSnapsThatInvertIncidentTriangles)

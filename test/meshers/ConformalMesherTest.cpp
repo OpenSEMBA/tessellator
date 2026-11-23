@@ -8,6 +8,10 @@
 #include "utils/MeshTools.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <set>
+#include <utility>
 
 #if APP_LOADED
     #include "app/vtkIO.h"
@@ -40,6 +44,79 @@ bool hasMixedSurfaceAndLowerDimensionalElements(const Mesh& mesh)
         }
     }
     return false;
+}
+
+std::set<std::pair<CellDir, CellDir>> occupiedCellColumns(const Mesh& mesh)
+{
+    utils::GridTools gridTools(mesh.grid);
+    Mesh relative = mesh;
+    relative.coordinates = gridTools.absoluteToRelative(mesh.coordinates);
+
+    std::set<std::pair<CellDir, CellDir>> occupied;
+    for (const Group& group : relative.groups) {
+        for (const auto& entry :
+             gridTools.buildCellElemMap(group.elements, relative.coordinates)) {
+            occupied.emplace(entry.first[X], entry.first[Y]);
+        }
+    }
+    return occupied;
+}
+
+bool isHalfTurnSymmetric(
+    const std::set<std::pair<CellDir, CellDir>>& occupied,
+    const Grid& grid)
+{
+    const Cell numCells = utils::GridTools(grid).numCells();
+    std::set<std::pair<CellDir, CellDir>> mirrored;
+    for (const auto& [x, y] : occupied) {
+        mirrored.emplace(numCells[X] - 1 - x, numCells[Y] - 1 - y);
+    }
+    return occupied == mirrored;
+}
+
+bool hasSymmetricHoleCornerCoordinates(const Mesh& mesh)
+{
+    // The issue's plate has a circular hole of radius 21 centered at (50, 50).
+    // Check the four corners where the hole meets the 45-degree diagonals.
+    constexpr double cornerRegionRadius = 8.0;
+    constexpr long long coordinateScale = 10000;
+    const std::array<Coordinate, 4> holeCorners = {{
+        Coordinate({ 35.0, 35.0, 0.0 }),
+        Coordinate({ 65.0, 35.0, 0.0 }),
+        Coordinate({ 35.0, 65.0, 0.0 }),
+        Coordinate({ 65.0, 65.0, 0.0 })
+    }};
+
+    const auto key = [coordinateScale](const Coordinate& coordinate) {
+        return std::make_pair(
+            std::llround(coordinate[X] * coordinateScale),
+            std::llround(coordinate[Y] * coordinateScale));
+    };
+
+    std::set<std::pair<long long, long long>> coordinates;
+    for (const Coordinate& coordinate : mesh.coordinates) {
+        coordinates.insert(key(coordinate));
+    }
+
+    for (const Coordinate& coordinate : mesh.coordinates) {
+        const bool nearHoleCorner = std::any_of(
+            holeCorners.begin(), holeCorners.end(),
+            [&](const Coordinate& holeCorner) {
+                return (coordinate - holeCorner).norm() <= cornerRegionRadius;
+            });
+        if (!nearHoleCorner) {
+            continue;
+        }
+
+        const auto original = key(coordinate);
+        const auto mirrored = std::make_pair(
+            100 * coordinateScale - original.first,
+            100 * coordinateScale - original.second);
+        if (coordinates.count(mirrored) == 0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -809,6 +886,36 @@ TEST_F(ConformalMesherTest, thinCylinder)
     auto mesh = launchConformalMesher(inputFilename, inputMesh);
 
     EXPECT_NE(0, mesh.countElems());
+}
+
+TEST_F(ConformalMesherTest, plateWithHole)
+{
+    // Regression test for issue #116: the bottom-left corner of the hole was
+    // staircased while the other three corners were chamfered.
+    const std::string inputFilename =
+        "testData/cases/plateWithHole/plate_with_hole.stl";
+    Mesh inputMesh = vtkIO::readInputMesh(inputFilename);
+    inputMesh.grid[X] = utils::GridTools::linspace(0.0, 100.0, 21);
+    inputMesh.grid[Y] = utils::GridTools::linspace(0.0, 100.0, 21);
+    inputMesh.grid[Z] = utils::GridTools::linspace(-10.0, 10.0, 3);
+
+    ConformalMesherOptions options;
+    options.snapperOptions.forbiddenLength = 0.0;
+    options.compress = false;
+
+    for (const std::size_t edgePoints : { 5, 0 }) {
+        SCOPED_TRACE("edgePoints=" + std::to_string(edgePoints));
+        options.snapperOptions.edgePoints = edgePoints;
+
+        const Mesh mesh = ConformalMesher(inputMesh, options).mesh();
+
+        EXPECT_NE(0, mesh.countElems());
+        EXPECT_TRUE(hasSymmetricHoleCornerCoordinates(mesh));
+
+        const auto occupied = occupiedCellColumns(mesh);
+        EXPECT_FALSE(occupied.empty());
+        EXPECT_TRUE(isHalfTurnSymmetric(occupied, mesh.grid));
+    }
 }
 
 #endif
