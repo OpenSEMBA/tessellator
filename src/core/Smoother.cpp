@@ -129,7 +129,7 @@ Smoother::Smoother(const Mesh& mesh, const SmootherOptions& opts) :
         // serialization until that scheduler is introduced.
         for (const auto& patch : patchs) {
             sT_.collapsePointsOnCellEdges(res.coordinates, patch, singularIds,
-                opts_.contourAlignmentAngle, edgeIds);
+                opts_.contourAlignmentAngle, incidentElements, edgeIds);
             sT_.collapsePointsOnFeatureEdges(res.coordinates, patch, singularIds,
                 incidentElements, edgeIds);
         }

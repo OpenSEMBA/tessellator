@@ -110,8 +110,9 @@ Snapper::Snapper(
 {
     if (!std::isfinite(opts.forbiddenLength) ||
         opts.forbiddenLength < 0.0 || opts.forbiddenLength > 0.5) {
-        throw std::logic_error("Invalid forbidden length");
-    }
+            throw std::logic_error("Invalid forbidden length");
+        }
+
     snap();
     
     mesh_ = Collapser{mesh_, 4}.getMesh();
@@ -207,7 +208,8 @@ void Snapper::snap()
         Relative rel = r[i];
         if (gT.isRelativeInCellEdge(rel)) {
             Coordinate closest, solverPoint;
-            std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
+            std::tie(closest, solverPoint) = findClosestSolverPoint(
+                rel, solverPoints, gT);
 
             CoordinateId id = i;
             r[id] = closest;
@@ -220,11 +222,13 @@ void Snapper::snap()
         }
     }
 
+
     for (std::size_t i = 0; i < r.size(); i++) {
         Relative rel = r[i];
         if (!gT.isRelativeInCellEdge(rel) && !gT.isRelativeInCellCorner(rel)) {
             Coordinate closest, solverPoint;
-            std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
+            std::tie(closest, solverPoint) = findClosestSolverPoint(
+                rel, solverPoints, gT, &r);
 
             VecD cell = gT.toCell(r[i]).as<double>();
             double minDist = std::numeric_limits<double>::max();
@@ -329,19 +333,32 @@ void Snapper::rollbackUnsafeSurfaceSnaps(
 std::pair<Coordinate, Coordinate> Snapper::findClosestSolverPoint(
     const Relative& rel,
     const Coordinates& solverPoints,
-    const utils::GridTools& gT) const
+    const utils::GridTools& gT,
+    const Coordinates* preferredCoordinates) const
 {
     Coordinate closest;
     double minDist = std::numeric_limits<double>::max();
     std::size_t minEdge = 0;
     Coordinate pos = gT.getPos(rel);
+    bool isOnMeshCoordinates;
+    int coundCellGridPoints = 0;
     for (std::size_t j = 0; j < solverPoints.size(); j++) {
         Relative cellGridPoint = solverPoints[j] + gT.toCell(rel).as<double>();
         double dist = (pos - gT.getPos(cellGridPoint)).norm();
-        if (dist < minDist) {
+        if (dist < minDist){
             minDist = dist;
             closest = cellGridPoint;
             minEdge = j;
+        }
+        else if (dist == minDist && preferredCoordinates != nullptr) {
+            isOnMeshCoordinates = std::find(
+                preferredCoordinates->begin(), preferredCoordinates->end(),
+                cellGridPoint) != preferredCoordinates->end();
+            if (isOnMeshCoordinates) {
+                minDist = dist;
+                closest = cellGridPoint;
+                minEdge = j;
+            }
         }
     }
     return std::make_pair(closest, solverPoints[minEdge]);

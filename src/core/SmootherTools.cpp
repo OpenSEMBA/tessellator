@@ -99,6 +99,38 @@ bool SmootherTools::moveWouldCrossGrid(
     return false;
 }
 
+bool SmootherTools::moveWouldInvertTriangle(
+    CoordinateId id,
+    const Coordinate& destination,
+    const Coordinates& coordinates,
+    const IncidentElements& incidentElements)
+{
+    const auto incident = incidentElements.find(id);
+    if (incident == incidentElements.end()) {
+        return false;
+    }
+
+    for (const Element* element : incident->second) {
+        if (!element->isTriangle()) {
+            continue;
+        }
+        TriV triangle = Geometry::asTriV(*element, coordinates);
+        const Coordinate originalNormal = Geometry::normal(triangle);
+        for (std::size_t i = 0; i < element->vertices.size(); ++i) {
+            if (element->vertices[i] == id) {
+                triangle[i] = destination;
+            }
+        }
+        const Coordinate movedNormal = Geometry::normal(triangle);
+        if (originalNormal.norm() > Geometry::NORM_TOLERANCE
+            && movedNormal.norm() > Geometry::NORM_TOLERANCE
+            && originalNormal * movedNormal < 0.0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void SmootherTools::collapsePointsOnFeatureEdges(
     Coordinates& coords,
     const ElementsView& patch,
@@ -256,6 +288,24 @@ void SmootherTools::collapsePointsOnCellEdges(
     double alignmentAngle,
     const IdSet& movableIds)
 {
+    IncidentElements incidentElements;
+    for (const auto* element : patch) {
+        for (const auto id : element->vertices) {
+            incidentElements[id].push_back(element);
+        }
+    }
+    collapsePointsOnCellEdges(
+        coords, patch, singularIds, alignmentAngle, incidentElements, movableIds);
+}
+
+void SmootherTools::collapsePointsOnCellEdges(
+    Coordinates& coords,
+    const ElementsView& patch,
+    const SingularIds& singularIds,
+    double alignmentAngle,
+    const IncidentElements& incidentElements,
+    const IdSet& movableIds)
+{
     {
         IdSet vertices = CoordGraph(patch).getVertices();
 
@@ -290,25 +340,49 @@ void SmootherTools::collapsePointsOnCellEdges(
         }).first;
         IdSet validIds = mergeIds(cG.getExterior(), interiorValid);
         
-        std::map<CoordinateId, Coordinate> toMove;
+        std::map<CoordinateId, std::vector<Coordinate>> toMove;
         for (auto const& i : movable) {
             if (isRelativeInCellCorner(coords[i])) {
                 continue;
             }
-            const auto candidates = cG.getClosestVerticesInSet(i, validIds);
-            if (candidates.empty()) {
-                continue;
+            const auto nearest = cG.getClosestVerticesInSet(i, validIds);
+            std::vector<CoordinateId> candidates;
+            for (const auto id : validIds) {
+                const auto path = cG.findShortestPath(i, id);
+                if (path.empty() || std::any_of(
+                        path.begin() + 1, path.end() - 1,
+                        [&](CoordinateId vertex) { return validIds.count(vertex) != 0; })) {
+                    continue;
+                }
+                if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], coords[id])) {
+                    continue;
+                }
+                if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], coords[id])) {
+                    continue;
+                }
+                candidates.push_back(id);
             }
-            Coordinate closest = closestByDistance(coords, i, candidates);
-            if (isRelativeInCellFace(coords[i]) && !areCoordOnSameFace(coords[i], closest)) {
-                continue;
+            std::sort(candidates.begin(), candidates.end(), [&](CoordinateId a, CoordinateId b) {
+                if (nearest.count(a) != nearest.count(b)) {
+                    return nearest.count(a) > nearest.count(b);
+                }
+                const double distanceA = (coords[i] - coords[a]).norm();
+                const double distanceB = (coords[i] - coords[b]).norm();
+                return distanceA != distanceB ? distanceA < distanceB : a < b;
+            });
+            for (const auto id : candidates) {
+                toMove[i].push_back(coords[id]);
             }
-            if (isRelativeInCellEdge(coords[i]) && !areCoordOnSameEdge(coords[i], closest)) {
-                continue;
-            }
-            toMove[i] = closest;
         }
-        updateCoordinates(coords, toMove);
+        std::lock_guard<std::mutex> lock(writingCoordinates_);
+        for (const auto& move : toMove) {
+            for (const auto& destination : move.second) {
+                if (!moveWouldInvertTriangle(move.first, destination, coords, incidentElements)) {
+                    coords[move.first] = destination;
+                    break;
+                }
+            }
+        }
     }
 
 }

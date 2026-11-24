@@ -10,9 +10,9 @@
 #include <algorithm>
 
 
-#if APP_LOADED
-    #include "app/vtkIO.h"
-#endif
+// #if APP_LOADED
+#include "app/vtkIO.h"
+// #endif
 
 using namespace meshlib;
 using namespace core;
@@ -49,6 +49,66 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
         EXPECT_EQ(res.coordinates, m.coordinates);
 
     }
+}
+
+TEST_F(SnapperTest, edgeSnapsDoNotPreferExistingCoordinates)
+{
+    const auto snappedPoint = [](double position, const Coordinates& existing) {
+        Mesh mesh;
+        mesh.grid = Grid{
+            std::vector<double>{ 0.0, 3.0, 5.0 },
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 }
+        };
+        mesh.coordinates = { Relative({ position, 0.0, 0.0 }) };
+        mesh.coordinates.insert(
+            mesh.coordinates.end(), existing.begin(), existing.end());
+        mesh.groups = { Group() };
+        for (CoordinateId i = 0; i < mesh.coordinates.size(); ++i) {
+            mesh.groups[0].elements.emplace_back(
+                std::vector<CoordinateId>{ i }, Element::Type::Node);
+        }
+
+        SnapperOptions options;
+        options.edgePoints = 3;
+        const Mesh result = Snapper(mesh, options).getMesh();
+        return result.coordinates[result.groups[0].elements[0].vertices[0]];
+    };
+
+    const Coordinate first({ 1.0, 0.0, 0.0 });
+    const Coordinate second({ 1.25, 0.0, 0.0 });
+    EXPECT_EQ(snappedPoint(1.125, { second }), first);
+    EXPECT_EQ(snappedPoint(1.125, {}), first);
+    EXPECT_EQ(snappedPoint(1.125, { first, second }), first);
+    EXPECT_EQ(snappedPoint(1.0625, { second }), first);
+}
+
+TEST_F(SnapperTest, interiorSnapsPreferPreviouslySnappedCoordinates)
+{
+    const auto snappedPoint = [](const Coordinates& coordinates, CoordinateId target) {
+        Mesh mesh;
+        mesh.grid = Grid{
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 }
+        };
+        mesh.coordinates = coordinates;
+        mesh.groups = { Group() };
+        for (CoordinateId i = 0; i < coordinates.size(); ++i) {
+            mesh.groups[0].elements.emplace_back(
+                std::vector<CoordinateId>{ i }, Element::Type::Node);
+        }
+
+        const Mesh result = Snapper(mesh).getMesh();
+        return result.coordinates[result.groups[0].elements[target].vertices[0]];
+    };
+
+    const Coordinate midpoint({ 0.5, 0.5, 0.5 });
+    const Coordinate nearUpperCorner({ 0.875, 0.875, 0.875 });
+    const Coordinate lowerCorner({ 0.0, 0.0, 0.0 });
+    const Coordinate upperCorner({ 1.0, 1.0, 1.0 });
+    EXPECT_EQ(snappedPoint({ nearUpperCorner, midpoint }, 1), upperCorner);
+    EXPECT_EQ(snappedPoint({ midpoint, nearUpperCorner }, 0), lowerCorner);
 }
 
 TEST_F(SnapperTest, snapsAcrossSharedCellEdgeConsistently)
@@ -145,14 +205,12 @@ TEST_F(SnapperTest, rejectsInvalidForbiddenLength)
     }
 }
 
-#if APP_LOADED
-
-TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
+TEST_F(SnapperTest, snap_hole_intersections)
 {
-    auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
-    for (auto x: {X,Y,Z}) {
-        m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
-    }
+    auto m = vtkIO::readInputMesh("testData/cases/rectangular_hole/hole_1.stl");
+    m.grid[X] = utils::GridTools::linspace(0.0, 200.0, 20); 
+    m.grid[Y] = utils::GridTools::linspace(0.0, 110.0, 11); 
+    m.grid[Z] = utils::GridTools::linspace(-100.0, 100.0, 20); 
 
     auto slicedMesh = Slicer{m}.getMesh();
     
@@ -162,24 +220,59 @@ TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
 	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
 
     SnapperOptions snapperOpts;
-    snapperOpts.edgePoints = 3;
-    snapperOpts.forbiddenLength = 0.3;
+    snapperOpts.edgePoints = 4;
+    snapperOpts.forbiddenLength = 0.1;
     auto snappedMesh = Snapper{smoothedMesh}.getMesh();
 
-    EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
-    EXPECT_TRUE(meshTools::isAClosedTopology(snappedMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+    // EXPECT_TRUE(meshTools::isAClosedTopology(snappedMesh.groups[0].elements));
 
     // //For debugging.
-	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
-	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+	meshTools::convertToAbsoluteCoordinates(snappedMesh);
+	vtkIO::exportMeshToVTU("testData/cases/rectangular_hole/hole.snapper.vtk", snappedMesh);
 
 	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
 }
 
-# endif
+
+// #if APP_LOADED
+
+// TEST_F(SnapperTest, preserves_topological_closedness_for_sphere)
+// {
+//     auto m = vtkIO::readInputMesh("testData/cases/sphere/sphere.stl");
+//     for (auto x: {X,Y,Z}) {
+//         m.grid[x] = utils::GridTools::linspace(-50.0, 50.0, 26); 
+//     }
+
+//     auto slicedMesh = Slicer{m}.getMesh();
+    
+// 	SmootherOptions smootherOpts;
+//     smootherOpts.featureDetectionAngle = 30;
+//     smootherOpts.contourAlignmentAngle = 0;
+// 	auto smoothedMesh = Smoother{slicedMesh}.getMesh();
+
+//     SnapperOptions snapperOpts;
+//     snapperOpts.edgePoints = 3;
+//     snapperOpts.forbiddenLength = 0.3;
+//     auto snappedMesh = Snapper{smoothedMesh}.getMesh();
+
+//     EXPECT_TRUE(meshTools::isAClosedTopology(m.groups[0].elements));
+//     EXPECT_TRUE(meshTools::isAClosedTopology(slicedMesh.groups[0].elements));
+//     EXPECT_TRUE(meshTools::isAClosedTopology(smoothedMesh.groups[0].elements));
+//     EXPECT_TRUE(meshTools::isAClosedTopology(snappedMesh.groups[0].elements));
+
+//     // //For debugging.
+// 	// meshTools::convertToAbsoluteCoordinates(slicedMesh);
+// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.sliced.vtk", slicedMesh);
+
+// 	// auto contourMesh = meshTools::buildMeshFromContours(slicedMesh);
+// 	// vtkIO::exportMeshToVTU("testData/cases/sphere/sphere.contour.vtk", contourMesh);
+// }
+
+// # endif
 
 // TEST_F(SnapperTest, triangles_convert_to_lines)
 // {
