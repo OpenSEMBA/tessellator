@@ -873,84 +873,84 @@ Mesh ConformalMesher::mesh() const
     res = Smoother{res, smootherOpts}.getMesh();
     logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    // const Mesh conformalMeshBeforeSnapping = res;
+    const Mesh conformalMeshBeforeSnapping = res;
 
-    // log("Snapping.", 1);
-    // const Snapper snapper(res, opts_.snapperOptions);
-    // res = snapper.getMesh();
+    log("Snapping.", 1);
+    const Snapper snapper(res, opts_.snapperOptions);
+    res = snapper.getMesh();
 
-    // Mesh conformalMeshBeforeStructuring = res;
-    // try {
-    //     validateConformalVolumeComponents(
-    //         conformalMeshBeforeStructuring, opts_.volumeGroups);
-    // } catch (const std::runtime_error&) {
-    //     conformalMeshBeforeStructuring = conformalMeshBeforeSnapping;
-    // }
+    Mesh conformalMeshBeforeStructuring = res;
+    try {
+        validateConformalVolumeComponents(
+            conformalMeshBeforeStructuring, opts_.volumeGroups);
+    } catch (const std::runtime_error&) {
+        conformalMeshBeforeStructuring = conformalMeshBeforeSnapping;
+    }
 
-    // log("Retriangulating planar patches.", 1);
-    // res = Smoother::retriangulatePlanarPatches(
-    //     res, smootherOpts.featureDetectionAngle);
-    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    log("Retriangulating planar patches.", 1);
+    res = Smoother::retriangulatePlanarPatches(
+        res, smootherOpts.featureDetectionAngle);
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    // // Find cells which break conformal FDTD rules.
-    // auto nonConformalCells = findNonConformalCells(res);
-    // nonConformalCells = mergeCellSets(
-    //     nonConformalCells, snapper.getCellsToStaircase());
-    // nonConformalCells = mergeCellSets(
-    //     nonConformalCells,
-    //     cellsOccupiedByDegenerateVolumeComponents(res, opts_.volumeGroups));
-    // log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
+    // Find cells which break conformal FDTD rules.
+    auto nonConformalCells = findNonConformalCells(res);
+    nonConformalCells = mergeCellSets(
+        nonConformalCells, snapper.getCellsToStaircase());
+    nonConformalCells = mergeCellSets(
+        nonConformalCells,
+        cellsOccupiedByDegenerateVolumeComponents(res, opts_.volumeGroups));
+    log("Non-conformal cells found: " + std::to_string(nonConformalCells.size()), 1);
 
-    // // Calls structurer to mesh only those cells.
-    // log("Structuring non-conformal cells.", 1);
-    // res = Staircaser{res}.getSelectiveMesh(
-    //     nonConformalCells, Staircaser::GapsFillingType::Insert);
-    // RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
-    // RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
-    // restoreThreeDimensionalVolumeComponents(
-    //     res, conformalMeshBeforeStructuring, opts_.volumeGroups);
-    // normalizeVolumeGroups(res, opts_.volumeGroups);
-    // logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
+    // Calls structurer to mesh only those cells.
+    log("Structuring non-conformal cells.", 1);
+    res = Staircaser{res}.getSelectiveMesh(
+        nonConformalCells, Staircaser::GapsFillingType::Insert);
+    RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+    RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+    restoreThreeDimensionalVolumeComponents(
+        res, conformalMeshBeforeStructuring, opts_.volumeGroups);
+    normalizeVolumeGroups(res, opts_.volumeGroups);
+    logNumberOfTriangles(countMeshElementsIf(res, isTriangle));
 
-    // // Find cells which break conformal FDTD rules after selective structuring.
-    // nonConformalCells = findNonConformalCells(res);
-    // log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
+    // Find cells which break conformal FDTD rules after selective structuring.
+    nonConformalCells = findNonConformalCells(res);
+    log("Non-conformal cells found after Selective Structuring: " + std::to_string(nonConformalCells.size()), 1);
 
-    // const auto invalidOrientationCells =
-    //     cellsWithInvalidSurfaceOrientations(res);
-    // if (!invalidOrientationCells.empty()) {
-    //     log("Restaircasing cells with invalid surface orientation: "
-    //         + std::to_string(invalidOrientationCells.size()), 1);
-    //     res = Staircaser{res}.getSelectiveMesh(
-    //         invalidOrientationCells, Staircaser::GapsFillingType::Insert);
-    //     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
-    //         res);
-    //     RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
-    //     restoreThreeDimensionalVolumeComponents(
-    //         res, conformalMeshBeforeStructuring, opts_.volumeGroups);
-    //     normalizeVolumeGroups(res, opts_.volumeGroups);
-    // }
+    const auto invalidOrientationCells =
+        cellsWithInvalidSurfaceOrientations(res);
+    if (!invalidOrientationCells.empty()) {
+        log("Restaircasing cells with invalid surface orientation: "
+            + std::to_string(invalidOrientationCells.size()), 1);
+        res = Staircaser{res}.getSelectiveMesh(
+            invalidOrientationCells, Staircaser::GapsFillingType::Insert);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(
+            res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        restoreThreeDimensionalVolumeComponents(
+            res, conformalMeshBeforeStructuring, opts_.volumeGroups);
+        normalizeVolumeGroups(res, opts_.volumeGroups);
+    }
 
 
-    // if (opts_.mergeAxisAlignedTriangles) {
-    //     log("Merging axis-aligned cell-sized triangle pairs.", 1);
-    //     mergeAxisAlignedCellSizedTrianglePairs(res);
-    //     RedundancyCleaner::fuseCoords(res);
-    //     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
-    //     RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
-    //     RedundancyCleaner::cleanCoords(res);
-    //     logNumberOfQuads(countMeshElementsIf(res, isQuad));
-    // }
+    if (opts_.mergeAxisAlignedTriangles) {
+        log("Merging axis-aligned cell-sized triangle pairs.", 1);
+        mergeAxisAlignedCellSizedTrianglePairs(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        RedundancyCleaner::cleanCoords(res);
+        logNumberOfQuads(countMeshElementsIf(res, isQuad));
+    }
 
-    // if (opts_.compress && opts_.volumeGroups.empty()) {
-    //     log("Compressing final mesh.", 1);
-    //     Compressor::compressSurfacesInMesh(res);
-    //     Compressor::compressLinesInMesh(res);
-    //     RedundancyCleaner::fuseCoords(res);
-    //     RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
-    //     RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
-    //     RedundancyCleaner::cleanCoords(res);
-    // }
+    if (opts_.compress && opts_.volumeGroups.empty()) {
+        log("Compressing final mesh.", 1);
+        Compressor::compressSurfacesInMesh(res);
+        Compressor::compressLinesInMesh(res);
+        RedundancyCleaner::fuseCoords(res);
+        RedundancyCleaner::removeOverlappedDimensionOneAndLowerElementsAndEquivalentSurfaces(res);
+        RedundancyCleaner::removeGeometricallyOverlappedDimensionOneAndLowerElements(res);
+        RedundancyCleaner::cleanCoords(res);
+    }
     
     reduceGrid(res, originalGrid_);
     

@@ -122,7 +122,7 @@ private:
         const Coordinates& coordinates,
         const IncidentElements& incidentElements) const;
 
-    static bool moveWouldInvertTriangle(
+    static bool moveWouldInvalidateTriangle(
         CoordinateId id,
         const Coordinate& destination,
         const Coordinates& coordinates,

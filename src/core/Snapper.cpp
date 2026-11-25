@@ -341,7 +341,6 @@ std::pair<Coordinate, Coordinate> Snapper::findClosestSolverPoint(
     std::size_t minEdge = 0;
     Coordinate pos = gT.getPos(rel);
     bool isOnMeshCoordinates;
-    int coundCellGridPoints = 0;
     for (std::size_t j = 0; j < solverPoints.size(); j++) {
         Relative cellGridPoint = solverPoints[j] + gT.toCell(rel).as<double>();
         double dist = (pos - gT.getPos(cellGridPoint)).norm();

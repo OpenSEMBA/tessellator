@@ -99,7 +99,7 @@ bool SmootherTools::moveWouldCrossGrid(
     return false;
 }
 
-bool SmootherTools::moveWouldInvertTriangle(
+bool SmootherTools::moveWouldInvalidateTriangle(
     CoordinateId id,
     const Coordinate& destination,
     const Coordinates& coordinates,
@@ -122,9 +122,14 @@ bool SmootherTools::moveWouldInvertTriangle(
             }
         }
         const Coordinate movedNormal = Geometry::normal(triangle);
-        if (originalNormal.norm() > Geometry::NORM_TOLERANCE
-            && movedNormal.norm() > Geometry::NORM_TOLERANCE
-            && originalNormal * movedNormal < 0.0) {
+        const bool mergedVertices = triangle[0] == triangle[1]
+            || triangle[1] == triangle[2] || triangle[2] == triangle[0];
+        // A merged triangle is removed later; a collinear one is not.
+        if (Geometry::isDegenerate(triangle) && !mergedVertices) {
+            return true;
+        }
+        if (originalNormal * movedNormal < 0.0
+            && !Geometry::isDegenerate(triangle)) {
             return true;
         }
     }
@@ -377,7 +382,7 @@ void SmootherTools::collapsePointsOnCellEdges(
         std::lock_guard<std::mutex> lock(writingCoordinates_);
         for (const auto& move : toMove) {
             for (const auto& destination : move.second) {
-                if (!moveWouldInvertTriangle(move.first, destination, coords, incidentElements)) {
+                if (!moveWouldInvalidateTriangle(move.first, destination, coords, incidentElements)) {
                     coords[move.first] = destination;
                     break;
                 }

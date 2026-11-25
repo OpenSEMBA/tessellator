@@ -1,0 +1,17 @@
+{
+    "grid": {
+        "numberOfCells": [20, 11, 20],
+        "boundingBox": [
+            [0.0, 0.0, -100.0],
+            [ 200.0,  110.0,  100.0]
+        ]
+    },
+    "objects": [
+      {"filename": "grating.stl", "group": "grating_0", "mesher": {"type" : "conformal","options" : {"edgePoints" : 4,"forbiddenLength" : 0.0,"compress": false,"allow_log" : true}}},
+      {"filename": "grating.stl", "group": "grating_1", "mesher": {"type" : "conformal","options" : {"edgePoints" : 4,"forbiddenLength" : 0.1,"compress": false,"allow_log" : true}}},
+      {"filename": "grating.stl", "group": "grating_2", "mesher": {"type" : "conformal","options" : {"edgePoints" : 4,"forbiddenLength" : 0.2,"compress": false,"allow_log" : true}}},
+      {"filename": "grating.stl", "group": "grating_3", "mesher": {"type" : "conformal","options" : {"edgePoints" : 4,"forbiddenLength" : 0.3,"compress": false,"allow_log" : true}}},
+      {"filename": "grating.stl", "group": "grating_4", "mesher": {"type" : "conformal","options" : {"edgePoints" : 4,"forbiddenLength" : 0.4,"compress": false,"allow_log" : true}}}
+    ]
+    
+}

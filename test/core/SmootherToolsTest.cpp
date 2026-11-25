@@ -560,6 +560,14 @@ TEST_F(SmootherToolsTest, edgeCollapseTriesOtherEndpointWhenNearestInvertsNeighb
 	EXPECT_GT(Geometry::normal(Geometry::asTriV(elements[3], mesh.coordinates))
 		* Geometry::normal(Geometry::asTriV(elements[3], collapsed)), 0.0);
 
+	Coordinates collinearCase = mesh.coordinates;
+	collinearCase[5] = Coordinate({1.3, 0.0, 0.0});
+	collinearCase[6] = Coordinate({2.0, 0.0, 0.0});
+	collapsed = collinearCase;
+	tools.collapsePointsOnCellEdges(collapsed, patch, singularIds, 0.0, incident, {1, 2});
+	EXPECT_EQ(collapsed[2], collinearCase[3]);
+	EXPECT_FALSE(Geometry::isDegenerate(Geometry::asTriV(elements[3], collapsed)));
+
 	elements.push_back(Element({2, 5, 7}));
 	// Rebuild the views after the vector grows.
 	const ElementsView blockedPatch = {&elements[0], &elements[1], &elements[2]};

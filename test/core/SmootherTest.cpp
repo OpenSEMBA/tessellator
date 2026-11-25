@@ -6,6 +6,7 @@
 #include "utils/Geometry.h"
 #include "utils/MeshTools.h"
 #include "core/Slicer.h"
+#include "core/VolumeShellExtractor.h"
 
 #include <map>
 #include <set>
@@ -319,6 +320,29 @@ TEST_F(SmootherTest, preserves_topological_closedness_for_alhambra)
 	// 
 	// auto contourMesh = meshTools::buildMeshFromContours(smoothedMesh);
 	// vtkIO::exportMeshToVTU("testData/cases/alhambra/alhambra.contour.vtk", contourMesh);
+}
+
+TEST_F(SmootherTest, preservesAlhambraVolumeClosureOnConformalGrid)
+{
+	auto mesh = vtkIO::readInputMesh("testData/cases/alhambra/alhambra.stl");
+	mesh.grid[X] = utils::GridTools::linspace(-60.0, 60.0, 61);
+	mesh.grid[Y] = utils::GridTools::linspace(-60.0, 60.0, 61);
+	mesh.grid[Z] = utils::GridTools::linspace(-10.0, 10.0, 11);
+	mesh = VolumeShellExtractor{mesh}.getMesh();
+	for (auto& axis : mesh.grid) {
+		const double halfStep = (axis[1] - axis[0]) / 2.0;
+		axis.insert(axis.begin(), axis.front() - halfStep);
+		axis.push_back(axis.back() + halfStep);
+	}
+	const auto sliced = Slicer{mesh}.getMesh();
+	ASSERT_TRUE(meshTools::isAClosedTopology(sliced.groups[0].elements));
+	ASSERT_NO_THROW(VolumeShellExtractor{sliced});
+
+	SmootherOptions options;
+	options.contourAlignmentAngle = 0.0;
+	const auto smoothed = Smoother{sliced, options}.getMesh();
+	EXPECT_TRUE(meshTools::isAClosedTopology(smoothed.groups[0].elements));
+	EXPECT_NO_THROW(VolumeShellExtractor{smoothed});
 }
 
 TEST_F(SmootherTest, preserves_topological_closedness_for_sphere)

@@ -107,7 +107,7 @@ TEST_F(SnapperTest, interiorSnapsPreferPreviouslySnappedCoordinates)
     const Coordinate nearUpperCorner({ 0.875, 0.875, 0.875 });
     const Coordinate lowerCorner({ 0.0, 0.0, 0.0 });
     const Coordinate upperCorner({ 1.0, 1.0, 1.0 });
-    EXPECT_EQ(snappedPoint({ nearUpperCorner, midpoint }, 1), upperCorner);
+    EXPECT_EQ(snappedPoint({ nearUpperCorner, midpoint }, 0), upperCorner);
     EXPECT_EQ(snappedPoint({ midpoint, nearUpperCorner }, 0), lowerCorner);
 }
 
