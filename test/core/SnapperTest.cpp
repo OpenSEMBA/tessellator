@@ -83,6 +83,29 @@ TEST_F(SnapperTest, edgeSnapsDoNotPreferExistingCoordinates)
     EXPECT_EQ(snappedPoint(1.0625, { second }), first);
 }
 
+TEST_F(SnapperTest, snappedCoordinatePrefersMeshCoordinate)
+{
+    SnapperOptions options;
+    options.edgePoints = 7;
+    options.forbiddenLength = 0.1;
+
+    for (auto i = 1; i < 10; i++) {
+        const auto diagonal = 0.1*i;
+        auto mesh = buildLShapedMesh(diagonal);
+        Coordinate targetSnappedCoordinate({ 0.0, 0.0, 0.0 });
+        if (diagonal < 0.5) {
+            targetSnappedCoordinate[0] = diagonal;
+        } else {
+            targetSnappedCoordinate[0] = 1.0;
+            targetSnappedCoordinate[1] = diagonal;
+        }
+        const Mesh result = Snapper(mesh, options).getMesh();
+        for (int ax : {0, 1, 2}){
+            EXPECT_TRUE(std::abs(result.coordinates[result.groups[0].elements[0].vertices[0]][ax] - targetSnappedCoordinate[ax]) < 1e-5);
+        }
+    }
+}
+
 TEST_F(SnapperTest, interiorSnapsPreferPreviouslySnappedCoordinates)
 {
     const auto snappedPoint = [](const Coordinates& coordinates, CoordinateId target) {

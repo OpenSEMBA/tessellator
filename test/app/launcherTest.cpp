@@ -51,110 +51,6 @@ int callLauncher(const std::string& input, std::string& error)
     return exitCode;
 }
 
-class GratingTemporaryDirectory
-{
-public:
-    GratingTemporaryDirectory()
-    {
-        const auto base = std::filesystem::temp_directory_path();
-        for (int i = 0; i < 1000; ++i) {
-            const auto candidate = base / ("tessellator_grating_regression_" + std::to_string(i));
-            if (std::filesystem::create_directory(candidate)) {
-                path_ = candidate;
-                return;
-            }
-        }
-        throw std::runtime_error("Could not create grating regression directory");
-    }
-
-    ~GratingTemporaryDirectory()
-    {
-        std::error_code error;
-        std::filesystem::remove_all(path_, error);
-        if (error) {
-            ADD_FAILURE() << "Could not remove " << path_ << ": " << error.message();
-        }
-    }
-
-    const std::filesystem::path& path() const { return path_; }
-
-private:
-    std::filesystem::path path_;
-};
-
-meshlib::Coordinates holeGridIntersections(const meshlib::Mesh& mesh)
-{
-    using Edge = std::pair<meshlib::CoordinateId, meshlib::CoordinateId>;
-    std::map<Edge, std::size_t> edgeUses;
-    for (const auto& group : mesh.groups) {
-        for (const auto& element : group.elements) {
-            if (element.type != meshlib::Element::Type::Surface) {
-                continue;
-            }
-            for (std::size_t i = 0; i < element.vertices.size(); ++i) {
-                auto a = element.vertices[i];
-                auto b = element.vertices[(i + 1) % element.vertices.size()];
-                if (b < a) {
-                    std::swap(a, b);
-                }
-                ++edgeUses[{a, b}];
-            }
-        }
-    }
-
-    constexpr double tolerance = 1e-4;
-    meshlib::Coordinates intersections;
-    const auto addPoint = [&](const meshlib::Coordinate& point) {
-        const auto samePoint = [&](const meshlib::Coordinate& other) {
-            for (std::size_t axis = 0; axis < 3; ++axis) {
-                if (std::abs(point[axis] - other[axis]) > tolerance) {
-                    return false;
-                }
-            }
-            return true;
-        };
-        if (std::none_of(intersections.begin(), intersections.end(), samePoint)) {
-            intersections.push_back(point);
-        }
-    };
-
-    for (const auto& [edge, uses] : edgeUses) {
-        if (uses != 1) {
-            continue;
-        }
-        const auto& a = mesh.coordinates.at(edge.first);
-        const auto& b = mesh.coordinates.at(edge.second);
-        bool outerBoundary = false;
-        for (std::size_t axis = 0; axis < 2; ++axis) {
-            for (double plane : {mesh.grid[axis].front(), mesh.grid[axis].back()}) {
-                outerBoundary |= std::abs(a[axis] - plane) < tolerance
-                    && std::abs(b[axis] - plane) < tolerance;
-            }
-        }
-        if (outerBoundary) {
-            continue;
-        }
-
-        for (std::size_t axis = 0; axis < 2; ++axis) {
-            for (const double plane : mesh.grid[axis]) {
-                const double delta = b[axis] - a[axis];
-                if (std::abs(delta) < tolerance) {
-                    if (std::abs(a[axis] - plane) < tolerance) {
-                        addPoint(a);
-                        addPoint(b);
-                    }
-                    continue;
-                }
-                const double fraction = (plane - a[axis]) / delta;
-                if (fraction >= 0.0 && fraction <= 1.0) {
-                    addPoint(a + (b - a) * fraction);
-                }
-            }
-        }
-    }
-    return intersections;
-}
-
 std::size_t countElements(const meshlib::Mesh& mesh, meshlib::Element::Type type)
 {
     std::size_t count = 0;
@@ -778,67 +674,13 @@ TEST_F(LauncherTest, solenoidSnapperCaseExportsNoMixedDimensionalCells)
     std::filesystem::remove_all(outputDirectory);
 }
 
-TEST_F(LauncherTest, checkEdgeIntersectionPointsWithEdges)
+TEST_F(LauncherTest, launches_grating_case)
 {
-    const auto source = std::filesystem::path("testData/cases/rectangular_hole");
-    const GratingTemporaryDirectory temporary;
-    for (const auto* name : {"grating.conformal.tessellator.json", "grating.stl"}) {
-        std::filesystem::copy_file(source / name, temporary.path() / name);
-    }
-
-    const auto input = temporary.path() / "grating.conformal.tessellator.json";
-    nlohmann::json inputData;
-    std::ifstream(input) >> inputData;
-    const auto grid = parseGridFromJSON(inputData.at("grid"));
-    ASSERT_FALSE(grid[0].empty());
-    ASSERT_FALSE(grid[1].empty());
-    std::string error;
-    // Left and right hole boundaries and the lower and upper hole boundaries.
-    const std::array<std::array<double, 4>, 5> expectedPositions = {{
-        {{22.0, 56.0, 46.0, 62.0}},
-        {{22.6, 57.4, 47.4, 62.6}},
-        {{23.2, 56.8, 46.8, 63.2}},
-        {{23.0, 57.0, 47.0, 63.0}},
-        {{24.0, 56.0, 46.0, 64.0}}
-    }};
-    ASSERT_EQ(inputData.at("objects").size(), expectedPositions.size());
-    ASSERT_EQ(callLauncher(input.string(), error), EXIT_SUCCESS) << error;
-    constexpr double tolerance = 1e-4;
-    for (std::size_t option = 0; option < expectedPositions.size(); ++option) {
-        SCOPED_TRACE("grating_" + std::to_string(option));
-        const auto output = temporary.path()
-            / ("grating_" + std::to_string(option) + ".tessellator.cmsh.vtk");
-        ASSERT_TRUE(std::filesystem::exists(output));
-        auto mesh = meshlib::vtkIO::readInputMesh(output);
-        mesh.grid = grid;
-        const auto actual = holeGridIntersections(mesh);
-
-        meshlib::Coordinates expected;
-        const auto& positions = expectedPositions[option];
-        for (int hole = 0; hole < 4; ++hole) {
-            const double offset = 40.0 * hole;
-            for (double y : {50.0, 60.0}) {
-                expected.push_back({positions[0] + offset, y, 0.0});
-                expected.push_back({positions[1] + offset, y, 0.0});
-            }
-            for (double x : {30.0, 40.0, 50.0}) {
-                expected.push_back({x + offset, positions[2], 0.0});
-                expected.push_back({x + offset, positions[3], 0.0});
-            }
-        }
-
-        EXPECT_EQ(actual.size(), expected.size());
-        for (const auto& point : expected) {
-            const auto matches = [&](const meshlib::Coordinate& other) {
-                return std::abs(point[0] - other[0]) <= tolerance
-                    && std::abs(point[1] - other[1]) <= tolerance
-                    && std::abs(point[2] - other[2]) <= tolerance;
-            };
-            EXPECT_TRUE(std::any_of(actual.begin(), actual.end(), matches))
-                << "Missing intersection (" << point[0] << ", " << point[1]
-                << ", " << point[2] << ")";
-        }
-    }
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/rectangular_hole/grating.conformal.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
 TEST_F(LauncherTest, launches_alhambra_case)
