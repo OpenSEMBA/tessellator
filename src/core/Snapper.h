@@ -38,7 +38,8 @@ private:
 	std::pair<Coordinate, Coordinate> findClosestSolverPoint(
 		const Relative& rel,
 		const Coordinates& solverPoints,
-		const utils::GridTools& gT) const;
+		const utils::GridTools& gT,
+		const Coordinates* preferredCoordinates = nullptr) const;
 
 	std::pair<Coordinates, std::map<Coordinate, std::set<LinV>>> buildListOfValidSolverPoints() const;
 

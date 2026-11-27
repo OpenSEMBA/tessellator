@@ -12,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -21,6 +22,7 @@
 #include <queue>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 using namespace meshlib::app;
@@ -670,6 +672,15 @@ TEST_F(LauncherTest, solenoidSnapperCaseExportsNoMixedDimensionalCells)
     EXPECT_FALSE(meshlib::meshFixtures::hasInvalidSurfaceAdjacency(result));
 
     std::filesystem::remove_all(outputDirectory);
+}
+
+TEST_F(LauncherTest, launches_grating_case)
+{
+    int ac = 3;
+    const char* av[] = { NULL, "-i", "testData/cases/rectangular_hole/grating.conformal.tessellator.json"};
+    int exitCode;
+    EXPECT_NO_THROW(exitCode = launcher(ac, av));
+    EXPECT_EQ(exitCode, EXIT_SUCCESS);
 }
 
 TEST_F(LauncherTest, launches_alhambra_case)

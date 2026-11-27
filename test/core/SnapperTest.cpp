@@ -51,6 +51,89 @@ TEST_F(SnapperTest, similar_results_for_each_plane)
     }
 }
 
+TEST_F(SnapperTest, edgeSnapsDoNotPreferExistingCoordinates)
+{
+    const auto snappedPoint = [](double position, const Coordinates& existing) {
+        Mesh mesh;
+        mesh.grid = Grid{
+            std::vector<double>{ 0.0, 3.0, 5.0 },
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 }
+        };
+        mesh.coordinates = { Relative({ position, 0.0, 0.0 }) };
+        mesh.coordinates.insert(
+            mesh.coordinates.end(), existing.begin(), existing.end());
+        mesh.groups = { Group() };
+        for (CoordinateId i = 0; i < mesh.coordinates.size(); ++i) {
+            mesh.groups[0].elements.emplace_back(
+                std::vector<CoordinateId>{ i }, Element::Type::Node);
+        }
+
+        SnapperOptions options;
+        options.edgePoints = 3;
+        const Mesh result = Snapper(mesh, options).getMesh();
+        return result.coordinates[result.groups[0].elements[0].vertices[0]];
+    };
+
+    const Coordinate first({ 1.0, 0.0, 0.0 });
+    const Coordinate second({ 1.25, 0.0, 0.0 });
+    EXPECT_EQ(snappedPoint(1.125, { second }), first);
+    EXPECT_EQ(snappedPoint(1.125, {}), first);
+    EXPECT_EQ(snappedPoint(1.125, { first, second }), first);
+    EXPECT_EQ(snappedPoint(1.0625, { second }), first);
+}
+
+TEST_F(SnapperTest, snappedCoordinatePrefersMeshCoordinate)
+{
+    SnapperOptions options;
+    options.edgePoints = 7;
+    options.forbiddenLength = 0.1;
+
+    for (auto i = 1; i < 10; i++) {
+        const auto diagonal = 0.1*i;
+        auto mesh = buildLShapedMesh(diagonal);
+        Coordinate targetSnappedCoordinate({ 0.0, 0.0, 0.0 });
+        if (diagonal < 0.5) {
+            targetSnappedCoordinate[0] = diagonal;
+        } else {
+            targetSnappedCoordinate[0] = 1.0;
+            targetSnappedCoordinate[1] = diagonal;
+        }
+        const Mesh result = Snapper(mesh, options).getMesh();
+        for (int ax : {0, 1, 2}){
+            EXPECT_TRUE(std::abs(result.coordinates[result.groups[0].elements[0].vertices[0]][ax] - targetSnappedCoordinate[ax]) < 1e-5);
+        }
+    }
+}
+
+TEST_F(SnapperTest, interiorSnapsPreferPreviouslySnappedCoordinates)
+{
+    const auto snappedPoint = [](const Coordinates& coordinates, CoordinateId target) {
+        Mesh mesh;
+        mesh.grid = Grid{
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 },
+            std::vector<double>{ 0.0, 1.0 }
+        };
+        mesh.coordinates = coordinates;
+        mesh.groups = { Group() };
+        for (CoordinateId i = 0; i < coordinates.size(); ++i) {
+            mesh.groups[0].elements.emplace_back(
+                std::vector<CoordinateId>{ i }, Element::Type::Node);
+        }
+
+        const Mesh result = Snapper(mesh).getMesh();
+        return result.coordinates[result.groups[0].elements[target].vertices[0]];
+    };
+
+    const Coordinate midpoint({ 0.5, 0.5, 0.5 });
+    const Coordinate nearUpperCorner({ 0.875, 0.875, 0.875 });
+    const Coordinate lowerCorner({ 0.0, 0.0, 0.0 });
+    const Coordinate upperCorner({ 1.0, 1.0, 1.0 });
+    EXPECT_EQ(snappedPoint({ nearUpperCorner, midpoint }, 0), upperCorner);
+    EXPECT_EQ(snappedPoint({ midpoint, nearUpperCorner }, 0), lowerCorner);
+}
+
 TEST_F(SnapperTest, snapsAcrossSharedCellEdgeConsistently)
 {
     Mesh mesh;
@@ -144,6 +227,7 @@ TEST_F(SnapperTest, rejectsInvalidForbiddenLength)
         EXPECT_THROW(Snapper(buildPlane45Mesh(1.0), options), std::logic_error);
     }
 }
+
 
 #if APP_LOADED
 

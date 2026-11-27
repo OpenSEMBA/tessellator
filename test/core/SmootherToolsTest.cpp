@@ -526,6 +526,62 @@ TEST_F(SmootherToolsTest, collapseEdge)
 	EXPECT_EQ(std::set<Coordinate>(collapsed.begin(), collapsed.end()).size(), 8);
 }
 
+TEST_F(SmootherToolsTest, edgeCollapseTriesOtherEndpointWhenNearestInvertsNeighbor)
+{
+	Mesh mesh;
+	mesh.grid = utils::GridTools::buildCartesianGrid(0.0, 2.0, 3);
+	mesh.coordinates = {
+		Coordinate({1.0, 0.0, 0.0}),
+		Coordinate({1.0, 0.6, 0.0}),
+		Coordinate({1.0, 0.3, 0.0}),
+		Coordinate({1.0, 1.0, 0.0}),
+		Coordinate({0.0, 0.0, 0.0}),
+		Coordinate({1.3, 0.3, 0.0}),
+		Coordinate({2.0, 0.64, 0.0}),
+		Coordinate({2.0, 0.0, 0.0})
+	};
+	Elements elements = {
+		Element({0, 2, 4}), Element({2, 1, 4}), Element({1, 3, 4}),
+		Element({2, 5, 6})
+	};
+	const ElementsView patch = {&elements[0], &elements[1], &elements[2]};
+	SmootherTools::IncidentElements incident;
+	for (const auto& element : elements) {
+		for (const auto id : element.vertices) {
+			incident[id].push_back(&element);
+		}
+	}
+
+	SmootherTools tools(mesh.grid);
+	const SmootherTools::SingularIds singularIds({}, {}, {});
+	Coordinates collapsed = mesh.coordinates;
+	tools.collapsePointsOnCellEdges(collapsed, patch, singularIds, 0.0, incident, {1, 2});
+	EXPECT_EQ(collapsed[2], mesh.coordinates[3]);
+	EXPECT_GT(Geometry::normal(Geometry::asTriV(elements[3], mesh.coordinates))
+		* Geometry::normal(Geometry::asTriV(elements[3], collapsed)), 0.0);
+
+	Coordinates collinearCase = mesh.coordinates;
+	collinearCase[5] = Coordinate({1.3, 0.0, 0.0});
+	collinearCase[6] = Coordinate({2.0, 0.0, 0.0});
+	collapsed = collinearCase;
+	tools.collapsePointsOnCellEdges(collapsed, patch, singularIds, 0.0, incident, {1, 2});
+	EXPECT_EQ(collapsed[2], collinearCase[3]);
+	EXPECT_FALSE(Geometry::isDegenerate(Geometry::asTriV(elements[3], collapsed)));
+
+	elements.push_back(Element({2, 5, 7}));
+	// Rebuild the views after the vector grows.
+	const ElementsView blockedPatch = {&elements[0], &elements[1], &elements[2]};
+	incident.clear();
+	for (const auto& element : elements) {
+		for (const auto id : element.vertices) {
+			incident[id].push_back(&element);
+		}
+	}
+	collapsed = mesh.coordinates;
+	tools.collapsePointsOnCellEdges(collapsed, blockedPatch, singularIds, 0.0, incident, {1, 2});
+	EXPECT_EQ(collapsed[2], mesh.coordinates[2]);
+}
+
 /// \verbatim
 ///   2 ----- 0
 ///  / \    /  \

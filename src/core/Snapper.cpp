@@ -110,8 +110,9 @@ Snapper::Snapper(
 {
     if (!std::isfinite(opts.forbiddenLength) ||
         opts.forbiddenLength < 0.0 || opts.forbiddenLength > 0.5) {
-        throw std::logic_error("Invalid forbidden length");
-    }
+            throw std::logic_error("Invalid forbidden length");
+        }
+
     snap();
     
     mesh_ = Collapser{mesh_, 4}.getMesh();
@@ -207,7 +208,8 @@ void Snapper::snap()
         Relative rel = r[i];
         if (gT.isRelativeInCellEdge(rel)) {
             Coordinate closest, solverPoint;
-            std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
+            std::tie(closest, solverPoint) = findClosestSolverPoint(
+                rel, solverPoints, gT);
 
             CoordinateId id = i;
             r[id] = closest;
@@ -220,11 +222,25 @@ void Snapper::snap()
         }
     }
 
+
     for (std::size_t i = 0; i < r.size(); i++) {
         Relative rel = r[i];
         if (!gT.isRelativeInCellEdge(rel) && !gT.isRelativeInCellCorner(rel)) {
             Coordinate closest, solverPoint;
-            std::tie(closest, solverPoint) = findClosestSolverPoint(rel, solverPoints, gT);
+            Coordinates faceCoordinates;
+            const Coordinates* preferredCoordinates = &r;
+            if (gT.isRelativeInCellFace(rel)) {
+                const Axis faceAxis = gT.getCellFaceAxis(rel).second;
+                for (const Coordinate& coordinate : r) {
+                    if (utils::GridTools::approxDir(
+                            coordinate[faceAxis], rel[faceAxis])) {
+                        faceCoordinates.push_back(coordinate);
+                    }
+                }
+                preferredCoordinates = &faceCoordinates;
+            }
+            std::tie(closest, solverPoint) = findClosestSolverPoint(
+                rel, solverPoints, gT, preferredCoordinates);
 
             VecD cell = gT.toCell(r[i]).as<double>();
             double minDist = std::numeric_limits<double>::max();
@@ -329,19 +345,33 @@ void Snapper::rollbackUnsafeSurfaceSnaps(
 std::pair<Coordinate, Coordinate> Snapper::findClosestSolverPoint(
     const Relative& rel,
     const Coordinates& solverPoints,
-    const utils::GridTools& gT) const
+    const utils::GridTools& gT,
+    const Coordinates* preferredCoordinates) const
 {
     Coordinate closest;
     double minDist = std::numeric_limits<double>::max();
     std::size_t minEdge = 0;
     Coordinate pos = gT.getPos(rel);
+    bool isOnMeshCoordinates;
     for (std::size_t j = 0; j < solverPoints.size(); j++) {
         Relative cellGridPoint = solverPoints[j] + gT.toCell(rel).as<double>();
         double dist = (pos - gT.getPos(cellGridPoint)).norm();
-        if (dist < minDist) {
+        if (dist < minDist){
             minDist = dist;
             closest = cellGridPoint;
             minEdge = j;
+        }
+        else if (std::abs(dist - minDist) < 1e-4 && preferredCoordinates != nullptr) {
+            isOnMeshCoordinates = std::any_of(
+                preferredCoordinates->begin(), preferredCoordinates->end(),
+                [&](const Coordinate& coordinate) {
+                    return utils::GridTools::approx(coordinate, cellGridPoint);
+                });
+            if (isOnMeshCoordinates) {
+                minDist = dist;
+                closest = cellGridPoint;
+                minEdge = j;
+            }
         }
     }
     return std::make_pair(closest, solverPoints[minEdge]);

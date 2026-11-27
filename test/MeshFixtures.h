@@ -19,6 +19,40 @@ static bool hasInvalidSurfaceAdjacency(const Mesh& mesh)
     return !utils::meshTools::getElementsWithInvalidSurfaceAdjacency(mesh).empty();
 }
 
+static Mesh buildLShapedMesh(double diagonalPosition)
+{
+// 4 has different positions along 0-2 diagonal    
+// 1----------2
+// |          |
+// |    4-----3
+// |    |
+// |    |
+// 0----5-----*
+    Mesh m;
+    m.grid = Grid{
+        std::vector<double>{ 0.0, 1.0, 2.0 },
+        std::vector<double>{ 0.0, 1.0, 2.0 },
+        std::vector<double>{ 0.0, 1.0, 2.0 }
+    };
+    m.coordinates = {
+        Coordinate({0.00, 0.00, 0.00}),
+        Coordinate({0.00, 1.00, 0.00}),
+        Coordinate({1.00, 1.00, 0.00}),
+        Coordinate({1.00, diagonalPosition, 0.00}),
+        Coordinate({diagonalPosition, diagonalPosition, 0.00}),
+        Coordinate({diagonalPosition, 0.00, 0.00}),
+    };
+    m.groups = { Group() };
+    m.groups[0].elements = {
+        Element({4, 1, 0}),
+        Element({4, 2, 1}),
+        Element({4, 3, 2}),
+        Element({4, 0, 5})
+    };
+    return m;
+}
+
+
 static Mesh buildNonManifoldPatchMesh(double stepSize)
 {
     // 2

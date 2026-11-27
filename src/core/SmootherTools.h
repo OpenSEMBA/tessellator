@@ -63,6 +63,14 @@ public:
         double alignmentAngle,
         const IdSet& movableIds = {});
 
+    void collapsePointsOnCellEdges(
+        Coordinates& res,
+        const ElementsView& patch,
+        const SingularIds& singularIds,
+        double alignmentAngle,
+        const IncidentElements& incidentElements,
+        const IdSet& movableIds);
+
     void collapsePointsOnCellFaces(
         Coordinates& res,
         const ElementsView& patch,
@@ -113,6 +121,12 @@ private:
         const Coordinate& destination,
         const Coordinates& coordinates,
         const IncidentElements& incidentElements) const;
+
+    static bool moveWouldInvalidateTriangle(
+        CoordinateId id,
+        const Coordinate& destination,
+        const Coordinates& coordinates,
+        const IncidentElements& incidentElements);
 
     static CoordinateId getClosestEndOfPaths(
         const std::vector<utils::CoordGraph::Path>& paths);
