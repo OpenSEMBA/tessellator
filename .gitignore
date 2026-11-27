@@ -35,5 +35,7 @@ build
 tmp/
 git_info.txt
 
+tmp_cases/
+
 # ignore building folder for gid
 linux

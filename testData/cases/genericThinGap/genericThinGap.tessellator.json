@@ -1,0 +1,52 @@
+{
+    "_version": "0.1",
+    "_format": "Tessellator Data File in JSON format",
+    "grid": {
+        "numberOfCells": [
+            194,
+            303,
+            77
+        ],
+        "boundingBox": [
+            [
+                6677.713,
+                -1417.594,
+                -1446.6129999999998
+            ],
+            [
+                8481.913,
+                1400.306,
+                -730.5129999999999
+            ]
+        ]
+    },
+    "mesher": {
+        "type": "staircase",
+        "options": {
+            "compress": true
+        }
+    },
+    "objects": [
+        {
+            "filename": "doorSurface.vtu",
+            "group": "doorSurface",
+            "ghost": false,
+            "volume": false
+        },
+        {
+            "filename": "thinSlot.vtu",
+            "group": "thinSlot",
+            "ghost": false,
+            "volume": false,
+            "mesher": {
+                "type": "staircase",
+                "options": {
+                    "embedded": "surface"
+                }
+            }
+        }
+    ],
+    "output": {
+        "singleFile": false
+    }
+}
