@@ -361,4 +361,62 @@ TEST_F(EmbeddedElementBuilderTest, rejectsBranchingLine)
         std::runtime_error);
 }
 
+TEST_F(EmbeddedElementBuilderTest, snapsNearMissCornerToHostSurface)
+{
+    auto quads = unitSurface(4, 4);
+
+    // Vertical step at y = 2.
+    quads.push_back({
+        Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 }),
+        Cell({ 1, 3, 1 }), Cell({ 1, 2, 1 })
+    });
+
+    // Vertical face in y = 2 sharing the same vertical edge.
+    quads.push_back({
+        Cell({ 0, 2, 0 }), Cell({ 1, 2, 0 }),
+        Cell({ 1, 2, 1 }), Cell({ 0, 2, 1 })
+    });
+
+    // Upper horizontal surface at z = 1.
+    quads.push_back({
+        Cell({ 0, 2, 1 }), Cell({ 2, 2, 1 }),
+        Cell({ 2, 4, 1 }), Cell({ 0, 4, 1 })
+    });
+
+    const Mesh host = makeSurface(quads);
+    const Mesh line = makeLine({
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 1, 1, 1 }) },
+        { Cell({ 1, 1, 1 }), Cell({ 1, 2, 1 }) },
+        { Cell({ 1, 2, 1 }), Cell({ 1, 3, 1 }) }
+    });
+
+    const auto components =
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    ASSERT_EQ(components.size(), 1u);
+    ASSERT_EQ(components.front().size(), 4u);
+
+    const Mesh cellAligned =
+        EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+
+    EXPECT_THROW(
+        EmbeddedElementBuilder::validateEmbedding(
+            cellAligned, components, false),
+        std::runtime_error);
+
+    const auto snapped =
+        EmbeddedElementBuilder::snapComponentsToSurface(
+            cellAligned, components);
+    ASSERT_EQ(snapped.size(), 1u);
+    EXPECT_NO_THROW(
+        EmbeddedElementBuilder::validateEmbedding(
+            cellAligned, snapped, false));
+
+    const Mesh strip =
+        EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, snapped);
+    EXPECT_GT(countQuads(strip), 0u);
+    EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
+    EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
+}
+
 }
