@@ -240,16 +240,37 @@ void applyEmbeddedModes(std::vector<MeshedObject>& objects)
             const Mesh cellAlignedSurface =
                 core::EmbeddedElementBuilder::buildCellAlignedSurface(
                     hostSurface, components);
+
+            Mesh relativeSourceLine;
+            const Mesh* sourceLine = nullptr;
+            if (!object.sourceLine.emptyOfElements()) {
+                relativeSourceLine = object.sourceLine;
+                utils::meshTools::convertToRelativeCoordinates(
+                    relativeSourceLine);
+                sourceLine = &relativeSourceLine;
+            }
+
+            // Surface output is rebuilt on the host, so a staircased line
+            // that sits just outside the host staircase can be snapped back
+            // to it. Line output keeps the strict exact-embedding contract.
+            core::EmbeddedElementBuilder::Components effectiveComponents =
+                components;
+            if (object.embeddedMode == meshlib::meshers::EmbeddedMode::Surface) {
+                effectiveComponents =
+                    core::EmbeddedElementBuilder::snapComponentsToSurface(
+                        cellAlignedSurface, components, sourceLine);
+            }
+
             core::EmbeddedElementBuilder::validateEmbedding(
                 cellAlignedSurface,
-                components,
+                effectiveComponents,
                 object.embeddedAllowOnSurfacePerimeter);
 
             // Mesh currently carries only grid, coordinates and groups, so
             // replacing it here does not drop any other object metadata.
             if (object.embeddedMode == meshlib::meshers::EmbeddedMode::Surface) {
                 Mesh strip = core::EmbeddedElementBuilder::buildSurfaceStrip(
-                    cellAlignedSurface, components);
+                    cellAlignedSurface, effectiveComponents, sourceLine);
                 strip.grid = object.mesh.grid;
                 utils::meshTools::convertToAbsoluteCoordinates(strip);
                 strip.groups.resize(1);

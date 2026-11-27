@@ -32,6 +32,15 @@ public:
         const Mesh& hostSurface,
         const Components& components);
 
+    // Repairs short runs of segments that sit just outside the cell-aligned
+    // surface by following nearby host edges. Used by embedded surface mode,
+    // where the requested output is a strip on the host rather than the
+    // original line. Fully embedded components are returned unchanged.
+    static Components snapComponentsToSurface(
+        const Mesh& cellAlignedSurface,
+        const Components& components,
+        const Mesh* sourceLine = nullptr);
+
     // Throws when a segment is not embedded in the cell-aligned surface or
     // when it lies on the surface perimeter and allowPerimeter is false.
     static void validateEmbedding(
@@ -44,7 +53,8 @@ public:
     // relative coordinates.
     static Mesh buildSurfaceStrip(
         const Mesh& cellAlignedSurface,
-        const Components& components);
+        const Components& components,
+        const Mesh* sourceLine = nullptr);
 };
 
 }

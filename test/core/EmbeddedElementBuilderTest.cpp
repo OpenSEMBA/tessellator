@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -96,6 +97,32 @@ std::size_t countQuads(const Mesh& mesh)
 {
     return utils::meshTools::countMeshElementsIf(
         mesh, [](const Element& element) { return element.isQuad(); });
+}
+
+std::set<std::array<Cell, 4>> quadCells(const Mesh& mesh)
+{
+    std::set<std::array<Cell, 4>> result;
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            std::array<Cell, 4> cells;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const Coordinate& coordinate =
+                    mesh.coordinates[element.vertices[vertex]];
+                Cell cell;
+                for (std::size_t axis = 0; axis < 3; ++axis) {
+                    cell[axis] = static_cast<CellDir>(
+                        std::llround(coordinate[axis]));
+                }
+                cells[vertex] = cell;
+            }
+            std::sort(cells.begin(), cells.end());
+            result.insert(cells);
+        }
+    }
+    return result;
 }
 
 std::size_t maximumSelectedQuadDegree(const Mesh& mesh)
@@ -359,6 +386,135 @@ TEST_F(EmbeddedElementBuilderTest, rejectsBranchingLine)
     EXPECT_THROW(
         EmbeddedElementBuilder::buildOrderedUnitSegments(line),
         std::runtime_error);
+}
+
+TEST_F(EmbeddedElementBuilderTest, snapsNearMissCornerToHostSurface)
+{
+    auto quads = unitSurface(4, 4);
+
+    // Vertical step at y = 2.
+    quads.push_back({
+        Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 }),
+        Cell({ 1, 3, 1 }), Cell({ 1, 2, 1 })
+    });
+
+    // Vertical face in y = 2 sharing the same vertical edge.
+    quads.push_back({
+        Cell({ 0, 2, 0 }), Cell({ 1, 2, 0 }),
+        Cell({ 1, 2, 1 }), Cell({ 0, 2, 1 })
+    });
+
+    // Upper horizontal surface at z = 1.
+    quads.push_back({
+        Cell({ 0, 2, 1 }), Cell({ 2, 2, 1 }),
+        Cell({ 2, 4, 1 }), Cell({ 0, 4, 1 })
+    });
+
+    const Mesh host = makeSurface(quads);
+    const Mesh line = makeLine({
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 1, 1, 1 }) },
+        { Cell({ 1, 1, 1 }), Cell({ 1, 2, 1 }) },
+        { Cell({ 1, 2, 1 }), Cell({ 1, 3, 1 }) }
+    });
+
+    const auto components =
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    ASSERT_EQ(components.size(), 1u);
+    ASSERT_EQ(components.front().size(), 4u);
+
+    const Mesh cellAligned =
+        EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+
+    EXPECT_THROW(
+        EmbeddedElementBuilder::validateEmbedding(
+            cellAligned, components, false),
+        std::runtime_error);
+
+    const auto snapped =
+        EmbeddedElementBuilder::snapComponentsToSurface(
+            cellAligned, components);
+    ASSERT_EQ(snapped.size(), 1u);
+
+    const std::vector<EmbeddedElementBuilder::Segment> expectedSegments = {
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 1, 2, 0 }) },
+        { Cell({ 1, 2, 0 }), Cell({ 1, 2, 1 }) },
+        { Cell({ 1, 2, 1 }), Cell({ 1, 3, 1 }) }
+    };
+    EXPECT_EQ(snapped.front(), expectedSegments);
+
+    EXPECT_NO_THROW(
+        EmbeddedElementBuilder::validateEmbedding(
+            cellAligned, snapped, false));
+
+    const Mesh strip =
+        EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, snapped);
+    // Two quads on the lower plane plus the x = 1 vertical quad that covers
+    // both the riser and the first segment of the upper run.
+    const std::set<std::array<Cell, 4>> expectedQuadCells = {
+        {
+            Cell({ 0, 1, 0 }), Cell({ 0, 2, 0 }),
+            Cell({ 1, 1, 0 }), Cell({ 1, 2, 0 })
+        },
+        {
+            Cell({ 0, 2, 0 }), Cell({ 0, 3, 0 }),
+            Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 })
+        },
+        {
+            Cell({ 1, 2, 0 }), Cell({ 1, 2, 1 }),
+            Cell({ 1, 3, 0 }), Cell({ 1, 3, 1 })
+        }
+    };
+    EXPECT_EQ(countQuads(strip), expectedQuadCells.size());
+    EXPECT_EQ(quadCells(strip), expectedQuadCells);
+    EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
+    EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
+}
+
+TEST_F(EmbeddedElementBuilderTest, choosesStripSideNearestSourceLine)
+{
+    const Mesh host = makeSurface(unitSurface(4, 4));
+    const Mesh line = makeLine({
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 2, 1, 0 }) },
+        { Cell({ 2, 1, 0 }), Cell({ 3, 1, 0 }) }
+    });
+
+    Mesh source;
+    source.grid = host.grid;
+    source.groups.resize(1);
+    source.groups[0].name = "source";
+    source.coordinates.push_back(Coordinate({ 0.0, 1.2, 0.0 }));
+    source.coordinates.push_back(Coordinate({ 3.0, 1.2, 0.0 }));
+    Element sourceElement;
+    sourceElement.type = Element::Type::Line;
+    sourceElement.vertices = { 0, 1 };
+    source.groups[0].elements.push_back(sourceElement);
+
+    const auto components =
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned =
+        EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+
+    const Mesh strip =
+        EmbeddedElementBuilder::buildSurfaceStrip(
+            cellAligned, components, &source);
+
+    ASSERT_EQ(countQuads(strip), 3u);
+    for (const Group& group : strip.groups) {
+        for (const Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            for (const CoordinateId vertexId : element.vertices) {
+                // The source line is on the y > 1 side, so the strip must
+                // select the quads between y = 1 and y = 2, not y = 0 and y = 1.
+                EXPECT_GE(strip.coordinates[vertexId][1], 1.0 - 1e-6);
+                EXPECT_LE(strip.coordinates[vertexId][1], 2.0 + 1e-6);
+            }
+        }
+    }
 }
 
 }

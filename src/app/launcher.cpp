@@ -492,6 +492,23 @@ int launcher(int argc, const char* argv[])
                     staircaseOptions.embeddedAllowOnSurfacePerimeter;
                 embeddedIsExplicit = staircaseOptions.embeddedIsExplicit;
             }
+
+            Mesh sourceLine;
+            const bool hasLineInput = utils::meshTools::countMeshElementsIf(
+                mesh, [](const Element& element) {
+                    return element.isLine();
+                }) > 0;
+            const bool hasSurfaceInput = utils::meshTools::countMeshElementsIf(
+                mesh, [](const Element& element) {
+                    return element.isTriangle() || element.isQuad();
+                }) > 0;
+            if (embeddedMode != meshlib::meshers::EmbeddedMode::None
+                && !objDef.isVolume
+                && hasLineInput
+                && !hasSurfaceInput) {
+                sourceLine = std::move(mesh);
+            }
+
             meshedObjects.push_back({
                 objDef,
                 mesherType,
@@ -500,7 +517,8 @@ int launcher(int argc, const char* argv[])
                 embeddedMode,
                 embeddedAllowOnSurfacePerimeter,
                 embeddedIsExplicit,
-                std::move(resultMesh)
+                std::move(resultMesh),
+                std::move(sourceLine)
             });
         }
 
