@@ -99,6 +99,12 @@ std::size_t countQuads(const Mesh& mesh)
         mesh, [](const Element& element) { return element.isQuad(); });
 }
 
+std::array<Cell, 4> canonicalQuadCells(std::array<Cell, 4> cells)
+{
+    std::sort(cells.begin(), cells.end());
+    return cells;
+}
+
 std::set<std::array<Cell, 4>> quadCells(const Mesh& mesh)
 {
     std::set<std::array<Cell, 4>> result;
@@ -118,8 +124,7 @@ std::set<std::array<Cell, 4>> quadCells(const Mesh& mesh)
                 }
                 cells[vertex] = cell;
             }
-            std::sort(cells.begin(), cells.end());
-            result.insert(cells);
+            result.insert(canonicalQuadCells(cells));
         }
     }
     return result;
@@ -452,20 +457,24 @@ TEST_F(EmbeddedElementBuilderTest, snapsNearMissCornerToHostSurface)
         EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, snapped);
     // Two quads on the lower plane plus the x = 1 vertical quad that covers
     // both the riser and the first segment of the upper run.
-    const std::set<std::array<Cell, 4>> expectedQuadCells = {
+    const std::vector<std::array<Cell, 4>> expectedQuads = {
         {
-            Cell({ 0, 1, 0 }), Cell({ 0, 2, 0 }),
-            Cell({ 1, 1, 0 }), Cell({ 1, 2, 0 })
+            Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }),
+            Cell({ 1, 2, 0 }), Cell({ 0, 2, 0 })
         },
         {
-            Cell({ 0, 2, 0 }), Cell({ 0, 3, 0 }),
-            Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 })
+            Cell({ 0, 2, 0 }), Cell({ 1, 2, 0 }),
+            Cell({ 1, 3, 0 }), Cell({ 0, 3, 0 })
         },
         {
-            Cell({ 1, 2, 0 }), Cell({ 1, 2, 1 }),
-            Cell({ 1, 3, 0 }), Cell({ 1, 3, 1 })
+            Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 }),
+            Cell({ 1, 3, 1 }), Cell({ 1, 2, 1 })
         }
     };
+    std::set<std::array<Cell, 4>> expectedQuadCells;
+    for (const auto& quad : expectedQuads) {
+        expectedQuadCells.insert(canonicalQuadCells(quad));
+    }
     EXPECT_EQ(countQuads(strip), expectedQuadCells.size());
     EXPECT_EQ(quadCells(strip), expectedQuadCells);
     EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
