@@ -19,6 +19,8 @@ struct MeshedObject {
     bool embeddedAllowOnSurfacePerimeter = false;
     bool embeddedIsExplicit = false;
     Mesh mesh;
+    // Original line geometry, retained for embedded surface side selection.
+    Mesh sourceLine;
 };
 
 }

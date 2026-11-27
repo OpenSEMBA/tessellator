@@ -419,4 +419,49 @@ TEST_F(EmbeddedElementBuilderTest, snapsNearMissCornerToHostSurface)
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
 }
 
+TEST_F(EmbeddedElementBuilderTest, choosesStripSideNearestSourceLine)
+{
+    const Mesh host = makeSurface(unitSurface(4, 4));
+    const Mesh line = makeLine({
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 2, 1, 0 }) },
+        { Cell({ 2, 1, 0 }), Cell({ 3, 1, 0 }) }
+    });
+
+    Mesh source;
+    source.grid = host.grid;
+    source.groups.resize(1);
+    source.groups[0].name = "source";
+    source.coordinates.push_back(Coordinate({ 0.0, 1.2, 0.0 }));
+    source.coordinates.push_back(Coordinate({ 3.0, 1.2, 0.0 }));
+    Element sourceElement;
+    sourceElement.type = Element::Type::Line;
+    sourceElement.vertices = { 0, 1 };
+    source.groups[0].elements.push_back(sourceElement);
+
+    const auto components =
+        EmbeddedElementBuilder::buildOrderedUnitSegments(line);
+    const Mesh cellAligned =
+        EmbeddedElementBuilder::buildCellAlignedSurface(host, components);
+
+    const Mesh strip =
+        EmbeddedElementBuilder::buildSurfaceStrip(
+            cellAligned, components, &source);
+
+    ASSERT_EQ(countQuads(strip), 3u);
+    for (const Group& group : strip.groups) {
+        for (const Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            for (const CoordinateId vertexId : element.vertices) {
+                // The source line is on the y > 1 side, so the strip must
+                // select the quads between y = 1 and y = 2, not y = 0 and y = 1.
+                EXPECT_GE(strip.coordinates[vertexId][1], 1.0 - 1e-6);
+                EXPECT_LE(strip.coordinates[vertexId][1], 2.0 + 1e-6);
+            }
+        }
+    }
+}
+
 }

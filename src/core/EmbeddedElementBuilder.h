@@ -38,7 +38,8 @@ public:
     // original line. Fully embedded components are returned unchanged.
     static Components snapComponentsToSurface(
         const Mesh& cellAlignedSurface,
-        const Components& components);
+        const Components& components,
+        const Mesh* sourceLine = nullptr);
 
     // Throws when a segment is not embedded in the cell-aligned surface or
     // when it lies on the surface perimeter and allowPerimeter is false.
@@ -52,7 +53,8 @@ public:
     // relative coordinates.
     static Mesh buildSurfaceStrip(
         const Mesh& cellAlignedSurface,
-        const Components& components);
+        const Components& components,
+        const Mesh* sourceLine = nullptr);
 };
 
 }

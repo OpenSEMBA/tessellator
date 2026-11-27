@@ -35,6 +35,68 @@ CellEdge cellEdgeKey(const Cell& first, const Cell& second)
         : CellEdge{ second, first };
 }
 
+using Polyline = std::vector<std::pair<Coordinate, Coordinate>>;
+
+Polyline buildSourcePolyline(const Mesh* sourceLine)
+{
+    Polyline result;
+    if (sourceLine == nullptr) {
+        return result;
+    }
+    for (const Group& group : sourceLine->groups) {
+        for (const Element& element : group.elements) {
+            if (!element.isLine() || element.vertices.size() != 2) {
+                continue;
+            }
+            result.emplace_back(
+                sourceLine->coordinates[element.vertices[0]],
+                sourceLine->coordinates[element.vertices[1]]);
+        }
+    }
+    return result;
+}
+
+double squaredDistanceToSegment(
+    const Coordinate& point,
+    const Coordinate& first,
+    const Coordinate& second)
+{
+    const Coordinate direction = second - first;
+    const double lengthSquared = direction * direction;
+    double parameter = 0.0;
+    if (lengthSquared > 0.0) {
+        parameter = ((point - first) * direction) / lengthSquared;
+        parameter = std::max(0.0, std::min(1.0, parameter));
+    }
+    const Coordinate offset = point - (first + direction * parameter);
+    return offset * offset;
+}
+
+double distanceToPolyline(
+    const Coordinate& point,
+    const Polyline& polyline)
+{
+    if (polyline.empty()) {
+        return 0.0;
+    }
+    double bestSquared = std::numeric_limits<double>::max();
+    for (const auto& segment : polyline) {
+        bestSquared = std::min(
+            bestSquared,
+            squaredDistanceToSegment(point, segment.first, segment.second));
+    }
+    return std::sqrt(bestSquared);
+}
+
+Coordinate cellCenter(const Cell& first, const Cell& second)
+{
+    Coordinate result;
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+        result[axis] = 0.5 * static_cast<double>(first[axis] + second[axis]);
+    }
+    return result;
+}
+
 std::string cellToString(const Cell& cell)
 {
     std::ostringstream output;
@@ -212,12 +274,19 @@ std::vector<ElementId> solveComponent(
     const std::vector<Element>& quads,
     const std::vector<std::set<EdgeKey>>& quadEdges,
     const std::map<ElementId, std::set<ElementId>>& adjacency,
-    const std::map<Cell, CoordinateId>& cellToId)
+    const std::map<Cell, CoordinateId>& cellToId,
+    const std::map<ElementId, int>& quadPenalties)
 {
     const std::size_t segmentCount = segments.size();
     if (segmentCount == 0) {
         return {};
     }
+
+    auto penalty = [&quadPenalties](const ElementId quadId) {
+        const auto entry = quadPenalties.find(quadId);
+        return entry == quadPenalties.end() ? 0 : entry->second;
+    };
+
     if (segmentCount == 1) {
         if (candidates[0].empty()) {
             throw std::runtime_error(
@@ -251,11 +320,14 @@ std::vector<ElementId> solveComponent(
 
         if (closed) {
             const ElementId start = candidates.front().at(startIndex);
-            layers[0].emplace(start, State{ 0, NO_ELEMENT, NO_ELEMENT });
+            layers[0].emplace(
+                start, State{ penalty(start), NO_ELEMENT, NO_ELEMENT });
         }
         else {
             for (const ElementId candidate : candidates.front()) {
-                layers[0].emplace(candidate, State{ 0, NO_ELEMENT, NO_ELEMENT });
+                layers[0].emplace(
+                    candidate,
+                    State{ penalty(candidate), NO_ELEMENT, NO_ELEMENT });
             }
         }
 
@@ -287,7 +359,11 @@ std::vector<ElementId> solveComponent(
                     const int transitionCost = entry.first == second
                         ? 0
                         : (transition.connector == NO_ELEMENT ? 1 : 2);
-                    const int cost = entry.second.cost + transitionCost;
+                    int cost = entry.second.cost + transitionCost
+                        + penalty(second);
+                    if (transition.connector != NO_ELEMENT) {
+                        cost += penalty(transition.connector);
+                    }
                     if (cost < best.cost) {
                         best.cost = cost;
                         best.previous = entry.first;
@@ -325,6 +401,9 @@ std::vector<ElementId> solveComponent(
                     ? 0
                     : (closingTransition.connector == NO_ELEMENT ? 1 : 2);
                 totalCost += closingCost;
+                if (closingTransition.connector != NO_ELEMENT) {
+                    totalCost += penalty(closingTransition.connector);
+                }
             }
             if (totalCost >= bestCost) {
                 continue;
@@ -379,7 +458,8 @@ std::vector<Cell> findHostPath(
     const Cell& start,
     const Cell& end,
     const std::vector<EmbeddedElementBuilder::Segment>& run,
-    const std::map<Cell, std::set<Cell>>& adjacency)
+    const std::map<Cell, std::set<Cell>>& adjacency,
+    const Polyline& sourceLine)
 {
     Cell minimum = run.front()[0];
     Cell maximum = run.front()[0];
@@ -400,21 +480,29 @@ std::vector<Cell> findHostPath(
     // needs at most two extra unit edges to rejoin the host surface.
     const int maximumPathLength = static_cast<int>(run.size()) + 2;
 
-    std::queue<Cell> pending;
+    using QueueItem = std::pair<double, Cell>;
+    std::priority_queue<
+        QueueItem, std::vector<QueueItem>, std::greater<QueueItem>> pending;
     std::map<Cell, Cell> previous;
-    std::map<Cell, int> distance;
-    pending.push(start);
-    distance.emplace(start, 0);
+    std::map<Cell, double> cost;
+    std::map<Cell, int> steps;
+    pending.push({ 0.0, start });
+    cost.emplace(start, 0.0);
+    steps.emplace(start, 0);
 
     bool found = false;
     while (!pending.empty()) {
-        const Cell current = pending.front();
+        const double currentCost = pending.top().first;
+        const Cell current = pending.top().second;
         pending.pop();
         if (current == end) {
             found = true;
             break;
         }
-        if (distance[current] >= maximumPathLength) {
+        if (currentCost > cost[current]) {
+            continue;
+        }
+        if (steps[current] >= maximumPathLength) {
             continue;
         }
 
@@ -430,12 +518,24 @@ std::vector<Cell> findHostPath(
                     break;
                 }
             }
-            if (!insideBounds || distance.count(next) != 0) {
+            if (!insideBounds) {
                 continue;
             }
-            distance.emplace(next, distance[current] + 1);
-            previous.emplace(next, current);
-            pending.push(next);
+
+            double edgeCost = 1.0;
+            if (!sourceLine.empty()) {
+                edgeCost += 0.1 * distanceToPolyline(
+                    cellCenter(current, next), sourceLine);
+            }
+            const double nextCost = currentCost + edgeCost;
+            const auto existing = cost.find(next);
+            if (existing != cost.end() && existing->second <= nextCost) {
+                continue;
+            }
+            cost[next] = nextCost;
+            steps[next] = steps[current] + 1;
+            previous[next] = current;
+            pending.push({ nextCost, next });
         }
     }
 
@@ -807,8 +907,10 @@ Mesh EmbeddedElementBuilder::buildCellAlignedSurface(
 EmbeddedElementBuilder::Components
 EmbeddedElementBuilder::snapComponentsToSurface(
     const Mesh& cellAlignedSurface,
-    const Components& components)
+    const Components& components,
+    const Mesh* sourceLine)
 {
+    const Polyline sourcePolyline = buildSourcePolyline(sourceLine);
     std::set<CellEdge> hostEdges;
     std::map<Cell, std::set<Cell>> adjacency;
 
@@ -895,7 +997,7 @@ EmbeddedElementBuilder::snapComponentsToSurface(
                     ordered.begin() + runBegin,
                     ordered.begin() + runEnd + 1);
                 const std::vector<Cell> path =
-                    findHostPath(start, end, run, adjacency);
+                    findHostPath(start, end, run, adjacency, sourcePolyline);
                 if (!path.empty()) {
                     for (std::size_t i = 1; i < path.size(); ++i) {
                         repaired.push_back({ path[i - 1], path[i] });
@@ -954,8 +1056,10 @@ void EmbeddedElementBuilder::validateEmbedding(
 
 Mesh EmbeddedElementBuilder::buildSurfaceStrip(
     const Mesh& cellAlignedSurface,
-    const Components& components)
+    const Components& components,
+    const Mesh* sourceLine)
 {
+    const Polyline sourcePolyline = buildSourcePolyline(sourceLine);
     const std::map<Cell, CoordinateId> cellToId =
         buildCellToId(cellAlignedSurface);
 
@@ -994,7 +1098,10 @@ Mesh EmbeddedElementBuilder::buildSurfaceStrip(
         }
     }
 
-    std::set<ElementId> selected;
+    std::vector<std::vector<std::vector<ElementId>>> componentCandidates;
+    componentCandidates.reserve(components.size());
+    std::set<ElementId> relevantQuads;
+
     for (const auto& component : components) {
         std::vector<std::vector<ElementId>> candidates;
         candidates.reserve(component.size());
@@ -1013,16 +1120,70 @@ Mesh EmbeddedElementBuilder::buildSurfaceStrip(
                     segmentToString(segment));
             }
             std::vector<ElementId> unique = edgeIt->second;
-            // Equal-cost sides are broken by host element id. This keeps the
-            // result deterministic for a given host mesh while avoiding an
-            // arbitrary geometric preference between two valid sides.
             std::sort(unique.begin(), unique.end());
             unique.erase(std::unique(unique.begin(), unique.end()), unique.end());
+            for (const ElementId quadId : unique) {
+                relevantQuads.insert(quadId);
+                const auto neighbours = adjacency.find(quadId);
+                if (neighbours != adjacency.end()) {
+                    relevantQuads.insert(
+                        neighbours->second.begin(), neighbours->second.end());
+                }
+            }
             candidates.push_back(std::move(unique));
         }
+        componentCandidates.push_back(std::move(candidates));
+    }
 
+    std::map<ElementId, int> quadPenalties;
+    if (!sourcePolyline.empty()) {
+        constexpr double deviationPenaltyScale = 4.0;
+        for (const ElementId quadId : relevantQuads) {
+            Coordinate center;
+            for (const CoordinateId vertexId : quads[quadId].vertices) {
+                center += cellAlignedSurface.coordinates[vertexId];
+            }
+            center /= static_cast<double>(quads[quadId].vertices.size());
+            const double distance =
+                distanceToPolyline(center, sourcePolyline);
+            const int penalty = static_cast<int>(
+                std::round(distance * deviationPenaltyScale));
+            if (penalty > 0) {
+                quadPenalties.emplace(quadId, penalty);
+            }
+        }
+    }
+
+    for (auto& candidates : componentCandidates) {
+        for (auto& candidateList : candidates) {
+            std::sort(
+                candidateList.begin(), candidateList.end(),
+                [&quadPenalties](const ElementId first, const ElementId second) {
+                    const auto firstPenalty = quadPenalties.find(first);
+                    const auto secondPenalty = quadPenalties.find(second);
+                    const int firstCost = firstPenalty == quadPenalties.end()
+                        ? 0 : firstPenalty->second;
+                    const int secondCost = secondPenalty == quadPenalties.end()
+                        ? 0 : secondPenalty->second;
+                    return firstCost == secondCost
+                        ? first < second
+                        : firstCost < secondCost;
+                });
+        }
+    }
+
+    std::set<ElementId> selected;
+    for (std::size_t componentId = 0;
+         componentId < components.size();
+         ++componentId) {
         const std::vector<ElementId> sequence = solveComponent(
-            component, candidates, quads, quadEdges, adjacency, cellToId);
+            components[componentId],
+            componentCandidates[componentId],
+            quads,
+            quadEdges,
+            adjacency,
+            cellToId,
+            quadPenalties);
         selected.insert(sequence.begin(), sequence.end());
     }
 
