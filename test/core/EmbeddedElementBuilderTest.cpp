@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -96,6 +97,32 @@ std::size_t countQuads(const Mesh& mesh)
 {
     return utils::meshTools::countMeshElementsIf(
         mesh, [](const Element& element) { return element.isQuad(); });
+}
+
+std::set<std::array<Cell, 4>> quadCells(const Mesh& mesh)
+{
+    std::set<std::array<Cell, 4>> result;
+    for (const Group& group : mesh.groups) {
+        for (const Element& element : group.elements) {
+            if (!element.isQuad()) {
+                continue;
+            }
+            std::array<Cell, 4> cells;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const Coordinate& coordinate =
+                    mesh.coordinates[element.vertices[vertex]];
+                Cell cell;
+                for (std::size_t axis = 0; axis < 3; ++axis) {
+                    cell[axis] = static_cast<CellDir>(
+                        std::llround(coordinate[axis]));
+                }
+                cells[vertex] = cell;
+            }
+            std::sort(cells.begin(), cells.end());
+            result.insert(cells);
+        }
+    }
+    return result;
 }
 
 std::size_t maximumSelectedQuadDegree(const Mesh& mesh)
@@ -408,13 +435,39 @@ TEST_F(EmbeddedElementBuilderTest, snapsNearMissCornerToHostSurface)
         EmbeddedElementBuilder::snapComponentsToSurface(
             cellAligned, components);
     ASSERT_EQ(snapped.size(), 1u);
+
+    const std::vector<EmbeddedElementBuilder::Segment> expectedSegments = {
+        { Cell({ 0, 1, 0 }), Cell({ 1, 1, 0 }) },
+        { Cell({ 1, 1, 0 }), Cell({ 1, 2, 0 }) },
+        { Cell({ 1, 2, 0 }), Cell({ 1, 2, 1 }) },
+        { Cell({ 1, 2, 1 }), Cell({ 1, 3, 1 }) }
+    };
+    EXPECT_EQ(snapped.front(), expectedSegments);
+
     EXPECT_NO_THROW(
         EmbeddedElementBuilder::validateEmbedding(
             cellAligned, snapped, false));
 
     const Mesh strip =
         EmbeddedElementBuilder::buildSurfaceStrip(cellAligned, snapped);
-    EXPECT_GT(countQuads(strip), 0u);
+    // Two quads on the lower plane plus the x = 1 vertical quad that covers
+    // both the riser and the first segment of the upper run.
+    const std::set<std::array<Cell, 4>> expectedQuadCells = {
+        {
+            Cell({ 0, 1, 0 }), Cell({ 0, 2, 0 }),
+            Cell({ 1, 1, 0 }), Cell({ 1, 2, 0 })
+        },
+        {
+            Cell({ 0, 2, 0 }), Cell({ 0, 3, 0 }),
+            Cell({ 1, 2, 0 }), Cell({ 1, 3, 0 })
+        },
+        {
+            Cell({ 1, 2, 0 }), Cell({ 1, 2, 1 }),
+            Cell({ 1, 3, 0 }), Cell({ 1, 3, 1 })
+        }
+    };
+    EXPECT_EQ(countQuads(strip), expectedQuadCells.size());
+    EXPECT_EQ(quadCells(strip), expectedQuadCells);
     EXPECT_LE(maximumSelectedQuadDegree(strip), 2u);
     EXPECT_LE(countSelectedQuadsAtVertex(strip), 3u);
 }
